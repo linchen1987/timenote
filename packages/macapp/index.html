@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <!-- https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'">
+    <title>Hello World!</title>
+  </head>
+  <body>
+    <h1>Hello World!</h1>
+    We are using Node.js <span id="node-version"></span>,
+    Chromium <span id="chrome-version"></span>,
+    and Electron <span id="electron-version"></span>.
+    <p>👋</p>
+    <p id="info"></p>
+    <div>
+      Title: <input id="title"/>
+      <button id="btnSetTitle" type="button">Set</button>
+    </div>
+    <div>
+      <button type="button" id="btnOpenDialog">Open a File</button>
+      File path: <strong id="filePath"></strong>
+    </div>
+    <div>
+      Current value: <strong id="counter">0</strong>
+    </div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

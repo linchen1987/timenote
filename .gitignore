@@ -1,0 +1,10 @@
+node_modules
+.tmp
+/local
+/packages/local
+/packages/local*
+/packages/*/lib
+.DS_Store
+dist
+.env.local
+draft.md

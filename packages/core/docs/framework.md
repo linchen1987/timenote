@@ -1,0 +1,16 @@
+## 程序架构
+- db: 需要持久化的外部数据
+  - db (外部依赖, 比如 sqlite): db
+  - orm (外部依赖, 比如 sequelize): 对 db 的封装
+- states/store: 面向本项目代码的接口, 管理 in-memory state 和 db
+  - state 只处理数据, 不处理时序/流程
+  - 一个 state 可依赖多个 db 和 其他 state, 但 state **尽量不要耦合**
+  - state 组合在一起形成 store
+  - 只在 state 中直接用 orm(sequelize), 要把 orm 调用限制在很小的范围内
+- api: 处理逻辑的入口
+  - api 处理一切, 包括逻辑, 数据
+  - 当前 manager 就是 api, api 越来越复杂时再分层
+  - 不要直接使用 db/orm 中的方法，由 state 统一封装
+- instance
+  - 程序(app/lib) 启动的入口, 启动后把 api 暴露出去
+- 关系: instance -> api -> state -> orm -> db

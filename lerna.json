@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "npmClient": "yarn",
+  "command": {
+    "publish": {
+      "message": "[skip ci] %s"
+    }
+  },
+  "packages": [
+    "packages/*"
+  ]
+}

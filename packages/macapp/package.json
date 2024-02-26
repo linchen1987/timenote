@@ -1,0 +1,24 @@
+{
+  "name": "@timenote/macapp",
+  "private": true,
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "devDependencies": {
+    "7zip-bin": "^5.2.0",
+    "electron": "27.1.2",
+    "electron-builder": "^24.12.0"
+  },
+  "scripts": {
+    "dev": "electron .",
+    "electron:version": "electron -v",
+    "ensure:electron": "cd node_modules/electron && ELECTRON_MIRROR=http://npm.taobao.org/mirrors/electron yarn postinstall",
+    "dep": "ELECTRON_MIRROR=http://npm.taobao.org/mirrors/electron yarn",
+    "dep:lite": "ELECTRON_SKIP_BINARY_DOWNLOAD=1 ELECTRON_MIRROR=http://npm.taobao.org/mirrors/electron yarn install",
+    "build": "electron-builder --dir",
+    "bundle": "electron-builder"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

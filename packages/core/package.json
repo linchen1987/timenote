@@ -1,0 +1,29 @@
+{
+  "name": "@timenote/core",
+  "version": "0.0.1",
+  "description": "",
+  "main": "lib/index.js",
+  "scripts": {
+    "prebuild": "node -p \"'export const LIB_VERSION = ' + JSON.stringify(require('./package.json').version) + ';'\" > src/version.ts",
+    "watch": "tsc -w",
+    "dev": "tsc -w",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "lodash": "^4.17.21",
+    "sequelize": "^6.37.1",
+    "short-unique-id": "^5.0.3",
+    "snowflake-uuid": "^1.0.0",
+    "sqlite3": "^5.1.7",
+    "umzug": "^3.7.0"
+  },
+  "devDependencies": {
+    "@timenote/types": "^0.0.1",
+    "@types/node": "^20.11.20",
+    "ts-node": "^10.9.2"
+  }
+}

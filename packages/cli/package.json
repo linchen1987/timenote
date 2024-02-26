@@ -1,0 +1,29 @@
+{
+  "name": "@timenote/cli",
+  "version": "0.0.1",
+  "description": "",
+  "main": "lib/index.js",
+  "type": "module",
+  "bin": {
+    "timenote": ".bin/timenote.js"
+  },
+  "scripts": {
+    "dev": "tsc -w",
+    "watch": "tsc -w",
+    "clean": "rm -rf lib",
+    "build": "npm run clean && tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@timenote/core": "0.0.1",
+    "@timenote/webservice": "0.0.1",
+    "chalk": "^5.3.0",
+    "cli-table3": "^0.6.3",
+    "commander": "^11.1.0",
+    "open": "^10.0.3",
+    "pm2": "^5.3.1"
+  }
+}

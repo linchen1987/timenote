@@ -1,0 +1,1 @@
+Timenote for mac is not supported

@@ -1,0 +1,12 @@
+{
+  "name": "@timenote/types",
+  "private": true,
+  "version": "0.0.1",
+  "main": "lib/index.js",
+  "license": "MIT",
+  "scripts": {
+    "watch": "tsc -w",
+    "dev": "tsc -w",
+    "build": "tsc"
+  }
+}

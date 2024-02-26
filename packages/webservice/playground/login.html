@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Time Note Playground</title>
+    <link rel="icon" href="/.well-known/service/blocklet/logo" />
+    <style>
+        body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    background-color: #fafafa;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+h1 {
+    color: #EB5C20;
+    text-align: center;
+    margin-top: 18vh;
+    font-size: 64px;
+}
+.warning {
+    position: fixed;
+    top: 5vh;
+    background-color: #fff3cd;
+    /* margin: 3vh 0 6vh 0; */
+    padding: 12px 24px;
+    border-radius: 8px;
+    color: #666;
+}
+
+div {
+    text-align: center;
+}
+
+input {
+    width: 360px;
+    height: 60px;
+    padding: 10px;
+    font-size: 20px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+button {
+    height: 60px;
+    padding: 10px 15px;
+    font-size: 20px;
+    border: none;
+    border-radius: 4px;
+    background-color: #EB5C20;
+    color: white;
+    cursor: pointer;
+    width: 120px;
+}
+.form {
+    margin-top: 6vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+button:hover {
+    background-color: #EB5C20;
+}
+
+p {
+    line-height: 1.5;
+    color: #333;
+    font-size: 16px;
+    margin: 0;
+}
+
+p.en {
+    font-size: 14px;
+    color: #888;
+}
+.tip {
+    display: block;
+    width: 480px;
+}
+.tip p {
+    font-size: 14px;
+    text-align: left;
+}
+.tip > div {
+    margin-top: 24px;
+}
+
+/* 适应较小屏幕 */
+@media screen and (max-width: 600px) {
+    .warning {
+        top: 2vh;
+    }
+    h1 {
+        margin-top: 15vh;
+        font-size: 48px;
+    }
+    input, button {
+        width: 100%;
+        margin: 10px 0;
+    }
+    .form {
+        width: 100%;
+    }
+    body {
+        padding: 24px;
+    }
+    input {
+        width: 100%;
+        flex-grow: 1;
+        font-size: 16px;
+    }
+    button {
+        font-size: 16px;
+        width: 36%;
+        flex-shrink: 0;
+    }
+    .tip {
+        width: 100%;
+    }
+    .tip p {
+        padding-left: 4vw;
+        padding-right: 4vw;
+    }
+}
+
+    </style>
+  </head>
+  <body>
+    <div class="warning">
+        <p>本服务只用于体验，数据将在 24 小时后删除</p>
+        <p class="en">This service is for experience only, data will be deleted after 24 hours</p>
+    </div>
+    <h1>Time Note Playground</h1>
+
+    <div class="form">
+        <input id="user" placeholder="Your ID" />
+        <button>Start</button>
+    </div>
+    <div class="tip">
+        <div>
+            <p>无需注册，输入任意 ID （比如姓名/昵称/邮箱/手机号） 即可体验</p>
+            <p class="en">No registration required, enter any ID (such as name/nickname/email/mobile phone number) to experience it</p>
+        </div>
+        <div>
+            <p>不要输入太简单的 ID, 以免和其他人撞车</p>
+            <p class="en">Do not enter an ID that is too simple to avoid collision with others</p>
+        </div>
+    </div>
+
+    <script>
+        let loading = false;
+        function setCookie(name, value, days) {
+            let expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + (value || "")  + expires + "; path=/";
+        }
+
+        const user = document.getElementById('user');
+        const button = document.querySelector('button');
+        button.addEventListener('click', () => {
+            if (loading) {
+                return;
+            }
+            const name = user.value;
+            // fetch post '/api/playground/login'
+            loading = true;
+            fetch('/api/playground/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ userId: name }),
+            }).then((res) => {
+                if (res.status === 200) {
+                    // get token from res.body
+                    return res.json()
+                    // set cookie
+                } else {
+                    throw new Error('login failed');
+                }
+            })
+            .then((data) => {
+                loading = false;
+                if (data.token) {
+                    setCookie('tn_playground_user', data.token, 1);
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                } else {
+                    throw new Error('login failed: no token');
+                }
+            })
+            .catch((err) => {
+                loading = false;
+                console.error(err);
+            })
+        });
+    </script>
+  </body>
+</html>

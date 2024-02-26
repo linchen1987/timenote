@@ -1,0 +1,45 @@
+did: z2qa8ihFTXjU8oP5MXqEgEfHcNR4oDiwBw2jA
+name: z2qa8ihFTXjU8oP5MXqEgEfHcNR4oDiwBw2jA
+title: Time Note
+version: 0.0.1
+description: Your own recording space
+group: dapp
+main: lib/index.js
+author:
+  name: linchen1987
+specVersion: 1.2.8
+keywords: []
+files:
+  - blocklet.md
+  - dist
+  - playground
+  - blocklet-hooks
+interfaces:
+  - type: web
+    name: publicUrl
+    path: /
+    prefix: '*'
+    port: BLOCKLET_PORT
+    protocol: http
+scripts:
+  dev: node index.js
+  preStart: node blocklet-hooks/pre-start.js
+logo: logo.svg
+community: ''
+documentation: ''
+homepage: ''
+license: ''
+payment:
+  price: []
+  share: []
+timeout:
+  start: 60
+requirements:
+  server: '>=1.7.0'
+  os: '*'
+  cpu: '*'
+  nodejs: '*'
+environments: []
+capabilities: {}
+screenshots: []
+components: []

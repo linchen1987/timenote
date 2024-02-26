@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --tn-bg-color: #fafafa;
+  --tn-highlight-bg: #ffffb4;
+  --tn-bg-sidebar-icons: #f0f0f0;
+}
+
+[data-mui-color-scheme="dark"] {
+  --tn-bg-color: #1f1f1f;
+  --tn-highlight-bg: #595947;
+  --tn-bg-sidebar-icons: #282828;
+}
