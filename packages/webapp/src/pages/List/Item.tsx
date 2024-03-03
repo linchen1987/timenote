@@ -14,6 +14,7 @@ import Dialog from '@mui/material/Dialog';
 import DialogActions from '@mui/material/DialogActions';
 import DialogContent from '@mui/material/DialogContent';
 import DialogTitle from '@mui/material/DialogTitle';
+import CircularProgress from '@mui/material/CircularProgress';
 import { LexicalEditor, $getSelection, $isRangeSelection } from 'lexical';
 
 import Editor from '../../editor';
@@ -42,6 +43,7 @@ export default function ListItem({
   const [showDialog, setShowDialog] = useState(false);
   const [menuName, setMenuName] = useState('');
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const openAction = Boolean(anchorEl);
   const handleOpenAction = (event: React.MouseEvent<HTMLElement>) => {
@@ -68,11 +70,11 @@ export default function ListItem({
     }, 100);
   }, [onEdit]);
 
-  const onSubmit = () => {
+  const onSubmit = async () => {
     const content = JSON.stringify(editorRef.current!.getEditorState());
     setLoading(true);
     try {
-      onUpdate(content);
+      await onUpdate(content);
       setLoading(false);
     } catch {
       setLoading(false);
@@ -115,16 +117,32 @@ export default function ListItem({
       {
         key: 'delete',
         label: <Box color="error.main">Delete</Box>,
-        icon: (
+        disabled: deleting,
+        icon: deleting ? (
+          <CircularProgress
+            size={16}
+            className="mr-2 text-xl"
+            sx={{ color: 'error.main' }}
+          />
+        ) : (
           <DeleteOutlineOutlinedIcon
             className="mr-2 text-xl"
             sx={{ color: 'error.main' }}
           />
         ),
-        action: onDelete,
+        action: async () => {
+          if (deleting) return;
+          setDeleting(true);
+          try {
+            await onDelete();
+            setDeleting(false);
+          } catch {
+            setDeleting(false);
+          }
+        },
       },
     ],
-    [onDelete, onEditable]
+    [onDelete, onEditable, deleting]
   );
 
   const handleCloseDialog = () => {
@@ -189,10 +207,11 @@ export default function ListItem({
         {menus.map((menu) => (
           <MenuItem
             key={menu.key}
-            onClick={(e) => {
+            disabled={!!menu.disabled}
+            onClick={async (e) => {
               e.stopPropagation();
+              await menu.action();
               handleActionClose();
-              menu.action();
             }}>
             <Box className="flex items-center">
               {menu.icon}
