@@ -214,6 +214,7 @@ export default function List() {
             id="input-search"
             variant="outlined"
             value={keyword}
+            type="search"
             onChange={(e) => {
               setKeyword(e.target.value);
             }}
