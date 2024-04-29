@@ -19,7 +19,7 @@
     "bs58": "^5.0.0",
     "cookie-parser": "^1.4.6",
     "dotenv-flow": "^4.1.0",
-    "express": "^4.18.2",
+    "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
     "lodash": "^4.17.21",
     "multer": "1.4.5-lts.1",
@@ -27,8 +27,8 @@
     "transliteration": "^2.3.5"
   },
   "devDependencies": {
-    "@types/cookie-parser": "^1.4.6",
+    "@types/cookie-parser": "^1.4.7",
     "@types/express": "^4.17.21",
-    "@types/lodash": "^4.14.202"
+    "@types/lodash": "^4.17.0"
   }
 }

@@ -9,7 +9,7 @@
     "build": "make build",
     "build:blocklet": "make build-blocklet",
     "build:blocklet:be": "make build-blocklet-be",
-    "check:update": "echo taze v`npx taze -v` && npx taze -r -w",
+    "check:update": "echo taze v`npx --yes taze -v` && npx --yes taze -r -w",
     "update:deps": "echo not implemented"
   },
   "keywords": [],
