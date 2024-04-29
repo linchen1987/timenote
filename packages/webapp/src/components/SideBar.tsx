@@ -249,29 +249,6 @@ export default function Sidebar({
               />
             )}
           </Box>
-          {/* bottom */}
-          <Box className="demo-tip" sx={{ lineHeight: 1 }}>
-            <Typography style={{ marginTop: 0 }} className="font-bold">
-              Hello friend:
-            </Typography>
-            <Typography>
-              This is a demo, please do not use it as a production tool.
-            </Typography>
-            <Typography>Please contact me if you have any questions.</Typography>
-            <Typography>
-              Twitter:{' '}
-              <a href="https://x.com/linklin1987" target="_blank">
-                https://x.com/linklin1987
-              </a>
-            </Typography>
-
-            <Typography>
-              Email:{' '}
-              <a href="mailto:link.lin.1987@gmail.com" target="_blank">
-                link.lin.1987@gmail.com
-              </a>
-            </Typography>
-          </Box>
         </Box>
       </StyledSwipeableDrawer>
     </StyledSidebar>
