@@ -53,39 +53,46 @@ export default function Post() {
     }
   }, [space?.id, pid]);
 
-  const onUpdate = useCallback(async () => {
-    try {
-      const content = JSON.stringify(editorRef.current!.getEditorState());
-      await api.post(`/api/v1/s/${spaceId}/updatePost/${post!.id}`, {
-        content,
-      });
-      setUpdating(false);
-
-      // update updatedAt
-      api
-        .get(`/api/v1/s/${spaceId}/post/${pid}`)
-        .then((res) => {
-          const data = res.data?.post;
-          setPost((x) => {
-            x!.updatedAt = data.updatedAt;
-          });
-        })
-        .catch((err) => {
-          console.error(err);
+  const onUpdate = useCallback(
+    async (content: string) => {
+      try {
+        await api.post(`/api/v1/s/${spaceId}/updatePost/${post!.id}`, {
+          content,
         });
-    } catch (error) {
-      setUpdating(false);
-      console.error(error);
-    }
-  }, [post]);
+        setUpdating(false);
 
-  // 防抖，2秒后保存
-  const handleChange = useCallback(
-    debounce(() => {
-      onUpdate();
+        // update updatedAt
+        api
+          .get(`/api/v1/s/${spaceId}/post/${pid}`)
+          .then((res) => {
+            const data = res.data?.post;
+            setPost((x) => {
+              x!.updatedAt = data.updatedAt;
+            });
+          })
+          .catch((err) => {
+            console.error(err);
+          });
+      } catch (error) {
+        setUpdating(false);
+        console.error(error);
+      }
+    },
+    [post]
+  );
+
+  const debounceUpdate = useCallback(
+    debounce((content: string) => {
+      onUpdate(content);
     }, 2000),
     [onUpdate]
   );
+
+  // 防抖，2秒后保存
+  const handleChange = useCallback(() => {
+    const content = JSON.stringify(editorRef.current!.getEditorState());
+    debounceUpdate(content);
+  }, [debounceUpdate]);
 
   const onChange = useCallback(
     (editorState: EditorState) => {
