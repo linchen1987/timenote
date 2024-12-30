@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "test": "vitest",
     "build:blocklet": "cp ../webservice/blocklet.yml . && BUILD_BLOCKLET=true npm run build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
@@ -56,6 +57,7 @@
     "typescript": "^5.4.5",
     "vite": "^4.5.3",
     "vite-plugin-blocklet": "^0.6.16",
-    "vite-plugin-pwa": "^0.17.5"
+    "vite-plugin-pwa": "^0.17.5",
+    "vitest": "^0.31.0"
   }
 }
