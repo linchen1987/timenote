@@ -6,9 +6,7 @@
   "main": "index.js",
   "scripts": {
     "dep": "ELECTRON_MIRROR=http://npm.taobao.org/mirrors/electron yarn",
-    "build": "make build",
-    "build:blocklet": "make build-blocklet",
-    "build:blocklet:be": "make build-blocklet-be",
+    "build": "make build-all",
     "check:update": "echo taze v`npx --yes taze -v` && npx --yes taze -r -w",
     "update:deps": "echo not implemented"
   },

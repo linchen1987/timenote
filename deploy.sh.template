@@ -1,0 +1,1 @@
+rsync -e "ssh -i ~/.ssh/xxxx" -avz build/* username@xxx.xxx.xxx.xxx:/path/to/deploy
