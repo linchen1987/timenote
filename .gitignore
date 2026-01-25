@@ -13,3 +13,4 @@
 .dev.vars*
 worker-configuration.d.ts
 
+.local
