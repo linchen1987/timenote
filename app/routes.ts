@@ -7,7 +7,7 @@ import {
 export default [
   index("routes/notebooks.tsx"),
   
-  route("s/:notebookId/tags", "routes/tags.tsx"),
-  route("s/:notebookId", "routes/notebook-timeline.tsx"),
-  route("s/:notebookId/:noteId", "routes/note-detail.tsx"),
+  route("s/:notebookToken/tags", "routes/tags.tsx"),
+  route("s/:notebookToken", "routes/notebook-timeline.tsx"),
+  route("s/:notebookToken/:noteId", "routes/note-detail.tsx"),
 ] satisfies RouteConfig;

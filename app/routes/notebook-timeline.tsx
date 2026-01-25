@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { MenuService } from "../lib/services/menu-service";
+import { parseNotebookId, createNotebookToken } from "../lib/utils/token";
 import { filterNotes } from "../lib/utils/search";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
 import { db, type Note } from "../lib/db";
@@ -56,9 +57,9 @@ export const meta: MetaFunction = () => {
 };
 
 export default function NotebookTimeline() {
-  const { notebookId } = useParams();
+  const { notebookToken } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const nbId = notebookId || "";
+  const nbId = parseNotebookId(notebookToken || "");
   const q = searchParams.get("q") || "";
   
   // State for pagination
@@ -353,7 +354,7 @@ export default function NotebookTimeline() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem asChild>
-                          <Link to={`/s/${note.notebookId}/${note.id}`} className="cursor-pointer">
+                          <Link to={`/s/${notebookToken}/${note.id}`} className="cursor-pointer">
                             <Maximize2 className="w-4 h-4 mr-2" /> Full Screen
                           </Link>
                         </DropdownMenuItem>

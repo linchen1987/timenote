@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useParams } from "react-router";
 import { toast } from "sonner";
 import { MenuService } from "~/lib/services/menu-service";
 import { NoteService } from "~/lib/services/note-service";
+import { createNotebookToken } from "~/lib/utils/token";
 import { useTheme } from "./theme-provider";
 import type { MenuItem } from "~/lib/db";
 import { cn } from "~/lib/utils";
@@ -74,11 +75,12 @@ export function NotebookSidebar({
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
+  const { notebookToken } = useParams();
   const notebooks = useLiveQuery(() => NoteService.getAllNotebooks()) || [];
   const currentNotebook = notebooks.find(nb => nb.id === notebookId);
 
   const isTagsPage = location.pathname.endsWith("/tags");
-  const isAllNotesPage = !selectedItemId && !isTagsPage && location.pathname.startsWith(`/s/${notebookId}`);
+  const isAllNotesPage = !selectedItemId && !isTagsPage && location.pathname === `/s/${notebookToken}`;
   
   const menuItems = useLiveQuery(() => MenuService.getMenuItemsByNotebook(notebookId), [notebookId]) || [];
   const tree = buildTree(menuItems);
@@ -206,7 +208,7 @@ export function NotebookSidebar({
             {notebooks.map(nb => (
               <DropdownMenuItem 
                 key={nb.id} 
-                onClick={() => navigate(`/s/${nb.id}`)}
+                onClick={() => navigate(`/s/${createNotebookToken(nb.id, nb.name)}`)}
                 className={cn(nb.id === notebookId && "bg-sidebar-accent text-sidebar-accent-foreground")}
               >
                 <Book className="w-4 h-4 mr-2" />
@@ -256,7 +258,7 @@ export function NotebookSidebar({
                 ? "bg-sidebar-accent text-sidebar-accent-foreground" 
                 : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
             )}
-            onClick={() => navigate(`/s/${notebookId}/tags`)}
+            onClick={() => navigate(`/s/${notebookToken}/tags`)}
           >
             <div className="flex items-center gap-1 min-w-0 flex-1">
               <div className="w-4" />

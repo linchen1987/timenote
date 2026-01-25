@@ -4,14 +4,15 @@ import { useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
+import { parseNotebookId } from "../lib/utils/token";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
 import { type Tag } from "../lib/db";
 
 export default function NoteDetailPage() {
-  const { notebookId, noteId } = useParams();
+  const { notebookToken, noteId } = useParams();
   const navigate = useNavigate();
   const nId = noteId || "";
-  const nbId = notebookId || "";
+  const nbId = parseNotebookId(notebookToken || "");
 
   const note = useLiveQuery(() => NoteService.getNote(nId), [nId]);
   const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
@@ -34,7 +35,7 @@ export default function NoteDetailPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         <nav className="flex items-center justify-between mb-8">
           <Link 
-            to={`/s/${nbId}`} 
+            to={`/s/${notebookToken}`} 
             className="text-gray-900 dark:text-white font-bold text-xl hover:opacity-70 transition-opacity"
           >
             ← Timeline
@@ -47,7 +48,7 @@ export default function NoteDetailPage() {
               onClick={() => {
                 const content = editorRef.current?.getMarkdown() || "";
                 handleSyncTags(content);
-                navigate(`/s/${nbId}`);
+                navigate(`/s/${notebookToken}`);
               }}
               className="bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-sm"
             >
@@ -69,7 +70,7 @@ export default function NoteDetailPage() {
             onSubmit={() => {
               const content = editorRef.current?.getMarkdown() || "";
               handleSyncTags(content);
-              navigate(`/s/${nbId}`);
+              navigate(`/s/${notebookToken}`);
             }}
             availableTags={availableTagNames}
             autoFocus

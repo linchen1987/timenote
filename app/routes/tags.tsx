@@ -1,6 +1,7 @@
 import { useParams, Link, useNavigate, type MetaFunction } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
+import { parseNotebookId } from "../lib/utils/token";
 import { NotebookSidebar } from "../components/notebook-sidebar";
 import { Hash, Tag as TagIcon, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "~/components/ui/card";
@@ -11,19 +12,19 @@ export const meta: MetaFunction = () => {
 };
 
 export default function TagsPage() {
-  const { notebookId } = useParams();
-  const nbId = notebookId || "";
+  const { notebookToken } = useParams();
+  const nbId = parseNotebookId(notebookToken || "");
   const navigate = useNavigate();
   
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const tagsWithCounts = useLiveQuery(() => NoteService.getTagsWithCounts(nbId), [nbId]) || [];
 
   const handleSelectSearch = (query: string) => {
-    navigate(`/s/${nbId}?q=${encodeURIComponent(query)}`);
+    navigate(`/s/${notebookToken}?q=${encodeURIComponent(query)}`);
   };
 
   const handleSelectNote = (noteId: string) => {
-    navigate(`/s/${nbId}/${noteId}`);
+    navigate(`/s/${notebookToken}/${noteId}`);
   };
 
   if (!notebook) return null;
@@ -77,7 +78,7 @@ export default function TagsPage() {
                   Tags will appear here once you add them to your notes using the # symbol.
                 </p>
                 <Button variant="outline" className="mt-6" asChild>
-                   <Link to={`/s/${nbId}`}>Go to Timeline</Link>
+                   <Link to={`/s/${notebookToken}`}>Go to Timeline</Link>
                 </Button>
               </div>
             )}

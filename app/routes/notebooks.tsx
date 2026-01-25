@@ -19,6 +19,7 @@ import {
   Download
 } from "lucide-react";
 import { ExportService } from "../lib/services/export-service";
+import { createNotebookToken } from "../lib/utils/token";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -221,7 +222,7 @@ export default function NotebooksPage() {
                   </div>
                 ) : (
                   <>
-                    <Link to={`/s/${nb.id}`} className="block group/link">
+                    <Link to={`/s/${createNotebookToken(nb.id, nb.name)}`} className="block group/link">
                       <CardTitle className="text-2xl group-hover/link:text-primary transition-colors">
                         {nb.name}
                       </CardTitle>
@@ -237,7 +238,7 @@ export default function NotebooksPage() {
                   <Calendar className="w-3.5 h-3.5 opacity-70" />
                   {new Date(nb.createdAt).toLocaleDateString()}
                 </div>
-                <Link to={`/s/${nb.id}`} className="text-primary hover:underline flex items-center gap-1 font-bold">
+                <Link to={`/s/${createNotebookToken(nb.id, nb.name)}`} className="text-primary hover:underline flex items-center gap-1 font-bold">
                   Open <BookOpen className="w-3 h-3" />
                 </Link>
               </CardFooter>
