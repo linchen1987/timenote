@@ -74,9 +74,33 @@ export const ImportService = {
       if (data.menuItems) {
         for (const item of data.menuItems) {
           if (await notebookExists(item.notebookId)) {
+            // Normalize target if it's a JSON string from legacy/external format
+            let normalizedTarget = item.target;
+            if (item.type === 'search' && item.target.startsWith('[')) {
+              try {
+                const parsed = JSON.parse(item.target);
+                if (Array.isArray(parsed)) {
+                  normalizedTarget = parsed
+                    .map((p: any) => {
+                      if (p.type === 'keywords' && Array.isArray(p.keywords)) {
+                        return p.keywords.join(' ');
+                      }
+                      return '';
+                    })
+                    .filter(Boolean)
+                    .join(' ');
+                }
+              } catch (e) {
+                // Not JSON or parsing failed, keep original
+              }
+            }
+
             const existing = await db.menuItems.get(item.id);
             if (!existing || item.updatedAt > existing.updatedAt) {
-              await db.menuItems.put(item);
+              await db.menuItems.put({
+                ...item,
+                target: normalizedTarget
+              });
               stats.success++;
             } else {
               stats.skipped++;
