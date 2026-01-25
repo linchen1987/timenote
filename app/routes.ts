@@ -9,5 +9,6 @@ export default [
   
   route("s/:notebookToken/tags", "routes/tags.tsx"),
   route("s/:notebookToken", "routes/notebook-timeline.tsx"),
+  route("s/:notebookToken/manifest.webmanifest", "routes/manifest.tsx"),
   route("s/:notebookToken/:noteId", "routes/note-detail.tsx"),
 ] satisfies RouteConfig;

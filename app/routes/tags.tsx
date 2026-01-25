@@ -2,13 +2,15 @@ import { useParams, Link, useNavigate, type MetaFunction } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { parseNotebookId } from "../lib/utils/token";
+import { getNotebookMeta } from "../lib/utils/pwa";
 import { NotebookSidebar } from "../components/notebook-sidebar";
 import { Hash, Tag as TagIcon, ChevronRight } from "lucide-react";
 import { Card, CardContent } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
+import type { Route } from "./+types/tags";
 
-export const meta: MetaFunction = () => {
-  return [{ title: "Time Note" }];
+export const meta: Route.MetaFunction = ({ params }) => {
+  return getNotebookMeta("Tags", params.notebookToken);
 };
 
 export default function TagsPage() {

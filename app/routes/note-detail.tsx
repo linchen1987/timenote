@@ -5,8 +5,14 @@ import { Link, useParams, useNavigate } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { parseNotebookId } from "../lib/utils/token";
+import { getNotebookMeta } from "../lib/utils/pwa";
+import { NoteTagsView } from "../components/note-tags-view";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
-import { type Tag } from "../lib/db";
+import type { Route } from "./+types/note-detail";
+
+export const meta: Route.MetaFunction = ({ params }) => {
+  return getNotebookMeta("Note Detail", params.notebookToken);
+};
 
 export default function NoteDetailPage() {
   const { notebookToken, noteId } = useParams();
@@ -80,29 +86,11 @@ export default function NoteDetailPage() {
         </div>
 
         <footer className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800 flex justify-between text-gray-400 text-sm">
-           <div>Note ID: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{nId}</code></div>
-           <div>{note.content.length} characters</div>
+            <div>Note ID: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{nId}</code></div>
+            <div>{note.content.length} characters</div>
         </footer>
       </div>
     </main>
   );
 }
 
-function NoteTagsView({ noteId }: { noteId: string }) {
-  const noteTags = useLiveQuery(() => NoteService.getTagsForNote(noteId), [noteId]);
-
-  if (!noteTags || noteTags.length === 0) return null;
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      {noteTags.map(tag => (
-        <span 
-          key={tag.id} 
-          className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold px-2 py-1 rounded"
-        >
-          #{tag.name}
-        </span>
-      ))}
-    </div>
-  );
-}

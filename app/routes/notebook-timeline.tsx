@@ -1,16 +1,18 @@
 "use client";
 
 import { useState, useRef, useMemo, useEffect } from "react";
-import { Link, useParams, useSearchParams, type MetaFunction } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { MenuService } from "../lib/services/menu-service";
-import { parseNotebookId, createNotebookToken } from "../lib/utils/token";
+import { parseNotebookId } from "../lib/utils/token";
+import { getNotebookMeta } from "../lib/utils/pwa";
 import { filterNotes } from "../lib/utils/search";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
 import { db, type Note } from "../lib/db";
 import { NotebookSidebar } from "../components/notebook-sidebar";
+import { NoteTagsView } from "../components/note-tags-view";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
@@ -22,8 +24,6 @@ import {
   Maximize2, 
   X, 
   Calendar,
-  Hash,
-  FileText,
   MoreVertical,
   PlusSquare
 } from "lucide-react";
@@ -51,9 +51,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "~/components/ui/alert-dialog";
+import type { Route } from "./+types/notebook-timeline";
 
-export const meta: MetaFunction = () => {
-  return [{ title: "Time Note" }];
+export const meta: Route.MetaFunction = ({ params }) => {
+  return getNotebookMeta("Time Note", params.notebookToken);
 };
 
 export default function NotebookTimeline() {
@@ -514,24 +515,6 @@ export default function NotebookTimeline() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
-}
-
-function NoteTagsView({ noteId }: { noteId: string }) {
-  const noteTags = useLiveQuery(() => NoteService.getTagsForNote(noteId), [noteId]);
-  if (!noteTags || noteTags.length === 0) return null;
-  return (
-    <div className="flex flex-wrap gap-1.5">
-      {noteTags.map(tag => (
-        <span 
-          key={tag.id} 
-          className="bg-primary/10 text-primary text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5"
-        >
-          <Hash className="w-2.5 h-2.5 opacity-70" />
-          {tag.name}
-        </span>
-      ))}
     </div>
   );
 }
