@@ -6,22 +6,7 @@ import {
 
 export default [
   index("routes/notebooks.tsx"),
-  route("indexes", "routes/home.tsx"),
-  route("about", "routes/about.tsx"),
-  route("contact", "routes/contact.tsx"),
   
-  route("dashboard", "routes/dashboard.tsx", [
-    index("routes/dashboard-home.tsx"),
-  ]),
-  
-  route("profile", "routes/profile.tsx"),
-  route("settings", "routes/settings.tsx"),
-  
-  route("blog", "routes/blog.tsx"),
-  route("blog/:id", "routes/blog-post.tsx"),
-  
-  route("markdown", "routes/markdown-playground.tsx"),
-
   route("s/:notebookId/tags", "routes/tags.tsx"),
   route("s/:notebookId", "routes/notebook-timeline.tsx"),
   route("s/:notebookId/:noteId", "routes/note-detail.tsx"),
