@@ -1,79 +1,51 @@
-# Welcome to React Router!
+# TimeNote
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Time Note is my personal note.
+
+## Demo
+[https://timenote.online/](https://timenote.online/)
 
 ## Features
+The following are the core features of Time Note, I hope you will like it.
 
-- 🚀 Server-side rendering
-- ⚡️ Hot Module Replacement (HMR)
-- 📦 Asset bundling and optimization
-- 🔄 Data loading and mutations
-- 🔒 TypeScript by default
-- 🎉 TailwindCSS for styling
-- 📖 [React Router docs](https://reactrouter.com/)
+### 1. Easily record
+- Take notes like sending to WeChat, Moments, or Twitter
+- No need to worry about which directory to put it in
+- No need to write a title, add pictures
 
-## Getting Started
+### 2. Flexible organization
+The navigation bar is extremely flexible. It can be set as a channel to organize notes with specified characteristics, or it can be pointed directly to a note.
 
-### Installation
+### 3. Each notebook is an independent APP
+In Time Note, you can create multiple notebooks, and each notebook can be opened separately like an APP
 
-Install the dependencies:
+Through PWA technology, each notebook in Time Note can be installed as an independent APP.
 
-```bash
-npm install
-```
+### 4. Data is completely independent
+- Notes are completely open source
+- Supports "installing" Time Note directly into your own personal cloud space through [Blocklet](https://launcher.arcblock.io/)
+- Notes can be migrated at any time (Not implemented)
 
-### Development
+## Credit to
+### [Flomo](https://flomoapp.com/)
+Time Note can be said to be another version of flomo. I am a user of flomo. I encountered some inconveniences when using flomo, so I designed Time Note based on flomo.
 
-Start the development server with HMR:
+### [Discuss Kit](https://store.blocklet.dev/blocklets/z8ia1WEiBZ7hxURf6LwH21Wpg99vophFwSJdu)
+Discuss Kit is the core component of the Blocklet platform and supports independent deployment as a multi-functional writing tool. I get a lot of technical support from Discuss Kit
 
-```bash
-npm run dev
-```
+### Other note-taking applications
+There are also products such as Yuque, Apple Notes, Feishu Documents, Obsidian, and Mowen Notes, which have given me a lot of reference and inspiration.
 
-Your application will be available at `http://localhost:5173`.
+### [Lexical](https://github.com/facebook/lexical)
+An open source editor.
 
-## Previewing the Production Build
+## About Me
+Twitter: https://x.com/linklin1987
 
-Preview the production build locally:
+Email: link.lin.1987@gmail.com
 
-```bash
-npm run preview
-```
+WeChat: 7469378
 
-## Building for Production
+if this project is helpful to you, buy be a coffee.
 
-Create a production build:
-
-```bash
-npm run build
-```
-
-## Deployment
-
-Deployment is done using the Wrangler CLI.
-
-To build and deploy directly to production:
-
-```sh
-npm run deploy
-```
-
-To deploy a preview URL:
-
-```sh
-npx wrangler versions upload
-```
-
-You can then promote a version to production after verification or roll it out progressively.
-
-```sh
-npx wrangler versions deploy
-```
-
-## Styling
-
-This template comes with [Tailwind CSS](https://tailwindcss.com/) already configured for a simple default starting experience. You can use whatever CSS framework you prefer.
-
----
-
-Built with ❤️ using React Router.
+<a href="https://www.buymeacoffee.com/linklin1987" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/default-orange.png" alt="Buy Me A Coffee" height="41" width="174"></a>
