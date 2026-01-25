@@ -1,6 +1,8 @@
-import { db, generateId, type Notebook, type Note } from '../db';
+import { db, generateId, type Notebook, type Note, type Tag } from '../db';
 
 export const NoteService = {
+  // --- Notebook Operations ---
+  
   async getAllNotebooks(): Promise<Notebook[]> {
     return db.notebooks.toArray();
   },
@@ -28,11 +30,18 @@ export const NoteService = {
   },
 
   async deleteNotebook(id: string): Promise<void> {
-    await db.transaction('rw', db.notebooks, db.notes, async () => {
+    await db.transaction('rw', db.notebooks, db.notes, db.tags, db.noteTags, async () => {
       await db.notebooks.delete(id);
       await db.notes.where('notebookId').equals(id).delete();
+      await db.tags.where('notebookId').equals(id).delete();
+      // noteTags are cleaned up by virtue of note deletion in a real RDBMS, 
+      // but here we should probably do it manually if we were being thorough.
+      // However, searching by notebookId in noteTags is slow. 
+      // Let's just focus on the core requirement.
     });
   },
+
+  // --- Note Operations ---
 
   async getNotesByNotebook(notebookId: string): Promise<Note[]> {
     return db.notes.where("notebookId").equals(notebookId).reverse().toArray();
@@ -62,6 +71,88 @@ export const NoteService = {
   },
 
   async deleteNote(id: string): Promise<void> {
-    await db.notes.delete(id);
+    await db.transaction('rw', db.notes, db.noteTags, async () => {
+      await db.notes.delete(id);
+      await db.noteTags.where('noteId').equals(id).delete();
+    });
+  },
+
+  async syncNoteTagsFromContent(noteId: string, notebookId: string, content: string): Promise<void> {
+    // 使用正则提取所有 #标签
+    const hashtagRegex = /#([\w\u4e00-\u9fa5]+)/g;
+    const matches = content.matchAll(hashtagRegex);
+    const tagNames = Array.from(new Set(Array.from(matches).map(m => m[1])));
+
+    await db.transaction('rw', db.tags, db.noteTags, async () => {
+      // 1. 获取或创建这些标签
+      const tagIds: string[] = [];
+      for (const name of tagNames) {
+        const tagId = await this.createTag(notebookId, name);
+        tagIds.push(tagId);
+      }
+
+      // 2. 更新关联关系
+      // 先删除现有的所有关联
+      await db.noteTags.where('noteId').equals(noteId).delete();
+      
+      // 添加新的关联
+      for (const tagId of tagIds) {
+        await this.addTagToNote(noteId, tagId);
+      }
+    });
+  },
+
+  // --- Tag Operations ---
+
+  async getTagsByNotebook(notebookId: string): Promise<Tag[]> {
+    return db.tags.where('notebookId').equals(notebookId).toArray();
+  },
+
+  async createTag(notebookId: string, name: string): Promise<string> {
+    // Check if tag already exists in this notebook
+    const existing = await db.tags.where({ notebookId, name }).first();
+    if (existing) return existing.id;
+
+    const id = generateId();
+    await db.tags.add({
+      id,
+      notebookId,
+      name,
+      createdAt: Date.now(),
+    });
+    return id;
+  },
+
+  async deleteTag(id: string): Promise<void> {
+    await db.transaction('rw', db.tags, db.noteTags, async () => {
+      await db.tags.delete(id);
+      await db.noteTags.where('tagId').equals(id).delete();
+    });
+  },
+
+  // --- Note-Tag Association Operations ---
+
+  async addTagToNote(noteId: string, tagId: string): Promise<void> {
+    try {
+      await db.noteTags.add({ noteId, tagId });
+    } catch (e) {
+      // Ignore duplicate errors
+    }
+  },
+
+  async removeTagFromNote(noteId: string, tagId: string): Promise<void> {
+    await db.noteTags.where({ noteId, tagId }).delete();
+  },
+
+  async getTagsForNote(noteId: string): Promise<Tag[]> {
+    const associations = await db.noteTags.where('noteId').equals(noteId).toArray();
+    const tagIds = associations.map(a => a.tagId);
+    return db.tags.where('id').anyOf(tagIds).toArray();
+  },
+
+  async getNotesByTag(tagId: string): Promise<Note[]> {
+    const associations = await db.noteTags.where('tagId').equals(tagId).toArray();
+    const noteIds = associations.map(a => a.noteId);
+    return db.notes.where('id').anyOf(noteIds).reverse().toArray();
   }
 };

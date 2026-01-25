@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { filterNotes } from "../lib/utils/search";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
+import { db, type Tag } from "../lib/db";
 
 export default function NotebookTimeline() {
   const { notebookId } = useParams();
@@ -16,14 +17,35 @@ export default function NotebookTimeline() {
     () => NoteService.getNotesByNotebook(nbId),
     [nbId]
   );
+  const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
   
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const editorRef = useRef<MarkdownEditorRef>(null);
 
+  // 获取每条笔记关联的标签 ID 映射
+  const noteTagIdsMap = useLiveQuery(async () => {
+    const associations = await db.noteTags.toArray();
+    const map: Record<string, string[]> = {};
+    associations.forEach(a => {
+      if (!map[a.noteId]) map[a.noteId] = [];
+      map[a.noteId].push(a.tagId);
+    });
+    return map;
+  }, [notes]);
+
   const filteredNotes = useMemo(() => {
-    return filterNotes(notes || [], searchQuery);
-  }, [notes, searchQuery]);
+    let result = notes || [];
+    
+    // 标签过滤
+    if (selectedTagId && noteTagIdsMap) {
+      result = result.filter(note => noteTagIdsMap[note.id!]?.includes(selectedTagId));
+    }
+
+    // 搜索过滤
+    return filterNotes(result, searchQuery);
+  }, [notes, searchQuery, selectedTagId, noteTagIdsMap]);
 
   const handleCreate = async () => {
     const id = await NoteService.createNote(nbId);
@@ -34,6 +56,10 @@ export default function NotebookTimeline() {
     await NoteService.updateNote(id, content);
   };
 
+  const handleSyncTags = async (id: string, content: string) => {
+    await NoteService.syncNoteTagsFromContent(id, nbId, content);
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm("确定要删除这条笔记吗？")) {
       await NoteService.deleteNote(id);
@@ -41,6 +67,8 @@ export default function NotebookTimeline() {
   };
 
   if (!notebook) return null;
+
+  const availableTagNames = (notebookTags || []).map(t => t.name);
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-8">
@@ -62,6 +90,35 @@ export default function NotebookTimeline() {
             New Note
           </button>
         </header>
+
+        {/* 标签过滤栏 */}
+        {notebookTags && notebookTags.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedTagId(null)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                !selectedTagId 
+                ? 'bg-blue-500 text-white shadow-sm' 
+                : 'bg-white dark:bg-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+              }`}
+            >
+              All
+            </button>
+            {notebookTags.map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => setSelectedTagId(tag.id === selectedTagId ? null : tag.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-all ${
+                  tag.id === selectedTagId 
+                  ? 'bg-blue-500 text-white shadow-sm' 
+                  : 'bg-white dark:bg-gray-800 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                #{tag.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="mb-6">
           <div className="relative">
@@ -88,13 +145,17 @@ export default function NotebookTimeline() {
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 group overflow-hidden"
             >
               <div className="px-5 py-3 border-b border-gray-50 dark:border-gray-700/50 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/20">
-                <span className="text-xs font-medium text-gray-400">
-                  {new Date(note.updatedAt).toLocaleString()}
-                </span>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-medium text-gray-400">
+                    {new Date(note.updatedAt).toLocaleString()}
+                  </span>
+                  {/* 笔记关联的标签展示 (只读) */}
+                  <NoteTagsView noteId={note.id!} />
+                </div>
                 <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all">
                   <Link to={`/notebooks/${nbId}/${note.id}`} className="text-gray-300 hover:text-blue-500 text-xs font-medium">Full Screen</Link>
                   <button 
-                    onClick={() => handleDelete(note.id)}
+                    onClick={() => handleDelete(note.id!)}
                     className="text-gray-300 hover:text-red-500 text-xs font-medium"
                   >
                     Delete
@@ -108,8 +169,17 @@ export default function NotebookTimeline() {
                     <MarkdownEditor
                       ref={editorRef}
                       initialValue={note.content}
-                      onChange={(val) => handleUpdate(note.id, val)}
-                      onSubmit={() => setEditingId(null)}
+                      onChange={(val) => handleUpdate(note.id!, val)}
+                      onBlur={(val) => {
+                        handleSyncTags(note.id!, val);
+                        setEditingId(null);
+                      }}
+                      onSubmit={() => {
+                        const content = editorRef.current?.getMarkdown() || "";
+                        handleSyncTags(note.id!, content);
+                        setEditingId(null);
+                      }}
+                      availableTags={availableTagNames}
                       autoFocus
                       minHeight="150px"
                     />
@@ -127,7 +197,7 @@ export default function NotebookTimeline() {
                   </div>
                 ) : (
                   <div 
-                    onClick={() => setEditingId(note.id)}
+                    onClick={() => setEditingId(note.id!)}
                     className="cursor-text p-5"
                   >
                     <MarkdownEditor
@@ -155,5 +225,24 @@ export default function NotebookTimeline() {
         </div>
       </div>
     </main>
+  );
+}
+
+function NoteTagsView({ noteId }: { noteId: string }) {
+  const noteTags = useLiveQuery(() => NoteService.getTagsForNote(noteId), [noteId]);
+
+  if (!noteTags || noteTags.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {noteTags.map(tag => (
+        <span 
+          key={tag.id} 
+          className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold px-1.5 py-0.5 rounded"
+        >
+          #{tag.name}
+        </span>
+      ))}
+    </div>
   );
 }

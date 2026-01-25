@@ -10,7 +10,9 @@ import { TableCell } from "@tiptap/extension-table-cell";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import { useEffect, forwardRef, useImperativeHandle } from "react";
+import Mention from "@tiptap/extension-mention";
+import { useEffect, forwardRef, useImperativeHandle, useRef } from "react";
+import { createTagSuggestion } from "./suggestion";
 
 const SubmitHandler = Extension.create({
   name: 'submitHandler',
@@ -116,6 +118,8 @@ interface MarkdownEditorProps {
   initialValue?: string;
   onChange?: (markdown: string) => void;
   onSubmit?: () => void;
+  onBlur?: (markdown: string) => void;
+  availableTags?: string[];
   className?: string;
   showToolbar?: boolean;
   autoFocus?: boolean;
@@ -124,7 +128,13 @@ interface MarkdownEditorProps {
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
-  ({ initialValue = "", onChange, onSubmit, className = "", showToolbar = true, autoFocus = false, minHeight = "auto", editable = true }, ref) => {
+  ({ initialValue = "", onChange, onSubmit, onBlur, availableTags = [], className = "", showToolbar = true, autoFocus = false, minHeight = "auto", editable = true }, ref) => {
+    // 使用 Ref 追踪最新的标签列表，避免 useEditor 闭包捕获旧值
+    const tagsRef = useRef(availableTags);
+    useEffect(() => {
+      tagsRef.current = availableTags;
+    }, [availableTags]);
+
     const editor = useEditor({
       extensions: [
         StarterKit,
@@ -144,6 +154,12 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         TaskItem.configure({ nested: true }),
         HorizontalRule,
         SubmitHandler.configure({ onSubmit }),
+        Mention.configure({
+          HTMLAttributes: {
+            class: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold px-1 rounded',
+          },
+          suggestion: createTagSuggestion(() => tagsRef.current),
+        }),
       ],
       content: initialValue,
       editable,
@@ -157,6 +173,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       onUpdate: ({ editor }) => {
         const markdown = (editor.storage as any).markdown.getMarkdown();
         onChange?.(markdown);
+      },
+      onBlur: ({ editor }) => {
+        const markdown = (editor.storage as any).markdown.getMarkdown();
+        onBlur?.(markdown);
       },
     });
 

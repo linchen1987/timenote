@@ -20,3 +20,6 @@
 
 ## Files
 - note列表页 /app/routes/notebook-timeline.tsx
+
+## Business Logic
+- 不同的 notebook 中的数据是隔离的

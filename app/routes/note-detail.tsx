@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
+import { type Tag } from "../lib/db";
 
 export default function NoteDetailPage() {
   const { notebookId, noteId } = useParams();
@@ -13,13 +14,20 @@ export default function NoteDetailPage() {
   const nbId = notebookId || "";
 
   const note = useLiveQuery(() => NoteService.getNote(nId), [nId]);
+  const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
   const editorRef = useRef<MarkdownEditorRef>(null);
 
   const handleUpdate = async (content: string) => {
     await NoteService.updateNote(nId, content);
   };
 
+  const handleSyncTags = async (content: string) => {
+    await NoteService.syncNoteTagsFromContent(nId, nbId, content);
+  };
+
   if (!note) return null;
+
+  const availableTagNames = (notebookTags || []).map(t => t.name);
 
   return (
     <main className="min-h-screen bg-white dark:bg-gray-900">
@@ -36,7 +44,11 @@ export default function NoteDetailPage() {
               Updated: {new Date(note.updatedAt).toLocaleString()}
             </span>
             <button 
-              onClick={() => navigate(`/notebooks/${nbId}`)}
+              onClick={() => {
+                const content = editorRef.current?.getMarkdown() || "";
+                handleSyncTags(content);
+                navigate(`/notebooks/${nbId}`);
+              }}
               className="bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-sm"
             >
               Done
@@ -44,12 +56,22 @@ export default function NoteDetailPage() {
           </div>
         </nav>
 
+        <div className="mb-6 px-4">
+          <NoteTagsView noteId={nId} />
+        </div>
+
         <div className="min-h-[70vh]">
           <MarkdownEditor
             ref={editorRef}
             initialValue={note.content}
             onChange={handleUpdate}
-            onSubmit={() => navigate(`/notebooks/${nbId}`)}
+            onBlur={handleSyncTags}
+            onSubmit={() => {
+              const content = editorRef.current?.getMarkdown() || "";
+              handleSyncTags(content);
+              navigate(`/notebooks/${nbId}`);
+            }}
+            availableTags={availableTagNames}
             autoFocus
             minHeight="70vh"
             className="text-lg"
@@ -62,5 +84,24 @@ export default function NoteDetailPage() {
         </footer>
       </div>
     </main>
+  );
+}
+
+function NoteTagsView({ noteId }: { noteId: string }) {
+  const noteTags = useLiveQuery(() => NoteService.getTagsForNote(noteId), [noteId]);
+
+  if (!noteTags || noteTags.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {noteTags.map(tag => (
+        <span 
+          key={tag.id} 
+          className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-bold px-2 py-1 rounded"
+        >
+          #{tag.name}
+        </span>
+      ))}
+    </div>
   );
 }
