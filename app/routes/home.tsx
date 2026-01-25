@@ -59,6 +59,12 @@ export default function Home() {
             to="/markdown"
             color="pink"
           />
+          <DemoCard
+            title="Notebook"
+            description="Manage your personal notes"
+            to="/notebook"
+            color="green"
+          />
         </div>
       </div>
     </main>

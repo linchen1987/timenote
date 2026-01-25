@@ -12,10 +12,20 @@
     "typecheck": "npm run cf-typegen && react-router typegen && tsc -b"
   },
   "dependencies": {
+    "@tiptap/extension-horizontal-rule": "^3.17.1",
+    "@tiptap/extension-table": "^3.17.1",
+    "@tiptap/extension-table-cell": "^3.17.1",
+    "@tiptap/extension-table-header": "^3.17.1",
+    "@tiptap/extension-table-row": "^3.17.1",
+    "@tiptap/extension-task-item": "^3.17.1",
+    "@tiptap/extension-task-list": "^3.17.1",
+    "@tiptap/react": "^3.17.1",
+    "@tiptap/starter-kit": "^3.17.1",
     "isbot": "^5.1.31",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-router": "7.12.0"
+    "react-router": "7.12.0",
+    "tiptap-markdown": "^0.9.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.13.7",

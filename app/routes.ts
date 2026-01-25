@@ -32,5 +32,8 @@ export default [
   
   // Markdown Playground
   route("markdown", "routes/markdown-playground.tsx"),
-  
+
+  // Notebook
+  route("notebook", "routes/notebook.tsx"),
+  route("notebook/:id", "routes/notebook-detail.tsx"),
 ] satisfies RouteConfig;
