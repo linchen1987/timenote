@@ -204,6 +204,16 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       }
     }, [editor, editable]);
 
+    // Update editor content when initialValue changes from outside
+    useEffect(() => {
+      if (editor && initialValue !== undefined && initialValue !== (editor.storage as any).markdown.getMarkdown()) {
+        // Only update if not focused to avoid flickering while typing
+        if (!editor.isFocused) {
+          editor.commands.setContent(initialValue, { emitUpdate: false });
+        }
+      }
+    }, [initialValue, editor]);
+
     if (!editor) return null;
 
     return (

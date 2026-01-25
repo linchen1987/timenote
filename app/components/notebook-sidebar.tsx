@@ -232,7 +232,7 @@ export function NotebookSidebar({
       </div>
       <Separator className="bg-sidebar-border" />
       <ScrollArea className="flex-1">
-        <div className="p-2 space-y-1">
+        <div className="p-2 space-y-1 w-full max-w-full overflow-hidden">
           <div 
             className={cn(
               "group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium",
@@ -424,23 +424,23 @@ function MenuItemComponent({
     <div className="space-y-1">
       <div 
         className={cn(
-          "group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium",
+          "group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden",
           isSelected 
             ? "bg-sidebar-accent text-sidebar-accent-foreground" 
             : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
         )}
-        style={{ paddingLeft: `${level * 0.75 + 0.5}rem` }}
+        style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
         onClick={() => {
           if (node.type === 'note') onSelectNote(node.target, node.id);
           else onSelectSearch(node.target, node.id);
         }}
       >
-        <div className="flex items-center gap-1 min-w-0 flex-1">
+        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
           {node.children.length > 0 ? (
             <Button 
               variant="ghost" 
               size="icon"
-              className="h-4 w-4 p-0 hover:bg-transparent"
+              className="h-4 w-4 p-0 hover:bg-transparent flex-shrink-0"
               onClick={(e) => {
                 e.stopPropagation();
                 setIsOpen(!isOpen);
@@ -449,23 +449,23 @@ function MenuItemComponent({
               <ChevronRight className={cn("w-3 h-3 transition-transform", isOpen && "rotate-90")} />
             </Button>
           ) : (
-            <div className="w-4" />
+            <div className="w-4 flex-shrink-0" />
           )}
           
           {node.type === 'search' ? (
-            <Search className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+            <Search className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
           ) : (
-            <FileText className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+            <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
           )}
           
-          <span className="truncate">{node.name}</span>
+          <span className="truncate text-ellipsis overflow-hidden whitespace-nowrap">{node.name}</span>
         </div>
 
-        <div className="opacity-0 group-hover:opacity-100 flex items-center shrink-0">
+        <div className="opacity-0 group-hover:opacity-100 flex items-center shrink-0 ml-1">
           <DropdownMenu>
             <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-6 w-6">
-                <MoreVertical className="w-3 h-3" />
+              <Button variant="ghost" size="icon" className="h-7 w-7 ml-1">
+                <MoreVertical className="w-4 h-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">

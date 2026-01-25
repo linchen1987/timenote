@@ -22,6 +22,7 @@ import {
   X, 
   Calendar,
   Hash,
+  FileText,
   MoreVertical,
   PlusSquare
 } from "lucide-react";
@@ -56,42 +57,67 @@ export const meta: MetaFunction = () => {
 
 export default function NotebookTimeline() {
   const { notebookId } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const nbId = notebookId || "";
   const q = searchParams.get("q") || "";
   
+  // State for pagination
   const [limit, setLimit] = useState(20);
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
-  const notes = useLiveQuery(
-    () => NoteService.getNotesByNotebook(nbId, limit),
-    [nbId, limit]
-  );
-  const totalCount = useLiveQuery(
-    () => NoteService.getNoteCountByNotebook(nbId),
-    [nbId]
-  );
-  const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
-  
+  // Search states
+  const [searchQuery, setSearchQuery] = useState(q);
+  const [inputQuery, setInputQuery] = useState(q);
+
+  // Editor and selection states
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [targetNoteId, setTargetNoteId] = useState<string | null>(null);
   const [activeMenuItemId, setActiveMenuItemId] = useState<string | undefined>(undefined);
   const [composerContent, setComposerContent] = useState("");
   const editorRef = useRef<MarkdownEditorRef>(null);
 
-  const hasMore = totalCount !== undefined && notes !== undefined && notes.length < totalCount;
+  // Dialog states
+  const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
+  const [menuNoteId, setMenuNoteId] = useState<string | null>(null);
+  const [menuName, setMenuName] = useState("");
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
+  // Queries
+  const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
+  
+  // Global search query
+  const allNotesForSearch = useLiveQuery(
+    () => searchQuery ? NoteService.getAllNotes() : Promise.resolve([]),
+    [searchQuery]
+  );
+
+  const notebookNotes = useLiveQuery(
+    () => searchQuery ? Promise.resolve([]) : NoteService.getNotesByNotebook(nbId, limit),
+    [nbId, limit, searchQuery]
+  );
+
+  const totalCount = useLiveQuery(
+    () => searchQuery ? Promise.resolve(0) : NoteService.getNoteCountByNotebook(nbId),
+    [nbId, searchQuery]
+  );
+  
+  const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
+
+  // Sync searchQuery with URL params
   useEffect(() => {
     if (searchParams.has("q")) {
-      setSearchQuery(q);
+      const query = searchParams.get("q") || "";
+      setSearchQuery(query);
+      setInputQuery(query);
       setTargetNoteId(null);
       setSelectedTagId(null);
     }
-  }, [q, searchParams]);
+  }, [searchParams]);
 
+  // Infinite scroll observer
+  const hasMore = !searchQuery && totalCount !== undefined && notebookNotes !== undefined && notebookNotes.length < totalCount;
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -101,28 +127,15 @@ export default function NotebookTimeline() {
       },
       { threshold: 0.1 }
     );
-
-    if (loadMoreRef.current) {
-      observer.observe(loadMoreRef.current);
-    }
-
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [hasMore]);
 
-  // Dialog states
-  const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
-  const [menuNoteId, setMenuNoteId] = useState<string | null>(null);
-  const [menuName, setMenuName] = useState("");
-
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
-
-  // 获取每条笔记关联的标签名称映射
+  // Note tags mapping
   const noteTagNamesMap = useLiveQuery(async () => {
     const associations = await db.noteTags.toArray();
     const tags = await db.tags.toArray();
     const tagIdToName = Object.fromEntries(tags.map(t => [t.id, t.name]));
-    
     const map: Record<string, string[]> = {};
     associations.forEach(a => {
       if (!map[a.noteId]) map[a.noteId] = [];
@@ -130,28 +143,29 @@ export default function NotebookTimeline() {
       if (tagName) map[a.noteId].push(tagName);
     });
     return map;
-  }, [notes, notebookTags]);
+  }, []);
 
   const filteredNotes = useMemo(() => {
-    let result = notes || [];
-    
-    // 如果指定了目标笔记
     if (targetNoteId) {
-      return result.filter(note => note.id === targetNoteId);
+      const source = searchQuery ? allNotesForSearch : notebookNotes;
+      return (source || []).filter(note => note.id === targetNoteId);
     }
 
-    // 标签过滤
+    if (searchQuery) {
+      return filterNotes(allNotesForSearch as (Note & { content: string; id: string })[] || [], searchQuery, noteTagNamesMap);
+    }
+
+    let result = notebookNotes || [];
     if (selectedTagId && noteTagNamesMap) {
       const tag = notebookTags?.find(t => t.id === selectedTagId);
       if (tag) {
         result = result.filter(note => noteTagNamesMap[note.id!]?.includes(tag.name));
       }
     }
+    return result;
+  }, [notebookNotes, allNotesForSearch, searchQuery, selectedTagId, noteTagNamesMap, targetNoteId, notebookTags]);
 
-    // 搜索过滤
-    return filterNotes(result as (Note & { content: string; id: string })[], searchQuery, noteTagNamesMap);
-  }, [notes, searchQuery, selectedTagId, noteTagNamesMap, targetNoteId, notebookTags]);
-
+  // Handlers
   const handleUpdate = async (id: string, content: string) => {
     await NoteService.updateNote(id, content);
   };
@@ -178,23 +192,39 @@ export default function NotebookTimeline() {
     }
   };
 
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setSearchQuery(inputQuery);
+    setTargetNoteId(null);
+    setSelectedTagId(null);
+    if (inputQuery) {
+      setSearchParams({ q: inputQuery });
+    } else {
+      setSearchParams({});
+    }
+  };
+
   const handleSelectSearch = (query: string, menuItemId?: string) => {
     setSearchQuery(query);
+    setInputQuery(query);
     setTargetNoteId(null);
     setSelectedTagId(null);
     setActiveMenuItemId(menuItemId);
+    if (query) setSearchParams({ q: query });
+    else setSearchParams({});
   };
 
   const handleSelectNote = (noteId: string, menuItemId?: string) => {
     setTargetNoteId(noteId);
     setSearchQuery("");
+    setInputQuery("");
     setSelectedTagId(null);
     setActiveMenuItemId(menuItemId);
+    setSearchParams({});
   };
 
   const handleAddToMenu = async () => {
     if (!menuNoteId || !menuName.trim()) return;
-    
     try {
       await MenuService.createMenuItem({
         notebookId: nbId,
@@ -202,9 +232,8 @@ export default function NotebookTimeline() {
         name: menuName,
         type: 'note',
         target: menuNoteId,
-        order: 0, // Will be handled by service if we want auto-ordering, but 0 is fine for now
+        order: 0,
       });
-      
       setIsMenuDialogOpen(false);
       setMenuNoteId(null);
       setMenuName("");
@@ -228,7 +257,6 @@ export default function NotebookTimeline() {
   };
 
   if (!notebook) return null;
-
   const availableTagNames = (notebookTags || []).map(t => t.name);
 
   return (
@@ -241,41 +269,35 @@ export default function NotebookTimeline() {
       />
       
       <main className="flex-1 overflow-y-auto scroll-smooth">
-        {/* Sticky Header with Search */}
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20 px-4 py-3">
           <div className="max-w-4xl mx-auto flex justify-between items-center">
             <h2 className="text-lg font-bold truncate pr-4">
-              {targetNoteId ? "Note Details" : (selectedTagId ? `Notes with #${notebookTags?.find(t => t.id === selectedTagId)?.name}` : (searchQuery ? "Search Results" : notebook.name))}
+              {targetNoteId ? "Note Details" : (selectedTagId ? `Notes with #${notebookTags?.find(t => t.id === selectedTagId)?.name}` : (searchQuery ? `Search: ${searchQuery}` : notebook.name))}
             </h2>
             
-            <div className="relative group w-full max-w-[240px]">
+            <form onSubmit={handleSearchSubmit} className="relative group w-full max-w-[240px]">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
-                placeholder="Search..."
+                placeholder="Search all notes..."
                 className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setTargetNoteId(null);
-                }}
+                value={inputQuery}
+                onChange={(e) => setInputQuery(e.target.value)}
               />
-              {searchQuery && (
+              {inputQuery && (
                 <button 
-                  onClick={() => setSearchQuery("")}
+                  type="button"
+                  onClick={() => { setInputQuery(""); setSearchQuery(""); setSearchParams({}); }}
                   className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full text-muted-foreground transition-colors"
                 >
                   <X className="w-3 h-3" />
                 </button>
               )}
-            </div>
+            </form>
           </div>
         </header>
 
         <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6">
-
-
-          {/* New Note Section (Composer) */}
-          {!targetNoteId && (
+          {!targetNoteId && !searchQuery && (
             <Card className="border-none shadow-sm overflow-hidden bg-card">
               <CardContent className="p-0">
                 <div className="p-4 focus-within:ring-0 transition-all">
@@ -331,7 +353,7 @@ export default function NotebookTimeline() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem asChild>
-                          <Link to={`/s/${nbId}/${note.id}`} className="cursor-pointer">
+                          <Link to={`/s/${note.notebookId}/${note.id}`} className="cursor-pointer">
                             <Maximize2 className="w-4 h-4 mr-2" /> Full Screen
                           </Link>
                         </DropdownMenuItem>
@@ -357,15 +379,12 @@ export default function NotebookTimeline() {
                   {editingId === note.id ? (
                     <div className="p-4 space-y-4">
                       <MarkdownEditor
+                        key={`edit-${note.id}`}
                         ref={editorRef}
                         initialValue={note.content}
-                        onChange={(val) => handleUpdate(note.id!, val)}
-                        onBlur={(val) => {
-                          handleSyncTags(note.id!, val);
-                          setEditingId(null);
-                        }}
                         onSubmit={() => {
                           const content = editorRef.current?.getMarkdown() || "";
+                          handleUpdate(note.id!, content);
                           handleSyncTags(note.id!, content);
                           setEditingId(null);
                         }}
@@ -379,25 +398,37 @@ export default function NotebookTimeline() {
                           <kbd className="px-1.5 py-0.5 rounded border bg-muted font-sans">Enter</kbd>
                           to save
                         </span>
-                        <Button 
-                          size="sm"
-                          onClick={() => {
-                            const content = editorRef.current?.getMarkdown() || "";
-                            handleSyncTags(note.id!, content);
-                            setEditingId(null);
-                          }}
-                          className="rounded-full"
-                        >
-                          Save Changes
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setEditingId(null)}
+                            className="rounded-full"
+                          >
+                            Cancel
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              const content = editorRef.current?.getMarkdown() || "";
+                              handleUpdate(note.id!, content);
+                              handleSyncTags(note.id!, content);
+                              setEditingId(null);
+                            }}
+                            className="rounded-full"
+                          >
+                            Save Changes
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ) : (
                     <div 
-                      onClick={() => setEditingId(note.id!)}
+                      onDoubleClick={() => setEditingId(note.id!)}
                       className="cursor-text p-6 min-h-[100px] hover:bg-accent/5 transition-colors"
                     >
                       <MarkdownEditor
+                        key={`view-${note.id}`}
                         initialValue={note.content}
                         editable={false}
                       />
@@ -413,22 +444,23 @@ export default function NotebookTimeline() {
               </Card>
             ))}
             
-            {notes?.length !== 0 && filteredNotes?.length === 0 && (
+            {filteredNotes?.length === 0 && (
               <div className="flex flex-col items-center justify-center py-32 text-center">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
                   <SearchIcon className="w-8 h-8 text-muted-foreground/50" />
                 </div>
                 <h3 className="text-lg font-semibold">No notes found</h3>
                 <p className="text-muted-foreground max-w-xs mx-auto">
-                  We couldn't find any notes matching "{searchQuery}". Try a different search term.
+                  {searchQuery ? `We couldn't find any notes matching "${searchQuery}".` : "This notebook is empty."}
                 </p>
-                <Button variant="link" onClick={() => setSearchQuery("")} className="mt-2">
-                  Clear search
-                </Button>
+                {searchQuery && (
+                  <Button variant="link" onClick={() => { setInputQuery(""); setSearchQuery(""); setSearchParams({}); }} className="mt-2">
+                    Clear search
+                  </Button>
+                )}
               </div>
             )}
 
-            {/* Load more sentinel */}
             <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
               {hasMore && (
                 <div className="flex items-center gap-2 text-muted-foreground animate-pulse text-sm">
@@ -457,9 +489,6 @@ export default function NotebookTimeline() {
                 autoFocus
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              This will create a new entry in your notebook's sidebar menu pointing directly to this note.
-            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMenuDialogOpen(false)}>Cancel</Button>
@@ -490,9 +519,7 @@ export default function NotebookTimeline() {
 
 function NoteTagsView({ noteId }: { noteId: string }) {
   const noteTags = useLiveQuery(() => NoteService.getTagsForNote(noteId), [noteId]);
-
   if (!noteTags || noteTags.length === 0) return null;
-
   return (
     <div className="flex flex-wrap gap-1.5">
       {noteTags.map(tag => (

@@ -173,5 +173,13 @@ export const NoteService = {
     const associations = await db.noteTags.where('tagId').equals(tagId).toArray();
     const noteIds = associations.map(a => a.noteId);
     return db.notes.where('id').anyOf(noteIds).reverse().toArray();
+  },
+
+  async getAllNotes(limit?: number): Promise<Note[]> {
+    let query = db.notes.orderBy('updatedAt').reverse();
+    if (limit) {
+      return query.limit(limit).toArray();
+    }
+    return query.toArray();
   }
 };
