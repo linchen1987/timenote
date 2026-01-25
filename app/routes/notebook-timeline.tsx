@@ -3,16 +3,16 @@
 import { useState, useRef } from "react";
 import { Link, useParams } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, generateId } from "../lib/db";
+import { NoteService } from "../lib/services/note-service";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
 
 export default function NotebookTimeline() {
   const { notebookId } = useParams();
   const nbId = notebookId || "";
   
-  const notebook = useLiveQuery(() => db.notebooks.get(nbId), [nbId]);
+  const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const notes = useLiveQuery(
-    () => db.notes.where("notebookId").equals(nbId).reverse().toArray(),
+    () => NoteService.getNotesByNotebook(nbId),
     [nbId]
   );
   
@@ -20,27 +20,17 @@ export default function NotebookTimeline() {
   const editorRef = useRef<MarkdownEditorRef>(null);
 
   const handleCreate = async () => {
-    const id = generateId();
-    await db.notes.add({
-      id,
-      notebookId: nbId,
-      content: "",
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    const id = await NoteService.createNote(nbId);
     setEditingId(id);
   };
 
   const handleUpdate = async (id: string, content: string) => {
-    await db.notes.update(id, {
-      content,
-      updatedAt: Date.now(),
-    });
+    await NoteService.updateNote(id, content);
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("确定要删除这条笔记吗？")) {
-      await db.notes.delete(id);
+      await NoteService.deleteNote(id);
     }
   };
 

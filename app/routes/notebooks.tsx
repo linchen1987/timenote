@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { Link } from "react-router";
-import { db, generateId } from "../lib/db";
+import { db } from "../lib/db";
+import { NoteService } from "../lib/services/note-service";
 import { useLiveQuery } from "dexie-react-hooks";
 
 export default function NotebooksPage() {
-  const notebooks = useLiveQuery(() => db.notebooks.toArray());
+  const notebooks = useLiveQuery(() => NoteService.getAllNotebooks());
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -14,31 +15,20 @@ export default function NotebooksPage() {
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    await db.notebooks.add({
-      id: generateId(),
-      name: newName,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    await NoteService.createNotebook(newName);
     setNewName("");
     setIsCreating(false);
   };
 
   const handleDelete = async (id: string) => {
     if (confirm("确定要删除这个笔记本及其所有笔记吗？")) {
-      await db.transaction('rw', db.notebooks, db.notes, async () => {
-        await db.notebooks.delete(id);
-        await db.notes.where('notebookId').equals(id).delete();
-      });
+      await NoteService.deleteNotebook(id);
     }
   };
 
   const handleRename = async (id: string) => {
     if (!editName.trim()) return;
-    await db.notebooks.update(id, {
-      name: editName,
-      updatedAt: Date.now(),
-    });
+    await NoteService.updateNotebook(id, { name: editName });
     setEditingId(null);
   };
 

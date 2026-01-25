@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db } from "../lib/db";
+import { NoteService } from "../lib/services/note-service";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
 
 export default function NoteDetailPage() {
@@ -12,14 +12,11 @@ export default function NoteDetailPage() {
   const nId = noteId || "";
   const nbId = notebookId || "";
 
-  const note = useLiveQuery(() => db.notes.get(nId), [nId]);
+  const note = useLiveQuery(() => NoteService.getNote(nId), [nId]);
   const editorRef = useRef<MarkdownEditorRef>(null);
 
   const handleUpdate = async (content: string) => {
-    await db.notes.update(nId, {
-      content,
-      updatedAt: Date.now(),
-    });
+    await NoteService.updateNote(nId, content);
   };
 
   if (!note) return null;
