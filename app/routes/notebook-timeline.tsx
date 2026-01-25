@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Link, useParams } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
+import { filterNotes } from "../lib/utils/search";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
 
 export default function NotebookTimeline() {
@@ -17,7 +18,12 @@ export default function NotebookTimeline() {
   );
   
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const editorRef = useRef<MarkdownEditorRef>(null);
+
+  const filteredNotes = useMemo(() => {
+    return filterNotes(notes || [], searchQuery);
+  }, [notes, searchQuery]);
 
   const handleCreate = async () => {
     const id = await NoteService.createNote(nbId);
@@ -39,7 +45,7 @@ export default function NotebookTimeline() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4 sm:p-8">
       <div className="max-w-3xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
+        <header className="flex justify-between items-center mb-6">
           <div>
             <nav className="mb-2">
               <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 font-medium">← All Notebooks</Link>
@@ -57,8 +63,26 @@ export default function NotebookTimeline() {
           </button>
         </header>
 
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search notes..."
+              className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl py-2.5 pl-10 pr-4 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-gray-700 dark:text-gray-200"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+          </div>
+        </div>
+
         <div className="space-y-4">
-          {notes?.map((note) => (
+          {filteredNotes?.map((note) => (
             <div 
               key={note.id} 
               className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 group overflow-hidden"
@@ -116,6 +140,12 @@ export default function NotebookTimeline() {
               </div>
             </div>
           ))}
+          
+          {notes?.length !== 0 && filteredNotes?.length === 0 && (
+            <div className="text-center py-20 text-gray-400">
+              No notes match your search.
+            </div>
+          )}
           
           {notes?.length === 0 && (
             <div className="text-center py-20 text-gray-400">

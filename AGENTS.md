@@ -17,3 +17,6 @@
 ## Rules
 - 除非用户要求，否则不要自动编辑此文件。
 - 注释中不要添加修改说明，只添加当前代码的解释。
+
+## Files
+- note列表页 /app/routes/notebook-timeline.tsx
