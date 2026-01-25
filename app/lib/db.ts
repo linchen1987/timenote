@@ -1,19 +1,18 @@
 import Dexie, { type Table } from 'dexie';
 import { nanoid } from 'nanoid';
 
-// 生成 12 位友好的唯一 ID (字符集包含 A-Za-z0-9_-)
 export const generateId = () => nanoid(12);
 
 export interface Notebook {
-  id: string; // 使用 nanoid
+  id: string;
   name: string;
   createdAt: number;
   updatedAt: number;
 }
 
 export interface Note {
-  id: string; // 使用 nanoid
-  notebookId: string; // 关联 notebook 的 nanoid
+  id: string;
+  notebookId: string;
   content: string;
   createdAt: number;
   updatedAt: number;

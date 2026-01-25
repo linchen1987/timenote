@@ -12,7 +12,6 @@ import TaskItem from "@tiptap/extension-task-item";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import { useEffect, forwardRef, useImperativeHandle } from "react";
 
-// 自定义快捷键扩展
 const SubmitHandler = Extension.create({
   name: 'submitHandler',
   addKeyboardShortcuts() {

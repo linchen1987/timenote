@@ -62,7 +62,7 @@ export default function Home() {
           <DemoCard
             title="Notebooks"
             description="Manage multiple notebooks and notes"
-            to="/notebooks"
+            to="/"
             color="green"
           />
         </div>

@@ -4,7 +4,6 @@ import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-
 import { Table } from "@tiptap/extension-table";
 import { TableRow } from "@tiptap/extension-table-row";
 import { TableHeader } from "@tiptap/extension-table-header";
@@ -84,65 +83,10 @@ hello("Markdown");
 在编辑器中直接编辑内容，实时查看渲染效果。点击复制按钮可以快速复制 Markdown 源码。`;
 
 const MenuBar = ({ editor }: { editor: any }) => {
-  if (!editor) {
-    return null;
-  }
-
-  const addTable = () => {
-    editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
-  };
-
-  const deleteTable = () => {
-    editor.chain().focus().deleteTable().run();
-  };
-
-  const addColumnBefore = () => {
-    editor.chain().focus().addColumnBefore().run();
-  };
-
-  const addColumnAfter = () => {
-    editor.chain().focus().addColumnAfter().run();
-  };
-
-  const deleteColumn = () => {
-    editor.chain().focus().deleteColumn().run();
-  };
-
-  const addRowBefore = () => {
-    editor.chain().focus().addRowBefore().run();
-  };
-
-  const addRowAfter = () => {
-    editor.chain().focus().addRowAfter().run();
-  };
-
-  const deleteRow = () => {
-    editor.chain().focus().deleteRow().run();
-  };
-
-  const toggleHeaderColumn = () => {
-    editor.chain().focus().toggleHeaderColumn().run();
-  };
-
-  const toggleHeaderCell = () => {
-    editor.chain().focus().toggleHeaderCell().run();
-  };
-
-  const toggleHeaderRow = () => {
-    editor.chain().focus().toggleHeaderRow().run();
-  };
-
-  const toggleCellMerge = () => {
-    editor.chain().focus().mergeCells().run();
-  };
-
-  const splitCell = () => {
-    editor.chain().focus().splitCell().run();
-  };
+  if (!editor) return null;
 
   return (
     <div className="border border-gray-200 dark:border-gray-700 rounded-t-lg p-2 bg-gray-50 dark:bg-gray-800 flex flex-wrap gap-1">
-      {/* Text Formatting */}
       <div className="flex gap-1 p-1 border-r border-gray-200 dark:border-gray-600">
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
@@ -194,7 +138,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         </button>
       </div>
 
-      {/* Headings */}
       <div className="flex gap-1 p-1 border-r border-gray-200 dark:border-gray-600">
         <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
@@ -231,7 +174,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         </button>
       </div>
 
-      {/* Lists */}
       <div className="flex gap-1 p-1 border-r border-gray-200 dark:border-gray-600">
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
@@ -268,7 +210,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         </button>
       </div>
 
-      {/* Quote and Code */}
       <div className="flex gap-1 p-1 border-r border-gray-200 dark:border-gray-600">
         <button
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
@@ -294,10 +235,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         </button>
       </div>
 
-      {/* Table */}
       <div className="flex gap-1 p-1 border-r border-gray-200 dark:border-gray-600">
         <button
-          onClick={addTable}
+          onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
           className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
             editor.isActive('table')
               ? 'bg-blue-600 text-white'
@@ -309,7 +249,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         </button>
       </div>
 
-      {/* Horizontal Rule */}
       <div className="flex gap-1 p-1">
         <button
           onClick={() => editor.chain().focus().setHorizontalRule().run()}
@@ -320,7 +259,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
         </button>
       </div>
 
-      {/* Undo/Redo */}
       <div className="flex gap-1 p-1 ml-auto">
         <button
           onClick={() => editor.chain().focus().undo().run()}
@@ -343,8 +281,6 @@ const MenuBar = ({ editor }: { editor: any }) => {
   );
 };
 
-
-
 export default function MarkdownPlayground() {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<"edit" | "preview">("edit");
@@ -360,12 +296,8 @@ export default function MarkdownPlayground() {
         bulletListMarker: '-',
         linkify: false,
         breaks: false,
-        transformPastedText: false,
-        transformCopiedText: false,
       }),
-      Table.configure({
-        resizable: true,
-      }),
+      Table.configure({ resizable: true }),
       TableRow,
       TableHeader,
       TableCell,
@@ -384,7 +316,6 @@ export default function MarkdownPlayground() {
 
   const handleCopy = useCallback(() => {
     if (editor) {
-      // Directly get Markdown from storage
       const markdown = (editor.storage as any).markdown.getMarkdown();
       navigator.clipboard.writeText(markdown);
       setCopied(true);
@@ -400,7 +331,6 @@ export default function MarkdownPlayground() {
 
   const getMarkdown = useCallback(() => {
     if (editor) {
-      // Directly get Markdown from storage
       return (editor.storage as any).markdown.getMarkdown();
     }
     return '';
@@ -408,13 +338,10 @@ export default function MarkdownPlayground() {
 
   useEffect(() => {
     if (editor) {
-      // Wait for editor to be ready
       const timer = setTimeout(() => {
         setIsEditorReady(true);
-        // Set Markdown content directly - tiptap-markdown handles this
         editor.commands.setContent(defaultMarkdown);
       }, 200);
-      
       return () => clearTimeout(timer);
     }
   }, [editor]);
@@ -422,14 +349,13 @@ export default function MarkdownPlayground() {
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="mb-6">
           <nav className="mb-4">
             <Link
-              to="/"
+              to="/indexes"
               className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
             >
-              ← Back to Home
+              ← All Demos
             </Link>
           </nav>
           
@@ -463,7 +389,6 @@ export default function MarkdownPlayground() {
           </div>
         </div>
 
-        {/* View Mode Selector */}
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm font-medium text-gray-700 dark:text-gray-300">视图模式:</span>
           <div className="flex gap-1">
@@ -490,7 +415,6 @@ export default function MarkdownPlayground() {
           </div>
         </div>
 
-        {/* Editor Container */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
           {viewMode === "edit" && isEditorReady && editor && (
             <>
@@ -515,7 +439,6 @@ export default function MarkdownPlayground() {
           )}
         </div>
 
-        {/* Features Info */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
             <h3 className="font-semibold text-blue-900 dark:text-blue-300 mb-2">
@@ -545,10 +468,8 @@ export default function MarkdownPlayground() {
           </div>
         </div>
 
-        {/* Custom Styles */}
         <style dangerouslySetInnerHTML={{
           __html: `
-            /* Base editor styles - tighter padding */
             .ProseMirror {
               outline: none;
               padding: 1.25rem 1.5rem;
@@ -556,7 +477,6 @@ export default function MarkdownPlayground() {
               font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             }
             
-            /* Heading styles - drastically reduced margins */
             .ProseMirror h1 {
               font-size: 2rem;
               font-weight: 800;
@@ -589,7 +509,6 @@ export default function MarkdownPlayground() {
             .dark .ProseMirror h2 { color: #f3f4f6; }
             .dark .ProseMirror h3 { color: #e5e7eb; }
             
-            /* Paragraphs - tighter spacing */
             .ProseMirror p {
               margin-top: 0.4rem;
               margin-bottom: 0.4rem;
@@ -600,7 +519,6 @@ export default function MarkdownPlayground() {
               color: #d1d5db;
             }
             
-            /* Lists - compact indentation and spacing */
             .ProseMirror ul[data-type="taskList"] {
               margin: 0.5rem 0;
               padding: 0;
@@ -623,7 +541,6 @@ export default function MarkdownPlayground() {
               margin: 0;
             }
             
-            /* Tables - compact margin and tighter padding */
             .ProseMirror table {
               border-collapse: collapse;
               width: 100%;
@@ -652,7 +569,6 @@ export default function MarkdownPlayground() {
               border-color: #334155;
             }
             
-            /* Code blocks - compressed */
             .ProseMirror pre {
               background: #0f172a;
               color: #e2e8f0;
@@ -661,7 +577,6 @@ export default function MarkdownPlayground() {
               margin: 0.75rem 0;
             }
             
-            /* Blockquotes - compressed */
             .ProseMirror blockquote {
               border-left: 3px solid #e2e8f0;
               padding-left: 1rem;
@@ -669,7 +584,6 @@ export default function MarkdownPlayground() {
               color: #64748b;
             }
             
-            /* Horizontal rule - reduced */
             .ProseMirror hr {
               border: none;
               border-top: 1px solid #f1f5f9;

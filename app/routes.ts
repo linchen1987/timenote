@@ -2,39 +2,26 @@ import {
   type RouteConfig,
   route,
   index,
-  layout,
 } from "@react-router/dev/routes";
 
 export default [
-  // 首页
-  index("routes/home.tsx"),
-  
-  // 关于页面
+  index("routes/notebooks.tsx"),
+  route("indexes", "routes/home.tsx"),
   route("about", "routes/about.tsx"),
-  
-  // 联系页面
   route("contact", "routes/contact.tsx"),
   
-  // 仪表板布局和子路由
   route("dashboard", "routes/dashboard.tsx", [
     index("routes/dashboard-home.tsx"),
   ]),
   
-  // 用户资料
   route("profile", "routes/profile.tsx"),
-  
-  // 设置
   route("settings", "routes/settings.tsx"),
   
-  // 博客和博客详情
   route("blog", "routes/blog.tsx"),
   route("blog/:id", "routes/blog-post.tsx"),
   
-  // Markdown Playground
   route("markdown", "routes/markdown-playground.tsx"),
 
-  // Notebooks
-  route("notebooks", "routes/notebooks.tsx"),
   route("notebooks/:notebookId", "routes/notebook-timeline.tsx"),
   route("notebooks/:notebookId/:noteId", "routes/note-detail.tsx"),
 ] satisfies RouteConfig;

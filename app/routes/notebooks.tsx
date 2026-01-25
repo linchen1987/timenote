@@ -38,7 +38,7 @@ export default function NotebooksPage() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <nav className="mb-2">
-              <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 font-medium">← Back Home</Link>
+              <Link to="/indexes" className="text-sm text-blue-600 dark:text-blue-400 font-medium">← All Demos</Link>
             </nav>
             <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">My Notebooks</h1>
           </div>

@@ -1,8 +1,6 @@
 import { db, generateId, type Notebook, type Note } from '../db';
 
 export const NoteService = {
-  // --- Notebook Operations ---
-  
   async getAllNotebooks(): Promise<Notebook[]> {
     return db.notebooks.toArray();
   },
@@ -35,8 +33,6 @@ export const NoteService = {
       await db.notes.where('notebookId').equals(id).delete();
     });
   },
-
-  // --- Note Operations ---
 
   async getNotesByNotebook(notebookId: string): Promise<Note[]> {
     return db.notes.where("notebookId").equals(notebookId).reverse().toArray();

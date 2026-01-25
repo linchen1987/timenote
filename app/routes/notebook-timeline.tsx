@@ -42,7 +42,7 @@ export default function NotebookTimeline() {
         <header className="flex justify-between items-center mb-8">
           <div>
             <nav className="mb-2">
-              <Link to="/notebooks" className="text-sm text-blue-600 dark:text-blue-400 font-medium">← All Notebooks</Link>
+              <Link to="/" className="text-sm text-blue-600 dark:text-blue-400 font-medium">← All Notebooks</Link>
             </nav>
             <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
               {notebook.name}
