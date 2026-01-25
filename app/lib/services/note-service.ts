@@ -30,14 +30,11 @@ export const NoteService = {
   },
 
   async deleteNotebook(id: string): Promise<void> {
-    await db.transaction('rw', db.notebooks, db.notes, db.tags, db.noteTags, async () => {
+    await db.transaction('rw', [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems], async () => {
       await db.notebooks.delete(id);
       await db.notes.where('notebookId').equals(id).delete();
       await db.tags.where('notebookId').equals(id).delete();
-      // noteTags are cleaned up by virtue of note deletion in a real RDBMS, 
-      // but here we should probably do it manually if we were being thorough.
-      // However, searching by notebookId in noteTags is slow. 
-      // Let's just focus on the core requirement.
+      await db.menuItems.where('notebookId').equals(id).delete();
     });
   },
 

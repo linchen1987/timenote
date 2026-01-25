@@ -3,11 +3,18 @@ import { filterNotes } from './search';
 
 describe('filterNotes', () => {
   const mockNotes = [
-    { content: 'React Router v7 is great' },
-    { content: 'Tailwind CSS v4 is fast' },
-    { content: 'React and Tailwind together' },
-    { content: 'Just some plain text' },
+    { id: '1', content: 'React Router v7 is great #react #router' },
+    { id: '2', content: 'Tailwind CSS v4 is fast #tailwind #css' },
+    { id: '3', content: 'React and Tailwind together #react #tailwind' },
+    { id: '4', content: 'Just some plain text' },
   ];
+
+  const mockTagsMap = {
+    '1': ['react', 'router'],
+    '2': ['tailwind', 'css'],
+    '3': ['react', 'tailwind'],
+    '4': [],
+  };
 
   it('should return all notes when query is empty', () => {
     expect(filterNotes(mockNotes, '')).toEqual(mockNotes);
@@ -24,7 +31,20 @@ describe('filterNotes', () => {
   it('should filter by multiple keywords (AND logic)', () => {
     const result = filterNotes(mockNotes, 'react tailwind');
     expect(result).toHaveLength(1);
-    expect(result[0].content).toBe('React and Tailwind together');
+    expect(result[0].content).toBe('React and Tailwind together #react #tailwind');
+  });
+
+  it('should filter by tags', () => {
+    const result = filterNotes(mockNotes, '#react', mockTagsMap);
+    expect(result).toHaveLength(2);
+    expect(result.map(r => r.id)).toContain('1');
+    expect(result.map(r => r.id)).toContain('3');
+  });
+
+  it('should filter by mixed text and tags', () => {
+    const result = filterNotes(mockNotes, 'router #react', mockTagsMap);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('1');
   });
 
   it('should be case-insensitive', () => {

@@ -1,10 +1,27 @@
-"use client";
-
 import { useState } from "react";
 import { Link } from "react-router";
-import { db } from "../lib/db";
 import { NoteService } from "../lib/services/note-service";
 import { useLiveQuery } from "dexie-react-hooks";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "~/components/ui/card";
+import { 
+  Plus, 
+  Notebook as NotebookIcon, 
+  Edit2, 
+  Trash2, 
+  ArrowLeft,
+  Calendar,
+  MoreVertical,
+  BookOpen
+} from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
+import { cn } from "~/lib/utils";
 
 export default function NotebooksPage() {
   const notebooks = useLiveQuery(() => NoteService.getAllNotebooks());
@@ -33,90 +50,125 @@ export default function NotebooksPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-900 p-8">
-      <div className="max-w-4xl mx-auto">
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <nav className="mb-2">
-              <Link to="/indexes" className="text-sm text-blue-600 dark:text-blue-400 font-medium">← All Demos</Link>
+    <main className="min-h-screen bg-background text-foreground p-4 sm:p-8">
+      <div className="max-w-5xl mx-auto space-y-10">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+          <div className="space-y-1">
+            <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
+              <Link to="/indexes" className="hover:text-primary flex items-center gap-1 transition-colors">
+                <ArrowLeft className="w-3.5 h-3.5" /> All Demos
+              </Link>
             </nav>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">My Notebooks</h1>
+            <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">My Notebooks</h1>
+            <p className="text-muted-foreground font-medium">Manage and organize your thoughts across different notebooks.</p>
           </div>
-          <button 
+          <Button 
             onClick={() => setIsCreating(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm"
+            size="lg"
+            className="rounded-full shadow-lg hover:shadow-xl transition-all gap-2 px-8"
           >
-            Create Notebook
-          </button>
+            <Plus className="w-5 h-5" /> Create Notebook
+          </Button>
         </header>
 
         {isCreating && (
-          <div className="mb-6 bg-white dark:bg-gray-800 p-4 rounded-xl border border-blue-100 dark:border-blue-900 shadow-sm flex gap-3">
-            <input 
-              autoFocus
-              className="flex-1 bg-gray-50 dark:bg-gray-900 border-none outline-none px-4 py-2 rounded-lg text-gray-900 dark:text-white"
-              placeholder="Enter notebook name..."
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
-            />
-            <button onClick={handleCreate} className="bg-blue-600 text-white px-4 py-2 rounded-lg font-bold">Add</button>
-            <button onClick={() => setIsCreating(false)} className="text-gray-500 font-medium px-4 py-2">Cancel</button>
-          </div>
+          <Card className="border-primary/20 bg-primary/5 shadow-inner">
+            <CardContent className="p-4 flex flex-col sm:flex-row gap-3">
+              <Input 
+                autoFocus
+                className="flex-1 bg-background"
+                placeholder="Enter notebook name..."
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleCreate}>Create</Button>
+                <Button variant="ghost" onClick={() => setIsCreating(false)}>Cancel</Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {notebooks?.map((nb) => (
-            <div 
+            <Card 
               key={nb.id} 
-              className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all group relative"
+              className="group hover:shadow-xl transition-all duration-300 border-muted/60 flex flex-col"
             >
-              {editingId === nb.id ? (
-                <div className="flex gap-2">
-                  <input 
-                    autoFocus
-                    className="flex-1 bg-gray-50 dark:bg-gray-900 border-none outline-none px-3 py-1 rounded-md text-gray-900 dark:text-white"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    onBlur={() => handleRename(nb.id)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleRename(nb.id)}
-                  />
-                </div>
-              ) : (
-                <>
-                  <Link to={`/notebooks/${nb.id}`} className="block">
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1 group-hover:text-blue-600 transition-colors">
-                      {nb.name}
-                    </h2>
-                    <p className="text-xs text-gray-400">
-                      ID: <code className="bg-gray-100 dark:bg-gray-700 px-1 rounded">{nb.id}</code>
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      Created {new Date(nb.createdAt).toLocaleDateString()}
-                    </p>
-                  </Link>
-                  <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                    <button 
-                      onClick={() => { setEditingId(nb.id); setEditName(nb.name); }}
-                      className="text-gray-400 hover:text-blue-500 p-1"
-                    >
-                      ✎
-                    </button>
-                    <button 
-                      onClick={() => handleDelete(nb.id)}
-                      className="text-gray-400 hover:text-red-500 p-1"
-                    >
-                      ✕
-                    </button>
+              <CardHeader className="relative flex-1">
+                <div className="flex items-start justify-between">
+                  <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-4">
+                    <NotebookIcon className="w-6 h-6" />
                   </div>
-                </>
-              )}
-            </div>
+                  
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => { setEditingId(nb.id); setEditName(nb.name); }}>
+                        <Edit2 className="w-4 h-4 mr-2" /> Rename
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(nb.id)}>
+                        <Trash2 className="w-4 h-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+                
+                {editingId === nb.id ? (
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Input 
+                      autoFocus
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleRename(nb.id)}
+                      onBlur={() => setEditingId(null)}
+                    />
+                    <div className="flex gap-2 justify-end">
+                      <Button size="sm" onClick={() => handleRename(nb.id)}>Save</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <Link to={`/notebooks/${nb.id}`} className="block group/link">
+                      <CardTitle className="text-2xl group-hover/link:text-primary transition-colors">
+                        {nb.name}
+                      </CardTitle>
+                    </Link>
+                    <p className="text-xs text-muted-foreground mt-2 font-mono">
+                      ID: {nb.id}
+                    </p>
+                  </>
+                )}
+              </CardHeader>
+              <CardFooter className="bg-muted/30 border-t border-muted/40 py-3 flex justify-between items-center text-xs text-muted-foreground font-medium">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 opacity-70" />
+                  {new Date(nb.createdAt).toLocaleDateString()}
+                </div>
+                <Link to={`/notebooks/${nb.id}`} className="text-primary hover:underline flex items-center gap-1 font-bold">
+                  Open <BookOpen className="w-3 h-3" />
+                </Link>
+              </CardFooter>
+            </Card>
           ))}
           
           {notebooks?.length === 0 && !isCreating && (
-            <div className="sm:col-span-2 text-center py-20 text-gray-400">
-              No notebooks found. Start by creating one!
+            <div className="sm:col-span-2 lg:col-span-3 flex flex-col items-center justify-center py-32 text-center bg-muted/20 rounded-3xl border-2 border-dashed border-muted">
+              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 text-primary/40">
+                <NotebookIcon className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-bold">No notebooks found</h3>
+              <p className="text-muted-foreground max-w-sm mx-auto mb-8">
+                Every great journey begins with a single page. Start yours by creating a new notebook.
+              </p>
+              <Button onClick={() => setIsCreating(true)} size="lg" className="rounded-full gap-2 px-8 shadow-md">
+                <Plus className="w-5 h-5" /> Create your first notebook
+              </Button>
             </div>
           )}
         </div>

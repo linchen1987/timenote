@@ -18,8 +18,18 @@
 - 除非用户要求，否则不要自动编辑此文件。
 - 注释中不要添加修改说明，只添加当前代码的解释。
 
-## Files
-- note列表页 /app/routes/notebook-timeline.tsx
+## Project Structure
+- `app/` - Main application code
+  - `routes/` - Route components (pages)
+    - `notebooks.tsx` - Notebook list (Home) notebook 列表页
+    - `notebook-timeline.tsx` - Note list in a notebook. note 列表页
+    - `note-detail.tsx` - Note editor/view
+  - `components/` - Reusable UI components
+  - `lib/` - Logic and state
+    - `db.ts` - Dexie database schema and instance
+  - `root.tsx` - Root layout and context providers
+  - `routes.ts` - React Router route configuration
+- `wrangler.jsonc` - Cloudflare configuration
 
 ## Business Logic
 - 不同的 notebook 中的数据是隔离的
