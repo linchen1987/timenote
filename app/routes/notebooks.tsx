@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, type MetaFunction } from "react-router";
 import { NoteService } from "../lib/services/note-service";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button } from "~/components/ui/button";
@@ -10,7 +10,6 @@ import {
   Notebook as NotebookIcon, 
   Edit2, 
   Trash2, 
-  ArrowLeft,
   Calendar,
   MoreVertical,
   BookOpen
@@ -21,7 +20,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "~/components/ui/dropdown-menu";
-import { cn } from "~/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+
+export const meta: MetaFunction = () => {
+  return [{ title: "Time Note" }];
+};
 
 export default function NotebooksPage() {
   const notebooks = useLiveQuery(() => NoteService.getAllNotebooks());
@@ -30,6 +42,9 @@ export default function NotebooksPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
 
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [notebookToDelete, setNotebookToDelete] = useState<string | null>(null);
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
     await NoteService.createNotebook(newName);
@@ -37,9 +52,16 @@ export default function NotebooksPage() {
     setIsCreating(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("确定要删除这个笔记本及其所有笔记吗？")) {
-      await NoteService.deleteNotebook(id);
+  const handleDelete = (id: string) => {
+    setNotebookToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (notebookToDelete) {
+      await NoteService.deleteNotebook(notebookToDelete);
+      setNotebookToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -54,11 +76,6 @@ export default function NotebooksPage() {
       <div className="max-w-5xl mx-auto space-y-10">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-1">
-            <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
-              <Link to="/indexes" className="hover:text-primary flex items-center gap-1 transition-colors">
-                <ArrowLeft className="w-3.5 h-3.5" /> All Demos
-              </Link>
-            </nav>
             <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">My Notebooks</h1>
             <p className="text-muted-foreground font-medium">Manage and organize your thoughts across different notebooks.</p>
           </div>
@@ -134,7 +151,7 @@ export default function NotebooksPage() {
                   </div>
                 ) : (
                   <>
-                    <Link to={`/notebooks/${nb.id}`} className="block group/link">
+                    <Link to={`/s/${nb.id}`} className="block group/link">
                       <CardTitle className="text-2xl group-hover/link:text-primary transition-colors">
                         {nb.name}
                       </CardTitle>
@@ -150,7 +167,7 @@ export default function NotebooksPage() {
                   <Calendar className="w-3.5 h-3.5 opacity-70" />
                   {new Date(nb.createdAt).toLocaleDateString()}
                 </div>
-                <Link to={`/notebooks/${nb.id}`} className="text-primary hover:underline flex items-center gap-1 font-bold">
+                <Link to={`/s/${nb.id}`} className="text-primary hover:underline flex items-center gap-1 font-bold">
                   Open <BookOpen className="w-3 h-3" />
                 </Link>
               </CardFooter>
@@ -173,6 +190,23 @@ export default function NotebooksPage() {
           )}
         </div>
       </div>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your notebook and all its notes from our local database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

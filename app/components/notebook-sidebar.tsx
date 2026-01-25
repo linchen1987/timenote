@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useNavigate, useLocation } from "react-router";
 import { MenuService } from "~/lib/services/menu-service";
 import { NoteService } from "~/lib/services/note-service";
+import { useTheme } from "./theme-provider";
 import type { MenuItem } from "~/lib/db";
 import { cn } from "~/lib/utils";
 import { Button } from "~/components/ui/button";
@@ -21,13 +23,20 @@ import {
   Trash2,
   FolderOpen,
   List,
-  LayoutGrid
+  LayoutGrid,
+  Sun,
+  Moon,
+  Monitor,
+  ChevronDown,
+  Book,
+  Tag
 } from "lucide-react";
 import { 
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 import {
   Dialog,
@@ -37,10 +46,21 @@ import {
   DialogFooter,
 } from "./ui/dialog";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+
 interface NotebookSidebarProps {
   notebookId: string;
-  onSelectSearch: (query: string) => void;
-  onSelectNote: (noteId: string) => void;
+  onSelectSearch: (query: string, menuItemId?: string) => void;
+  onSelectNote: (noteId: string, menuItemId?: string) => void;
   selectedItemId?: string;
 }
 
@@ -50,6 +70,15 @@ export function NotebookSidebar({
   onSelectNote,
   selectedItemId 
 }: NotebookSidebarProps) {
+  const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const notebooks = useLiveQuery(() => NoteService.getAllNotebooks()) || [];
+  const currentNotebook = notebooks.find(nb => nb.id === notebookId);
+
+  const isTagsPage = location.pathname.endsWith("/tags");
+  const isAllNotesPage = !selectedItemId && !isTagsPage && location.pathname.startsWith(`/s/${notebookId}`);
+  
   const menuItems = useLiveQuery(() => MenuService.getMenuItemsByNotebook(notebookId), [notebookId]) || [];
   const tree = buildTree(menuItems);
 
@@ -61,6 +90,9 @@ export function NotebookSidebar({
     type: 'note' | 'search';
     target: string;
   } | null>(null);
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [menuItemToDelete, setMenuItemToDelete] = useState<string | null>(null);
 
   const handleOpenAdd = (parentId: string | null = null) => {
     setEditingItem({
@@ -106,13 +138,21 @@ export function NotebookSidebar({
     setEditingItem(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Delete this menu item and all its children?")) {
-      await MenuService.deleteMenuItem(id);
+  const handleDelete = (id: string) => {
+    setMenuItemToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (menuItemToDelete) {
+      await MenuService.deleteMenuItem(menuItemToDelete);
+      setMenuItemToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 
   const moveUp = async (item: MenuItem) => {
+
     const siblings = menuItems.filter(i => i.parentId === item.parentId);
     const index = siblings.findIndex(i => i.id === item.id);
     if (index > 0) {
@@ -138,16 +178,42 @@ export function NotebookSidebar({
 
   return (
     <aside className="w-64 bg-sidebar border-r flex flex-col h-full shrink-0">
-      <div className="p-4 flex justify-between items-center">
-        <div className="flex items-center gap-2">
-          <FolderOpen className="w-5 h-5 text-primary" />
-          <h2 className="font-semibold text-sidebar-foreground">Explorer</h2>
-        </div>
+      <div className="p-3 flex justify-between items-center">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="px-2 h-9 flex items-center gap-2 hover:bg-sidebar-accent/50 max-w-[180px] justify-start overflow-hidden">
+              <Book className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold truncate text-sidebar-foreground">{currentNotebook?.name || "Notebook"}</span>
+              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-56">
+            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Switch Notebook
+            </div>
+            {notebooks.map(nb => (
+              <DropdownMenuItem 
+                key={nb.id} 
+                onClick={() => navigate(`/s/${nb.id}`)}
+                className={cn(nb.id === notebookId && "bg-sidebar-accent text-sidebar-accent-foreground")}
+              >
+                <Book className="w-4 h-4 mr-2" />
+                <span className="truncate">{nb.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate("/")}>
+              <List className="w-4 h-4 mr-2" />
+              All Notebooks
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <Button 
           variant="ghost" 
           size="icon" 
           onClick={() => handleOpenAdd(null)}
-          className="h-8 w-8 text-muted-foreground"
+          className="h-8 w-8 text-muted-foreground shrink-0"
         >
           <Plus className="w-4 h-4" />
         </Button>
@@ -158,7 +224,7 @@ export function NotebookSidebar({
           <div 
             className={cn(
               "group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium",
-              !selectedItemId 
+              isAllNotesPage
                 ? "bg-sidebar-accent text-sidebar-accent-foreground" 
                 : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
             )}
@@ -168,6 +234,22 @@ export function NotebookSidebar({
               <div className="w-4" />
               <LayoutGrid className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate">All Notes</span>
+            </div>
+          </div>
+
+          <div 
+            className={cn(
+              "group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium",
+              isTagsPage
+                ? "bg-sidebar-accent text-sidebar-accent-foreground" 
+                : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
+            )}
+            onClick={() => navigate(`/s/${notebookId}/tags`)}
+          >
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              <div className="w-4" />
+              <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+              <span className="truncate">Tags</span>
             </div>
           </div>
 
@@ -198,6 +280,30 @@ export function NotebookSidebar({
           )}
         </div>
       </ScrollArea>
+
+      <div className="p-2 border-t bg-sidebar-accent/20">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="w-full justify-start gap-2 h-9 px-2 text-sidebar-foreground focus-visible:ring-0 focus-visible:ring-offset-0">
+              {theme === "light" && <Sun className="w-4 h-4" />}
+              {theme === "dark" && <Moon className="w-4 h-4" />}
+              {theme === "system" && <Monitor className="w-4 h-4" />}
+              <span className="capitalize">{theme} Theme</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="top" className="w-40">
+            <DropdownMenuItem onClick={() => setTheme("light")}>
+              <Sun className="w-4 h-4 mr-2" /> Light
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("dark")}>
+              <Moon className="w-4 h-4 mr-2" /> Dark
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setTheme("system")}>
+              <Monitor className="w-4 h-4 mr-2" /> System
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
@@ -232,6 +338,23 @@ export function NotebookSidebar({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the menu item and all its sub-menu items.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </aside>
   );
 }

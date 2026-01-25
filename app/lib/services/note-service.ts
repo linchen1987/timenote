@@ -105,6 +105,15 @@ export const NoteService = {
     return db.tags.where('notebookId').equals(notebookId).toArray();
   },
 
+  async getTagsWithCounts(notebookId: string): Promise<(Tag & { count: number })[]> {
+    const tags = await db.tags.where('notebookId').equals(notebookId).toArray();
+    const tagCounts = await Promise.all(tags.map(async tag => {
+      const count = await db.noteTags.where('tagId').equals(tag.id).count();
+      return { ...tag, count };
+    }));
+    return tagCounts;
+  },
+
   async createTag(notebookId: string, name: string): Promise<string> {
     // Check if tag already exists in this notebook
     const existing = await db.tags.where({ notebookId, name }).first();

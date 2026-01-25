@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
-import { Link, useParams } from "react-router";
+import { useState, useRef, useMemo, useEffect } from "react";
+import { Link, useParams, useSearchParams, type MetaFunction } from "react-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { MenuService } from "../lib/services/menu-service";
 import { filterNotes } from "../lib/utils/search";
 import MarkdownEditor, { type MarkdownEditorRef } from "../components/editor/markdown-editor";
-import { db, type Tag, type Note } from "../lib/db";
+import { db, type Note } from "../lib/db";
 import { NotebookSidebar } from "../components/notebook-sidebar";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -19,10 +19,8 @@ import {
   Trash2, 
   Maximize2, 
   X, 
-  ArrowLeft,
   Calendar,
   Hash,
-  FileText,
   MoreVertical,
   PlusSquare
 } from "lucide-react";
@@ -40,10 +38,26 @@ import {
   DialogTitle,
   DialogFooter,
 } from "~/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "~/components/ui/alert-dialog";
+
+export const meta: MetaFunction = () => {
+  return [{ title: "Time Note" }];
+};
 
 export default function NotebookTimeline() {
   const { notebookId } = useParams();
+  const [searchParams] = useSearchParams();
   const nbId = notebookId || "";
+  const q = searchParams.get("q") || "";
   
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const notes = useLiveQuery(
@@ -57,12 +71,24 @@ export default function NotebookTimeline() {
   const [selectedTagId, setSelectedTagId] = useState<string | null>(null);
   const [targetNoteId, setTargetNoteId] = useState<string | null>(null);
   const [activeMenuItemId, setActiveMenuItemId] = useState<string | undefined>(undefined);
+  const [composerContent, setComposerContent] = useState("");
   const editorRef = useRef<MarkdownEditorRef>(null);
 
-  // Add to menu dialog state
+  useEffect(() => {
+    if (searchParams.has("q")) {
+      setSearchQuery(q);
+      setTargetNoteId(null);
+      setSelectedTagId(null);
+    }
+  }, [q, searchParams]);
+
+  // Dialog states
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
   const [menuNoteId, setMenuNoteId] = useState<string | null>(null);
   const [menuName, setMenuName] = useState("");
+
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
   // 获取每条笔记关联的标签名称映射
   const noteTagNamesMap = useLiveQuery(async () => {
@@ -99,11 +125,6 @@ export default function NotebookTimeline() {
     return filterNotes(result as (Note & { content: string; id: string })[], searchQuery, noteTagNamesMap);
   }, [notes, searchQuery, selectedTagId, noteTagNamesMap, targetNoteId, notebookTags]);
 
-  const handleCreate = async () => {
-    const id = await NoteService.createNote(nbId);
-    setEditingId(id);
-  };
-
   const handleUpdate = async (id: string, content: string) => {
     await NoteService.updateNote(id, content);
   };
@@ -112,9 +133,16 @@ export default function NotebookTimeline() {
     await NoteService.syncNoteTagsFromContent(id, nbId, content);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("确定要删除这条笔记吗？")) {
-      await NoteService.deleteNote(id);
+  const handleDelete = (id: string) => {
+    setNoteToDelete(id);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (noteToDelete) {
+      await NoteService.deleteNote(noteToDelete);
+      setNoteToDelete(null);
+      setIsDeleteDialogOpen(false);
     }
   };
 
@@ -149,6 +177,14 @@ export default function NotebookTimeline() {
     setMenuName("");
   };
 
+  const handleComposerSubmit = async () => {
+    if (!composerContent.trim()) return;
+    const id = await NoteService.createNote(nbId);
+    await NoteService.updateNote(id, composerContent);
+    await NoteService.syncNoteTagsFromContent(id, nbId, composerContent);
+    setComposerContent("");
+  };
+
   if (!notebook) return null;
 
   const availableTagNames = (notebookTags || []).map(t => t.name);
@@ -163,35 +199,18 @@ export default function NotebookTimeline() {
       />
       
       <main className="flex-1 overflow-y-auto scroll-smooth">
-        <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-8">
-          <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <nav className="flex items-center gap-1 text-sm text-muted-foreground mb-1">
-                <Link to="/" className="hover:text-primary flex items-center gap-1 transition-colors">
-                  <ArrowLeft className="w-3.5 h-3.5" /> All Notebooks
-                </Link>
-              </nav>
-              <h1 className="text-3xl font-bold tracking-tight">
-                {notebook.name}
-              </h1>
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
-                <span>ID: {nbId}</span>
-                <span>•</span>
-                <span>{notes?.length || 0} Notes</span>
-              </div>
-            </div>
-            <Button onClick={handleCreate} className="rounded-full shadow-md hover:shadow-lg transition-all gap-2 px-6">
-              <Plus className="w-4 h-4" /> New Note
-            </Button>
-          </header>
-
-          <div className="flex flex-col gap-4">
-            {/* 搜索过滤栏 */}
-            <div className="relative group">
+        {/* Sticky Header with Search */}
+        <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20 px-4 py-3">
+          <div className="max-w-4xl mx-auto flex justify-between items-center">
+            <h2 className="text-lg font-bold truncate pr-4">
+              {targetNoteId ? "Note Details" : (selectedTagId ? `Notes with #${notebookTags?.find(t => t.id === selectedTagId)?.name}` : (searchQuery ? "Search Results" : notebook.name))}
+            </h2>
+            
+            <div className="relative group w-full max-w-[240px]">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
-                placeholder="Search notes or use #tag..."
-                className="pl-10 h-11 bg-muted/50 border-none focus-visible:ring-2 focus-visible:ring-primary/20 transition-all rounded-xl"
+                placeholder="Search..."
+                className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
                 value={searchQuery}
                 onChange={(e) => {
                   setSearchQuery(e.target.value);
@@ -201,46 +220,50 @@ export default function NotebookTimeline() {
               {searchQuery && (
                 <button 
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full text-muted-foreground transition-colors"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3" />
                 </button>
               )}
             </div>
-
-            {/* 标签过滤栏 */}
-            {notebookTags && notebookTags.length > 0 && (
-              <div className="flex flex-wrap gap-2 py-1">
-                <Button
-                  variant={!selectedTagId && !targetNoteId ? "default" : "secondary"}
-                  size="sm"
-                  onClick={() => {
-                    setSelectedTagId(null);
-                    setTargetNoteId(null);
-                  }}
-                  className="rounded-full text-xs h-7"
-                >
-                  All
-                </Button>
-                {notebookTags.map(tag => (
-                  <Button
-                    key={tag.id}
-                    variant={tag.id === selectedTagId ? "default" : "secondary"}
-                    size="sm"
-                    onClick={() => {
-                      setSelectedTagId(tag.id === selectedTagId ? null : tag.id);
-                      setTargetNoteId(null);
-                    }}
-                    className="rounded-full text-xs h-7 gap-1"
-                  >
-                    <Hash className="w-3 h-3 opacity-70" /> {tag.name}
-                  </Button>
-                ))}
-              </div>
-            )}
           </div>
+        </header>
 
-          <div className="space-y-6 pb-20">
+        <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6">
+
+
+          {/* New Note Section (Composer) */}
+          {!targetNoteId && (
+            <Card className="border-none shadow-sm overflow-hidden bg-card">
+              <CardContent className="p-0">
+                <div className="p-4 focus-within:ring-0 transition-all">
+                  <MarkdownEditor
+                    key={nbId + (composerContent === "" ? "empty" : "active")}
+                    initialValue={composerContent}
+                    onChange={setComposerContent}
+                    placeholder="What's on your mind? Use #tags to organize..."
+                    availableTags={availableTagNames}
+                    minHeight="100px"
+                    showToolbar={false}
+                    className="text-lg bg-transparent border-none shadow-none p-0"
+                    onSubmit={handleComposerSubmit}
+                  />
+                  <div className="flex justify-end items-center mt-3 pt-3 border-t border-muted/20">
+                    <Button 
+                      onClick={handleComposerSubmit} 
+                      disabled={!composerContent.trim()}
+                      className="rounded-full px-6 font-bold"
+                      size="sm"
+                    >
+                      Post
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <div className="space-y-4 pb-20">
             {filteredNotes?.map((note) => (
               <Card 
                 key={note.id} 
@@ -266,7 +289,7 @@ export default function NotebookTimeline() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem asChild>
-                          <Link to={`/notebooks/${nbId}/${note.id}`} className="cursor-pointer">
+                          <Link to={`/s/${nbId}/${note.id}`} className="cursor-pointer">
                             <Maximize2 className="w-4 h-4 mr-2" /> Full Screen
                           </Link>
                         </DropdownMenuItem>
@@ -362,21 +385,6 @@ export default function NotebookTimeline() {
                 </Button>
               </div>
             )}
-            
-            {notes?.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-32 text-center">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-                  <FileText className="w-8 h-8" />
-                </div>
-                <h3 className="text-xl font-bold">Your notebook is empty</h3>
-                <p className="text-muted-foreground max-w-xs mx-auto mb-6">
-                  Start capturing your thoughts, ideas, or tasks in this notebook.
-                </p>
-                <Button onClick={handleCreate} size="lg" className="rounded-full gap-2 px-8">
-                  <Plus className="w-5 h-5" /> Create your first note
-                </Button>
-              </div>
-            )}
           </div>
         </div>
       </main>
@@ -407,6 +415,23 @@ export default function NotebookTimeline() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete your note and remove its data from our local database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

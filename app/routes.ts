@@ -22,6 +22,7 @@ export default [
   
   route("markdown", "routes/markdown-playground.tsx"),
 
-  route("notebooks/:notebookId", "routes/notebook-timeline.tsx"),
-  route("notebooks/:notebookId/:noteId", "routes/note-detail.tsx"),
+  route("s/:notebookId/tags", "routes/tags.tsx"),
+  route("s/:notebookId", "routes/notebook-timeline.tsx"),
+  route("s/:notebookId/:noteId", "routes/note-detail.tsx"),
 ] satisfies RouteConfig;

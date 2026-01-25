@@ -34,7 +34,7 @@ export default function NoteDetailPage() {
       <div className="max-w-4xl mx-auto px-4 py-6">
         <nav className="flex items-center justify-between mb-8">
           <Link 
-            to={`/notebooks/${nbId}`} 
+            to={`/s/${nbId}`} 
             className="text-gray-900 dark:text-white font-bold text-xl hover:opacity-70 transition-opacity"
           >
             ← Timeline
@@ -47,7 +47,7 @@ export default function NoteDetailPage() {
               onClick={() => {
                 const content = editorRef.current?.getMarkdown() || "";
                 handleSyncTags(content);
-                navigate(`/notebooks/${nbId}`);
+                navigate(`/s/${nbId}`);
               }}
               className="bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-sm"
             >
@@ -69,7 +69,7 @@ export default function NoteDetailPage() {
             onSubmit={() => {
               const content = editorRef.current?.getMarkdown() || "";
               handleSyncTags(content);
-              navigate(`/notebooks/${nbId}`);
+              navigate(`/s/${nbId}`);
             }}
             availableTags={availableTagNames}
             autoFocus

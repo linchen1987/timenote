@@ -22,7 +22,7 @@
 - `app/` - Main application code
   - `routes/` - Route components (pages)
     - `notebooks.tsx` - Notebook list (Home) notebook 列表页
-    - `notebook-timeline.tsx` - Note list in a notebook. note 列表页
+    - `notebook-timeline.tsx` - Note list in a notebook. note 列表页 list page
     - `note-detail.tsx` - Note editor/view
   - `components/` - Reusable UI components
   - `lib/` - Logic and state

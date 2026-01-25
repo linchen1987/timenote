@@ -11,6 +11,7 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 import Mention from "@tiptap/extension-mention";
+import Placeholder from "@tiptap/extension-placeholder";
 import { useEffect, forwardRef, useImperativeHandle, useRef } from "react";
 import { createTagSuggestion } from "./suggestion";
 
@@ -121,6 +122,7 @@ interface MarkdownEditorProps {
   onBlur?: (markdown: string) => void;
   availableTags?: string[];
   className?: string;
+  placeholder?: string;
   showToolbar?: boolean;
   autoFocus?: boolean;
   minHeight?: string;
@@ -128,7 +130,7 @@ interface MarkdownEditorProps {
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
-  ({ initialValue = "", onChange, onSubmit, onBlur, availableTags = [], className = "", showToolbar = true, autoFocus = false, minHeight = "auto", editable = true }, ref) => {
+  ({ initialValue = "", onChange, onSubmit, onBlur, availableTags = [], className = "", placeholder = "", showToolbar = true, autoFocus = false, minHeight = "auto", editable = true }, ref) => {
     // 使用 Ref 追踪最新的标签列表，避免 useEditor 闭包捕获旧值
     const tagsRef = useRef(availableTags);
     useEffect(() => {
@@ -154,6 +156,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         TaskItem.configure({ nested: true }),
         HorizontalRule,
         SubmitHandler.configure({ onSubmit }),
+        Placeholder.configure({
+          placeholder,
+          emptyEditorClass: 'is-editor-empty',
+        }),
         Mention.configure({
           HTMLAttributes: {
             class: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold px-1 rounded',
@@ -228,6 +234,13 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             .ProseMirror code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.9em; }
             .dark .ProseMirror code { background: #334155; }
             .ProseMirror blockquote { border-left: 3px solid #e2e8f0; padding-left: 0.8rem; margin: 0.5rem 0; color: #64748b; }
+            .ProseMirror p.is-editor-empty:first-child::before {
+              content: attr(data-placeholder);
+              float: left;
+              color: #adb5bd;
+              pointer-events: none;
+              height: 0;
+            }
           `
         }} />
       </div>
