@@ -60,9 +60,9 @@ export default function Home() {
             color="pink"
           />
           <DemoCard
-            title="Notebook"
-            description="Manage your personal notes"
-            to="/notebook"
+            title="Notebooks"
+            description="Manage multiple notebooks and notes"
+            to="/notebooks"
             color="green"
           />
         </div>
