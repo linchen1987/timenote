@@ -60,9 +60,16 @@ export default function NotebookTimeline() {
   const nbId = notebookId || "";
   const q = searchParams.get("q") || "";
   
+  const [limit, setLimit] = useState(20);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const notes = useLiveQuery(
-    () => NoteService.getNotesByNotebook(nbId),
+    () => NoteService.getNotesByNotebook(nbId, limit),
+    [nbId, limit]
+  );
+  const totalCount = useLiveQuery(
+    () => NoteService.getNoteCountByNotebook(nbId),
     [nbId]
   );
   const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
@@ -75,6 +82,8 @@ export default function NotebookTimeline() {
   const [composerContent, setComposerContent] = useState("");
   const editorRef = useRef<MarkdownEditorRef>(null);
 
+  const hasMore = totalCount !== undefined && notes !== undefined && notes.length < totalCount;
+
   useEffect(() => {
     if (searchParams.has("q")) {
       setSearchQuery(q);
@@ -82,6 +91,23 @@ export default function NotebookTimeline() {
       setSelectedTagId(null);
     }
   }, [q, searchParams]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setLimit((prev) => prev + 20);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore]);
 
   // Dialog states
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
@@ -401,6 +427,16 @@ export default function NotebookTimeline() {
                 </Button>
               </div>
             )}
+
+            {/* Load more sentinel */}
+            <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+              {hasMore && (
+                <div className="flex items-center gap-2 text-muted-foreground animate-pulse text-sm">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  Loading more...
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </main>

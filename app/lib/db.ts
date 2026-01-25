@@ -51,9 +51,9 @@ export class TimenoteDatabase extends Dexie {
 
   constructor() {
     super('TimenoteDB');
-    this.version(4).stores({
+    this.version(5).stores({
       notebooks: 'id, name, createdAt, updatedAt',
-      notes: 'id, notebookId, createdAt, updatedAt',
+      notes: 'id, notebookId, createdAt, updatedAt, [notebookId+updatedAt]',
       tags: 'id, notebookId, name',
       noteTags: '[noteId+tagId], noteId, tagId',
       menuItems: 'id, notebookId, parentId, order'

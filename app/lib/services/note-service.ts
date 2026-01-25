@@ -1,3 +1,4 @@
+import Dexie from 'dexie';
 import { db, generateId, type Notebook, type Note, type Tag } from '../db';
 
 export const NoteService = {
@@ -40,8 +41,20 @@ export const NoteService = {
 
   // --- Note Operations ---
 
-  async getNotesByNotebook(notebookId: string): Promise<Note[]> {
-    return db.notes.where("notebookId").equals(notebookId).reverse().toArray();
+  async getNotesByNotebook(notebookId: string, limit?: number): Promise<Note[]> {
+    let query = db.notes
+      .where('[notebookId+updatedAt]')
+      .between([notebookId, Dexie.minKey], [notebookId, Dexie.maxKey])
+      .reverse();
+
+    if (limit) {
+      return query.limit(limit).toArray();
+    }
+    return query.toArray();
+  },
+
+  async getNoteCountByNotebook(notebookId: string): Promise<number> {
+    return db.notes.where("notebookId").equals(notebookId).count();
   },
 
   async getNote(id: string): Promise<Note | undefined> {
