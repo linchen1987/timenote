@@ -53,6 +53,12 @@ export default function Home() {
             to="/blog"
             color="indigo"
           />
+          <DemoCard
+            title="Markdown Playground"
+            description="WYSIWYG markdown editor"
+            to="/markdown"
+            color="pink"
+          />
         </div>
       </div>
     </main>
@@ -72,6 +78,7 @@ function DemoCard({ title, description, to, color }: {
     orange: "bg-orange-500 hover:bg-orange-600",
     red: "bg-red-500 hover:bg-red-600",
     indigo: "bg-indigo-500 hover:bg-indigo-600",
+    pink: "bg-pink-500 hover:bg-pink-600",
   };
 
   return (
@@ -80,7 +87,7 @@ function DemoCard({ title, description, to, color }: {
       className={`${colorClasses[color as keyof typeof colorClasses]} text-white rounded-lg p-6 block transition-colors duration-200`}
     >
       <h2 className="text-xl font-semibold mb-2">{title}</h2>
-      <p className="text-blue-100">{description}</p>
+      <p className="text-white/80">{description}</p>
     </Link>
   );
 }

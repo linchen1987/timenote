@@ -30,4 +30,7 @@ export default [
   route("blog", "routes/blog.tsx"),
   route("blog/:id", "routes/blog-post.tsx"),
   
+  // Markdown Playground
+  route("markdown", "routes/markdown-playground.tsx"),
+  
 ] satisfies RouteConfig;
