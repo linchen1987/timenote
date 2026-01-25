@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link, type MetaFunction } from "react-router";
+import { toast } from "sonner";
 import { NoteService } from "../lib/services/note-service";
+import { ImportService, type ImportData } from "../lib/services/import-service";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -12,7 +14,8 @@ import {
   Trash2, 
   Calendar,
   MoreVertical,
-  BookOpen
+  BookOpen,
+  Upload
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -44,6 +47,8 @@ export default function NotebooksPage() {
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [notebookToDelete, setNotebookToDelete] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -59,9 +64,14 @@ export default function NotebooksPage() {
 
   const confirmDelete = async () => {
     if (notebookToDelete) {
-      await NoteService.deleteNotebook(notebookToDelete);
-      setNotebookToDelete(null);
-      setIsDeleteDialogOpen(false);
+      try {
+        await NoteService.deleteNotebook(notebookToDelete);
+        setNotebookToDelete(null);
+        setIsDeleteDialogOpen(false);
+        toast.success("Notebook deleted successfully");
+      } catch (error) {
+        toast.error("Failed to delete notebook");
+      }
     }
   };
 
@@ -69,6 +79,38 @@ export default function NotebooksPage() {
     if (!editName.trim()) return;
     await NoteService.updateNotebook(id, { name: editName });
     setEditingId(null);
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text) as ImportData;
+      
+      toast.promise(ImportService.importData(data), {
+        loading: 'Importing data...',
+        success: (stats) => {
+          let message = `Import complete: ${stats.success} items imported, ${stats.skipped} skipped.`;
+          if (stats.errors.length > 0) {
+            return `${message} (with some warnings)`;
+          }
+          return message;
+        },
+        error: 'Failed to import data.',
+      });
+      
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      console.error("Import failed:", error);
+      toast.error("Failed to import data. Please ensure the file is a valid JSON.");
+    }
   };
 
   return (
@@ -79,14 +121,32 @@ export default function NotebooksPage() {
             <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">My Notebooks</h1>
             <p className="text-muted-foreground font-medium">Manage and organize your thoughts across different notebooks.</p>
           </div>
-          <Button 
-            onClick={() => setIsCreating(true)}
-            size="lg"
-            className="rounded-full shadow-lg hover:shadow-xl transition-all gap-2 px-8"
-          >
-            <Plus className="w-5 h-5" /> Create Notebook
-          </Button>
+          <div className="flex gap-2">
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              className="hidden" 
+              accept=".json" 
+              onChange={handleFileChange} 
+            />
+            <Button 
+              variant="outline"
+              size="lg"
+              className="rounded-full gap-2 px-6"
+              onClick={handleImportClick}
+            >
+              <Upload className="w-4 h-4" /> Import
+            </Button>
+            <Button 
+              onClick={() => setIsCreating(true)}
+              size="lg"
+              className="rounded-full shadow-lg hover:shadow-xl transition-all gap-2 px-8"
+            >
+              <Plus className="w-5 h-5" /> Create Notebook
+            </Button>
+          </div>
         </header>
+
 
         {isCreating && (
           <Card className="border-primary/20 bg-primary/5 shadow-inner">

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useMemo, useEffect } from "react";
 import { Link, useParams, useSearchParams, type MetaFunction } from "react-router";
+import { toast } from "sonner";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { MenuService } from "../lib/services/menu-service";
@@ -140,9 +141,14 @@ export default function NotebookTimeline() {
 
   const confirmDelete = async () => {
     if (noteToDelete) {
-      await NoteService.deleteNote(noteToDelete);
-      setNoteToDelete(null);
-      setIsDeleteDialogOpen(false);
+      try {
+        await NoteService.deleteNote(noteToDelete);
+        setNoteToDelete(null);
+        setIsDeleteDialogOpen(false);
+        toast.success("Note deleted successfully");
+      } catch (error) {
+        toast.error("Failed to delete note");
+      }
     }
   };
 
@@ -163,26 +169,36 @@ export default function NotebookTimeline() {
   const handleAddToMenu = async () => {
     if (!menuNoteId || !menuName.trim()) return;
     
-    await MenuService.createMenuItem({
-      notebookId: nbId,
-      parentId: null,
-      name: menuName,
-      type: 'note',
-      target: menuNoteId,
-      order: 0, // Will be handled by service if we want auto-ordering, but 0 is fine for now
-    });
-    
-    setIsMenuDialogOpen(false);
-    setMenuNoteId(null);
-    setMenuName("");
+    try {
+      await MenuService.createMenuItem({
+        notebookId: nbId,
+        parentId: null,
+        name: menuName,
+        type: 'note',
+        target: menuNoteId,
+        order: 0, // Will be handled by service if we want auto-ordering, but 0 is fine for now
+      });
+      
+      setIsMenuDialogOpen(false);
+      setMenuNoteId(null);
+      setMenuName("");
+      toast.success("Added to menu");
+    } catch (error) {
+      toast.error("Failed to add to menu");
+    }
   };
 
   const handleComposerSubmit = async () => {
     if (!composerContent.trim()) return;
-    const id = await NoteService.createNote(nbId);
-    await NoteService.updateNote(id, composerContent);
-    await NoteService.syncNoteTagsFromContent(id, nbId, composerContent);
-    setComposerContent("");
+    try {
+      const id = await NoteService.createNote(nbId);
+      await NoteService.updateNote(id, composerContent);
+      await NoteService.syncNoteTagsFromContent(id, nbId, composerContent);
+      setComposerContent("");
+      toast.success("Note posted successfully");
+    } catch (error) {
+      toast.error("Failed to post note");
+    }
   };
 
   if (!notebook) return null;

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useNavigate, useLocation } from "react-router";
+import { toast } from "sonner";
 import { MenuService } from "~/lib/services/menu-service";
 import { NoteService } from "~/lib/services/note-service";
 import { useTheme } from "./theme-provider";
@@ -118,24 +119,30 @@ export function NotebookSidebar({
   const handleSave = async () => {
     if (!editingItem || !editingItem.name.trim()) return;
 
-    if (editingItem.id) {
-      await MenuService.updateMenuItem(editingItem.id, {
-        name: editingItem.name,
-        type: editingItem.type,
-        target: editingItem.target,
-      });
-    } else {
-      await MenuService.createMenuItem({
-        notebookId,
-        parentId: editingItem.parentId,
-        name: editingItem.name,
-        type: editingItem.type,
-        target: editingItem.target,
-        order: menuItems.length,
-      });
+    try {
+      if (editingItem.id) {
+        await MenuService.updateMenuItem(editingItem.id, {
+          name: editingItem.name,
+          type: editingItem.type,
+          target: editingItem.target,
+        });
+        toast.success("Menu item updated");
+      } else {
+        await MenuService.createMenuItem({
+          notebookId,
+          parentId: editingItem.parentId,
+          name: editingItem.name,
+          type: editingItem.type,
+          target: editingItem.target,
+          order: menuItems.length,
+        });
+        toast.success("Menu item created");
+      }
+      setDialogOpen(false);
+      setEditingItem(null);
+    } catch (error) {
+      toast.error("Failed to save menu item");
     }
-    setDialogOpen(false);
-    setEditingItem(null);
   };
 
   const handleDelete = (id: string) => {
@@ -145,9 +152,14 @@ export function NotebookSidebar({
 
   const confirmDelete = async () => {
     if (menuItemToDelete) {
-      await MenuService.deleteMenuItem(menuItemToDelete);
-      setMenuItemToDelete(null);
-      setIsDeleteDialogOpen(false);
+      try {
+        await MenuService.deleteMenuItem(menuItemToDelete);
+        setMenuItemToDelete(null);
+        setIsDeleteDialogOpen(false);
+        toast.success("Menu item deleted");
+      } catch (error) {
+        toast.error("Failed to delete menu item");
+      }
     }
   };
 
