@@ -15,8 +15,10 @@ import {
   Calendar,
   MoreVertical,
   BookOpen,
-  Upload
+  Upload,
+  Download
 } from "lucide-react";
+import { ExportService } from "../lib/services/export-service";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -136,6 +138,14 @@ export default function NotebooksPage() {
               onClick={handleImportClick}
             >
               <Upload className="w-4 h-4" /> Import
+            </Button>
+            <Button 
+              variant="outline"
+              size="lg"
+              className="rounded-full gap-2 px-6"
+              onClick={() => ExportService.exportData()}
+            >
+              <Download className="w-4 h-4" /> Download
             </Button>
             <Button 
               onClick={() => setIsCreating(true)}
