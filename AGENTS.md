@@ -17,6 +17,7 @@
 ## Rules
 - 除非用户要求，否则不要自动编辑此文件。
 - 注释中不要添加修改说明，只添加当前代码的解释。
+- localstorage 在统一文件中管理key. 除去通用key(比如 theme) 都需要使用相同的前缀
 
 ## Project Structure
 - `app/` - Main application code

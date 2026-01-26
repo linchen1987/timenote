@@ -117,8 +117,8 @@ export default function NotebooksPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground p-4 sm:p-8">
-      <div className="max-w-5xl mx-auto space-y-10">
+    <main className="min-h-screen bg-background text-foreground p-4 sm:p-8 flex flex-col">
+      <div className="max-w-5xl mx-auto space-y-10 flex-1 w-full">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="space-y-1">
             <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl">My Notebooks</h1>
@@ -261,6 +261,15 @@ export default function NotebooksPage() {
           )}
         </div>
       </div>
+
+      <footer className="max-w-5xl mx-auto mt-20 pb-8 text-center">
+        <Link 
+          to="/playground" 
+          className="text-[10px] text-muted-foreground/40 hover:text-primary/40 transition-colors uppercase tracking-widest font-medium"
+        >
+          Playground
+        </Link>
+      </footer>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
