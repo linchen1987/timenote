@@ -36,7 +36,20 @@ class WebDavFsClient implements FsClient {
   private client: WebDAVClient;
 
   constructor(config: { url: string; username?: string; password?: string; token?: string }) {
-    const options: WebDAVClientOptions = {};
+    const options: WebDAVClientOptions = {
+        // Explicitly pass the global fetch to ensure it uses the Cloudflare Workers fetch implementation
+        // This is crucial for environments like CF Workers where native http/https modules are not available/polyfilled perfectly
+        // @ts-ignore
+        fetch: globalThis.fetch,
+        headers: {
+            // Mimic native Windows WebDAV client
+            "User-Agent": "Microsoft-WebDAV-MiniRedir/10.0.19043", 
+            "Accept": "*/*",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache"
+        }
+    };
+
     if (config.username) options.username = config.username;
     if (config.password) options.password = config.password;
     if (config.token) options.token = { access_token: config.token, token_type: "Bearer" };

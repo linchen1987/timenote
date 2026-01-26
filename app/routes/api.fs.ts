@@ -120,6 +120,16 @@ export async function action({ request }: ActionFunctionArgs) {
     return data({ result });
   } catch (error: any) {
     console.error("FS API Error:", error);
+    if (error.response) {
+        const status = error.response.status;
+        console.error("Upstream Response Status:", status);
+        const text = await error.response.text().catch(() => "N/A");
+        console.error("Upstream Response Text:", text);
+
+        if (status === 520) {
+            return data({ error: "Provider Error (520): The WebDAV server refused the connection from Cloudflare. This is common with Jianguoyun blocking cloud IPs." }, { status: 502 });
+        }
+    }
     return data({ error: error.message || "Unknown error" }, { status: 500 });
   }
 }

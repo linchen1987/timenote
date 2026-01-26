@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useLiveQuery } from "dexie-react-hooks";
 import { NoteService } from "../lib/services/note-service";
 import { MenuService } from "../lib/services/menu-service";
+import { SyncService } from "../lib/services/sync-service";
 import { parseNotebookId } from "../lib/utils/token";
 import { getNotebookMeta } from "../lib/utils/pwa";
 import { filterNotes } from "../lib/utils/search";
@@ -25,7 +26,10 @@ import {
   X, 
   Calendar,
   MoreVertical,
-  PlusSquare
+  PlusSquare,
+  RefreshCw,
+  Cloud,
+  CloudDownload
 } from "lucide-react";
 import { cn } from "~/lib/utils";
 import {
@@ -85,6 +89,8 @@ export default function NotebookTimeline() {
   const [menuName, setMenuName] = useState("");
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Queries
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
@@ -194,6 +200,32 @@ export default function NotebookTimeline() {
     }
   };
 
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+        await SyncService.syncNotebook(nbId);
+        toast.success("Synced successfully");
+    } catch (e) {
+        console.error(e);
+        toast.error("Sync failed");
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
+  const handlePull = async () => {
+    setIsSyncing(true);
+    try {
+        await SyncService.pull(nbId);
+        toast.success("Pulled successfully");
+    } catch (e) {
+        console.error(e);
+        toast.error("Pull failed");
+    } finally {
+        setIsSyncing(false);
+    }
+  };
+
   const handleSearchSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     setSearchQuery(inputQuery);
@@ -277,24 +309,46 @@ export default function NotebookTimeline() {
               {targetNoteId ? "Note Details" : (selectedTagId ? `Notes with #${notebookTags?.find(t => t.id === selectedTagId)?.name}` : (searchQuery ? `Search: ${searchQuery}` : notebook.name))}
             </h2>
             
-            <form onSubmit={handleSearchSubmit} className="relative group w-full max-w-[240px]">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <Input
-                placeholder="Search notebook..."
-                className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
-                value={inputQuery}
-                onChange={(e) => setInputQuery(e.target.value)}
-              />
-              {inputQuery && (
-                <button 
-                  type="button"
-                  onClick={() => { setInputQuery(""); setSearchQuery(""); setSearchParams({}); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full text-muted-foreground transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </form>
+            <div className="flex items-center gap-1 w-full max-w-[320px] justify-end">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handlePull}
+                disabled={isSyncing}
+                title="Pull from Cloud (Download Only)"
+                className="shrink-0 text-muted-foreground hover:text-primary"
+              >
+                 <CloudDownload className={cn("w-4 h-4", isSyncing && "animate-pulse")} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleSync}
+                disabled={isSyncing}
+                title="Sync Notebook (Push & Pull)"
+                className="shrink-0 mr-2 text-muted-foreground hover:text-primary"
+              >
+                 <RefreshCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+              </Button>
+              <form onSubmit={handleSearchSubmit} className="relative group w-full">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                <Input
+                  placeholder="Search..."
+                  className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
+                  value={inputQuery}
+                  onChange={(e) => setInputQuery(e.target.value)}
+                />
+                {inputQuery && (
+                  <button 
+                    type="button"
+                    onClick={() => { setInputQuery(""); setSearchQuery(""); setSearchParams({}); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </form>
+            </div>
           </div>
         </header>
 
