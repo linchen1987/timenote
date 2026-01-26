@@ -14,7 +14,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import {
@@ -70,11 +70,7 @@ export default function NotebooksPage() {
   const [isLoadingRemote, setIsLoadingRemote] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadRemote();
-  }, [loadRemote]);
-
-  const loadRemote = async () => {
+  const loadRemote = useCallback(async () => {
     setIsLoadingRemote(true);
     try {
       const list = await SyncService.getRemoteNotebooks();
@@ -84,7 +80,11 @@ export default function NotebooksPage() {
     } finally {
       setIsLoadingRemote(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadRemote();
+  }, [loadRemote]);
 
   const handleSync = async (id: string) => {
     setSyncingId(id);

@@ -370,7 +370,7 @@ export default function NotebookTimeline() {
                     key={nbId + (composerContent === '' ? 'empty' : 'active')}
                     initialValue={composerContent}
                     onChange={setComposerContent}
-                    placeholder="What's on your mind? Use #tags to organize..."
+                    placeholder="What's on your mind?"
                     availableTags={availableTagNames}
                     minHeight="100px"
                     showToolbar={false}
