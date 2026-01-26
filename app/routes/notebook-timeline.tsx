@@ -80,7 +80,16 @@ export default function NotebookTimeline() {
   const [targetNoteId, setTargetNoteId] = useState<string | null>(null);
   const [activeMenuItemId, setActiveMenuItemId] = useState<string | undefined>(undefined);
   const [composerContent, setComposerContent] = useState('');
+
+  // Reset composer content when notebook changes
+  const [prevNbId, setPrevNbId] = useState(nbId);
+  if (nbId !== prevNbId) {
+    setComposerContent('');
+    setPrevNbId(nbId);
+  }
+
   const editorRef = useRef<MarkdownEditorRef>(null);
+  const composerRef = useRef<MarkdownEditorRef>(null);
 
   // Dialog states
   const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
@@ -282,6 +291,8 @@ export default function NotebookTimeline() {
     try {
       await NoteService.createNoteWithContent(nbId, composerContent);
       setComposerContent('');
+      composerRef.current?.setMarkdown('');
+      composerRef.current?.focus();
       toast.success('Note posted successfully');
     } catch (error) {
       console.error(error);
@@ -367,7 +378,8 @@ export default function NotebookTimeline() {
               <CardContent className="p-0">
                 <div className="p-4 focus-within:ring-0 transition-all">
                   <MarkdownEditor
-                    key={nbId + (composerContent === '' ? 'empty' : 'active')}
+                    key={nbId}
+                    ref={composerRef}
                     initialValue={composerContent}
                     onChange={setComposerContent}
                     placeholder="What's on your mind?"

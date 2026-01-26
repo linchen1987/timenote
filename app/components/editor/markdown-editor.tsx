@@ -31,70 +31,76 @@ const MenuBar = ({ editor }: { editor: any }) => {
   if (!editor) return null;
 
   return (
-    <div className="border border-gray-200 dark:border-gray-700 rounded-t-lg p-1 bg-gray-50 dark:bg-gray-800 flex flex-wrap gap-0.5">
-      <div className="flex gap-0.5 p-1 border-r border-gray-200 dark:border-gray-600">
+    <div className="border border-muted/30 rounded-t-lg p-1 bg-muted/20 flex flex-wrap gap-0.5">
+      <div className="flex gap-0.5 p-1 border-r border-muted/30">
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
             editor.isActive('bold')
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           B
         </button>
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleItalic().run()}
           className={`px-2 py-1 rounded text-xs italic transition-colors ${
             editor.isActive('italic')
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           I
         </button>
       </div>
 
-      <div className="flex gap-0.5 p-1 border-r border-gray-200 dark:border-gray-600">
+      <div className="flex gap-0.5 p-1 border-r border-muted/30">
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
             editor.isActive('heading', { level: 1 })
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           H1
         </button>
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
             editor.isActive('heading', { level: 2 })
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           H2
         </button>
       </div>
 
-      <div className="flex gap-0.5 p-1 border-r border-gray-200 dark:border-gray-600">
+      <div className="flex gap-0.5 p-1 border-r border-muted/30">
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={`px-2 py-1 rounded text-xs transition-colors ${
             editor.isActive('bulletList')
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           • List
         </button>
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleTaskList().run()}
           className={`px-2 py-1 rounded text-xs transition-colors ${
             editor.isActive('taskList')
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           ☑ Todo
@@ -103,19 +109,21 @@ const MenuBar = ({ editor }: { editor: any }) => {
 
       <div className="flex gap-0.5 p-1">
         <button
+          type="button"
           onClick={() =>
             editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
           }
-          className="px-2 py-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+          className="px-2 py-1 rounded text-xs hover:bg-muted text-muted-foreground"
         >
           Table
         </button>
         <button
+          type="button"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           className={`px-2 py-1 rounded text-xs transition-colors ${
             editor.isActive('codeBlock')
-              ? 'bg-blue-600 text-white'
-              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
           }`}
         >
           Code
@@ -162,11 +170,17 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
     },
     ref,
   ) => {
-    // 使用 Ref 追踪最新的标签列表，避免 useEditor 闭包捕获旧值
+    // 使用 Ref 追踪最新的标签列表和回调，避免 useEditor 闭包捕获旧值
     const tagsRef = useRef(availableTags);
+    const callbacksRef = useRef({ onChange, onSubmit, onBlur });
+
     useEffect(() => {
       tagsRef.current = availableTags;
     }, [availableTags]);
+
+    useEffect(() => {
+      callbacksRef.current = { onChange, onSubmit, onBlur };
+    }, [onChange, onSubmit, onBlur]);
 
     const editor = useEditor({
       extensions: [
@@ -186,7 +200,9 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         TaskList,
         TaskItem.configure({ nested: true }),
         HorizontalRule,
-        SubmitHandler.configure({ onSubmit }),
+        SubmitHandler.configure({
+          onSubmit: () => callbacksRef.current.onSubmit?.(),
+        }),
         Placeholder.configure({
           placeholder,
           emptyEditorClass: 'is-editor-empty',
@@ -210,11 +226,11 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       },
       onUpdate: ({ editor }) => {
         const markdown = (editor.storage as any).markdown.getMarkdown();
-        onChange?.(markdown);
+        callbacksRef.current.onChange?.(markdown);
       },
       onBlur: ({ editor }) => {
         const markdown = (editor.storage as any).markdown.getMarkdown();
-        onBlur?.(markdown);
+        callbacksRef.current.onBlur?.(markdown);
       },
     });
 
@@ -252,11 +268,13 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
 
     if (!editor) return null;
 
+    const hasBgClass = className.includes('bg-');
+
     return (
       <div className="flex flex-col w-full">
         {editable && showToolbar && <MenuBar editor={editor} />}
         <div
-          className={`${editable ? 'border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-lg bg-white dark:bg-gray-800' : ''} ${editable && !showToolbar ? 'border-t rounded-t-lg' : ''}`}
+          className={`${editable ? 'border border-t-0 border-muted/30 rounded-b-lg' : ''} ${editable && !hasBgClass ? 'bg-muted/20' : ''} ${editable && !showToolbar ? 'border-t rounded-t-lg' : ''}`}
         >
           <EditorContent editor={editor} />
         </div>

@@ -56,19 +56,20 @@ export const TagList = forwardRef((props: TagListProps, ref) => {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden min-w-[150px] animate-in fade-in zoom-in duration-100">
+    <div className="bg-popover text-popover-foreground border border-border rounded-lg shadow-xl overflow-hidden min-w-[150px] animate-in fade-in zoom-in duration-100">
       <div className="flex flex-col p-1">
-        <div className="px-2 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100 dark:border-gray-700 mb-1">
+        <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border mb-1">
           Existing Tags
         </div>
         {props.items.map((item, index) => (
           <button
+            type="button"
             className={`text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
               index === selectedIndex
-                ? 'bg-blue-600 text-white'
-                : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200'
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-accent hover:text-accent-foreground text-foreground'
             }`}
-            key={index}
+            key={item}
             onClick={() => selectItem(index)}
           >
             #{item}
