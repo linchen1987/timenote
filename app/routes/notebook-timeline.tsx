@@ -417,13 +417,16 @@ export default function NotebookTimeline() {
               >
                 <div className="px-5 py-3 border-b border-muted/40 flex justify-between items-center bg-muted/20">
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+                    <Link
+                      to={`/s/${notebookToken}/${note.id}`}
+                      className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium hover:text-primary transition-colors cursor-pointer"
+                    >
                       <Calendar className="w-3.5 h-3.5 opacity-70" />
                       {new Date(note.updatedAt).toLocaleString([], {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                       })}
-                    </div>
+                    </Link>
                     <NoteTagsView noteId={note.id!} />
                   </div>
                   <div className="flex gap-1">

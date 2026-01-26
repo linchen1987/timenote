@@ -1,3 +1,23 @@
+import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  type DragOverEvent,
+  DragOverlay,
+  type DragStartEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
   ArrowDown,
@@ -7,6 +27,7 @@ import {
   ChevronRight,
   Edit2,
   FileText,
+  GripVertical,
   LayoutGrid,
   List,
   Monitor,
@@ -18,7 +39,7 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { useTheme } from '~/components/theme-provider';
@@ -75,9 +96,42 @@ export function NotebookSidebar({
   const isAllNotesPage =
     !selectedItemId && !isTagsPage && location.pathname === `/s/${notebookToken}`;
 
-  const menuItems =
+  const liveMenuItems =
     useLiveQuery(() => MenuService.getMenuItemsByNotebook(notebookId), [notebookId]) || [];
-  const tree = buildTree(menuItems);
+  const [items, setItems] = useState<MenuItem[]>([]);
+  const itemsRef = useRef<MenuItem[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [isRepositioning, setIsRepositioning] = useState(false);
+
+  useEffect(() => {
+    if (liveMenuItems && !activeId && !isRepositioning) {
+      setItems((prev) => {
+        if (JSON.stringify(prev) === JSON.stringify(liveMenuItems)) {
+          return prev;
+        }
+        itemsRef.current = liveMenuItems;
+        return liveMenuItems;
+      });
+    }
+  }, [liveMenuItems, activeId, isRepositioning]);
+
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (items.length > 0) {
+      setExpandedIds((prev) => {
+        if (prev.size > 0) return prev;
+        const allFolderIds = items
+          .filter((i) => items.some((child) => child.parentId === i.id))
+          .map((i) => i.id);
+        return new Set(allFolderIds);
+      });
+    }
+  }, [items]);
+
+  const visibleItems = useMemo(() => {
+    return flattenTree(items, expandedIds);
+  }, [items, expandedIds]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<{
@@ -90,6 +144,102 @@ export function NotebookSidebar({
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [menuItemToDelete, setMenuItemToDelete] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over || active.id === over.id) return;
+
+    // Use itemsRef for the latest state
+    const currentItems = itemsRef.current.length > 0 ? itemsRef.current : items;
+
+    const activeIndex = visibleItems.findIndex((i) => i.id === active.id);
+    const overIndex = visibleItems.findIndex((i) => i.id === over.id);
+
+    if (activeIndex === -1 || overIndex === -1) return;
+
+    const newVisibleItems = arrayMove(visibleItems, activeIndex, overIndex);
+
+    let newParentId: string | null = null;
+    if (overIndex > 0) {
+      const prevItem = newVisibleItems[overIndex - 1];
+      if (prevItem.hasChildren && expandedIds.has(prevItem.id)) {
+        // It's an expanded folder, so we become first child
+        newParentId = prevItem.id;
+      } else {
+        // Sibling
+        newParentId = prevItem.parentId;
+      }
+    } else {
+      // Top of list
+      newParentId = null;
+    }
+
+    const itemToMove = currentItems.find((i) => i.id === active.id);
+    if (!itemToMove) return;
+
+    const newFullList = currentItems.filter((i) => i.id !== active.id);
+
+    // Find index of prevItem in newFullList
+    const insertIndex = 0;
+    if (overIndex > 0) {
+      const prevItem = newVisibleItems[overIndex - 1];
+      // We can't check children directly on the flat item since it doesn't have the children array attached
+      // But we know if it hasChildren via the property
+      if (prevItem.hasChildren && expandedIds.has(prevItem.id)) {
+        // It's an expanded folder, so we become first child
+        newParentId = prevItem.id;
+      } else {
+        // Sibling
+        // If prevItem is a root/orphan, adopt its parentId (which is likely null or invalid)
+        // If we want to strictly adopt parentId, we can.
+        // But if it's an orphan, maybe we should fix it to null?
+        // Let's just copy parentId.
+        newParentId = prevItem.parentId;
+      }
+    } else {
+      // Top of list
+      newParentId = null;
+    }
+
+    newFullList.splice(insertIndex, 0, { ...itemToMove, parentId: newParentId });
+
+    // Update orders
+    const updates = newFullList.map((item, index) => ({
+      id: item.id,
+      order: index,
+      parentId: item.parentId,
+    }));
+
+    setIsRepositioning(true);
+    itemsRef.current = newFullList;
+    setItems(newFullList);
+
+    try {
+      await MenuService.reorderMenuItems(updates);
+    } catch (_error) {
+      toast.error('Failed to reorder menu items');
+      setItems(liveMenuItems);
+    } finally {
+      setIsRepositioning(false);
+    }
+  };
 
   const handleOpenAdd = (parentId: string | null = null) => {
     setEditingItem({
@@ -130,7 +280,7 @@ export function NotebookSidebar({
           name: editingItem.name,
           type: editingItem.type,
           target: editingItem.target,
-          order: menuItems.length,
+          order: items.length,
         });
         toast.success('Menu item created');
       }
@@ -160,7 +310,7 @@ export function NotebookSidebar({
   };
 
   const moveUp = async (item: MenuItem) => {
-    const siblings = menuItems.filter((i) => i.parentId === item.parentId);
+    const siblings = items.filter((i) => i.parentId === item.parentId);
     const index = siblings.findIndex((i) => i.id === item.id);
     if (index > 0) {
       const prev = siblings[index - 1];
@@ -172,7 +322,7 @@ export function NotebookSidebar({
   };
 
   const moveDown = async (item: MenuItem) => {
-    const siblings = menuItems.filter((i) => i.parentId === item.parentId);
+    const siblings = items.filter((i) => i.parentId === item.parentId);
     const index = siblings.findIndex((i) => i.id === item.id);
     if (index < siblings.length - 1) {
       const next = siblings[index + 1];
@@ -182,6 +332,20 @@ export function NotebookSidebar({
       ]);
     }
   };
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const activeItem = useMemo(
+    () => (activeId ? items.find((i) => i.id === activeId) : null),
+    [activeId, items],
+  );
 
   return (
     <aside className="w-64 bg-sidebar border-r flex flex-col h-full shrink-0">
@@ -236,6 +400,13 @@ export function NotebookSidebar({
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1 w-full max-w-full overflow-hidden">
           <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                onSelectSearch('');
+              }
+            }}
             className={cn(
               'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium',
               isAllNotesPage
@@ -252,6 +423,13 @@ export function NotebookSidebar({
           </div>
 
           <div
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                navigate(`/s/${notebookToken}/tags`);
+              }
+            }}
             className={cn(
               'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium',
               isTagsPage
@@ -269,22 +447,50 @@ export function NotebookSidebar({
 
           <Separator className="my-2 bg-sidebar-border/50" />
 
-          {tree.map((node) => (
-            <MenuItemComponent
-              key={node.id}
-              node={node}
-              level={0}
-              onSelectNote={onSelectNote}
-              onSelectSearch={onSelectSearch}
-              onAddChild={handleOpenAdd}
-              onUpdate={handleOpenEdit}
-              onDelete={handleDelete}
-              onMoveUp={moveUp}
-              onMoveDown={moveDown}
-              selectedItemId={selectedItemId}
-            />
-          ))}
-          {menuItems.length === 0 && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
+          >
+            <SortableContext
+              items={visibleItems.map((n) => n.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {visibleItems.map((node) => (
+                <MenuItemComponent
+                  key={node.id}
+                  node={node}
+                  onSelectNote={onSelectNote}
+                  onSelectSearch={onSelectSearch}
+                  onAddChild={handleOpenAdd}
+                  onUpdate={handleOpenEdit}
+                  onDelete={handleDelete}
+                  onMoveUp={moveUp}
+                  onMoveDown={moveDown}
+                  selectedItemId={selectedItemId}
+                  expandedIds={expandedIds}
+                  onToggleExpand={handleToggleExpand}
+                />
+              ))}
+            </SortableContext>
+            <DragOverlay>
+              {activeItem ? (
+                <div className="py-1.5 px-2 bg-sidebar-accent text-sidebar-accent-foreground rounded-md shadow-md opacity-90 flex items-center gap-2 w-full max-w-[200px]">
+                  <div className="w-4 flex-shrink-0" />
+                  {activeItem.type === 'search' ? (
+                    <Search className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                  ) : (
+                    <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+                  )}
+                  <span className="truncate font-medium text-sm">{activeItem.name}</span>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+
+          {items.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
               <p className="text-xs text-muted-foreground mb-4">No menu items created yet</p>
               <Button variant="outline" size="sm" onClick={() => handleOpenAdd(null)}>
@@ -361,7 +567,7 @@ export function NotebookSidebar({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <DialogTitle>Are you absolutely sure?</DialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the menu item and all its
               sub-menu items.
@@ -382,32 +588,36 @@ export function NotebookSidebar({
   );
 }
 
-interface TreeNode extends MenuItem {
-  children: TreeNode[];
-}
+function flattenTree(
+  items: MenuItem[],
+  expandedIds: Set<string>,
+): (MenuItem & { level: number; hasChildren: boolean })[] {
+  const itemIds = new Set(items.map((i) => i.id));
 
-function buildTree(items: MenuItem[]): TreeNode[] {
-  const itemMap: Record<string, TreeNode> = {};
-  const rootNodes: TreeNode[] = [];
+  // Roots are items with no parent OR parent not in the list (orphans)
+  const rootItems = items
+    .filter((i) => !i.parentId || !itemIds.has(i.parentId))
+    .sort((a, b) => a.order - b.order);
 
-  items.forEach((item) => {
-    itemMap[item.id] = { ...item, children: [] };
-  });
+  const result: (MenuItem & { level: number; hasChildren: boolean })[] = [];
 
-  items.forEach((item) => {
-    if (item.parentId && itemMap[item.parentId]) {
-      itemMap[item.parentId].children.push(itemMap[item.id]);
-    } else {
-      rootNodes.push(itemMap[item.id]);
+  function traverse(item: MenuItem, level: number) {
+    const children = items.filter((i) => i.parentId === item.id).sort((a, b) => a.order - b.order);
+
+    result.push({ ...item, level, hasChildren: children.length > 0 });
+
+    if (expandedIds.has(item.id)) {
+      children.forEach((child) => traverse(child, level + 1));
     }
-  });
+  }
 
-  return rootNodes;
+  rootItems.forEach((root) => traverse(root, 0));
+
+  return result;
 }
 
 function MenuItemComponent({
   node,
-  level,
   onSelectNote,
   onSelectSearch,
   onAddChild,
@@ -416,9 +626,10 @@ function MenuItemComponent({
   onMoveUp,
   onMoveDown,
   selectedItemId,
+  expandedIds,
+  onToggleExpand,
 }: {
-  node: TreeNode;
-  level: number;
+  node: MenuItem & { level: number; hasChildren: boolean };
   onSelectNote: (id: string, menuItemId?: string) => void;
   onSelectSearch: (q: string, menuItemId?: string) => void;
   onAddChild: (id: string) => void;
@@ -427,103 +638,113 @@ function MenuItemComponent({
   onMoveUp: (item: MenuItem) => void;
   onMoveDown: (item: MenuItem) => void;
   selectedItemId?: string;
+  expandedIds: Set<string>;
+  onToggleExpand: (id: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(true);
   const isSelected = selectedItemId === node.id;
+  const isExpanded = expandedIds.has(node.id);
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: node.id,
+    data: node,
+  });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    paddingLeft: `${node.level * 0.5 + 0.5}rem`,
+  };
 
   return (
-    <div className="space-y-1">
-      <div
-        className={cn(
-          'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden',
-          isSelected
-            ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-            : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden',
+        isSelected
+          ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+          : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+      )}
+      onClick={() => {
+        if (node.type === 'note') onSelectNote(node.target, node.id);
+        else onSelectSearch(node.target, node.id);
+      }}
+    >
+      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+        {node.hasChildren ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-4 w-4 p-0 hover:bg-transparent flex-shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleExpand(node.id);
+            }}
+          >
+            <ChevronRight
+              className={cn('w-3 h-3 transition-transform', isExpanded && 'rotate-90')}
+            />
+          </Button>
+        ) : (
+          <div className="w-4 flex-shrink-0" />
         )}
-        style={{ paddingLeft: `${level * 0.5 + 0.5}rem` }}
-        onClick={() => {
-          if (node.type === 'note') onSelectNote(node.target, node.id);
-          else onSelectSearch(node.target, node.id);
-        }}
-      >
-        <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
-          {node.children.length > 0 ? (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-4 w-4 p-0 hover:bg-transparent flex-shrink-0"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsOpen(!isOpen);
-              }}
-            >
-              <ChevronRight className={cn('w-3 h-3 transition-transform', isOpen && 'rotate-90')} />
-            </Button>
-          ) : (
-            <div className="w-4 flex-shrink-0" />
-          )}
 
-          {node.type === 'search' ? (
-            <Search className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-          ) : (
-            <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
-          )}
+        {node.type === 'search' ? (
+          <Search className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+        ) : (
+          <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
+        )}
 
-          <span className="truncate text-ellipsis overflow-hidden whitespace-nowrap">
-            {node.name}
-          </span>
-        </div>
-
-        <div className="opacity-0 group-hover:opacity-100 flex items-center shrink-0 ml-1">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-7 w-7 ml-1">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem onClick={() => onAddChild(node.id)}>
-                <Plus className="w-4 h-4 mr-2" /> Add Child
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMoveUp(node)}>
-                <ArrowUp className="w-4 h-4 mr-2" /> Move Up
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onMoveDown(node)}>
-                <ArrowDown className="w-4 h-4 mr-2" /> Move Down
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onUpdate(node)}>
-                <Edit2 className="w-4 h-4 mr-2" /> Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDelete(node.id)}
-              >
-                <Trash2 className="w-4 h-4 mr-2" /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+        <span className="truncate text-ellipsis overflow-hidden whitespace-nowrap">
+          {node.name}
+        </span>
       </div>
 
-      {isOpen && node.children.length > 0 && (
-        <div className="space-y-1">
-          {node.children.map((child) => (
-            <MenuItemComponent
-              key={child.id}
-              node={child}
-              level={level + 1}
-              onSelectNote={onSelectNote}
-              onSelectSearch={onSelectSearch}
-              onAddChild={onAddChild}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-              onMoveUp={onMoveUp}
-              onMoveDown={onMoveDown}
-              selectedItemId={selectedItemId}
-            />
-          ))}
+      <div className="opacity-0 group-hover:opacity-100 flex items-center shrink-0 ml-1">
+        <div
+          {...attributes}
+          {...listeners}
+          role="button"
+          tabIndex={0}
+          className="p-1 cursor-grab active:cursor-grabbing hover:bg-sidebar-accent rounded mr-0.5"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.stopPropagation();
+            }
+          }}
+        >
+          <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
         </div>
-      )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+            <Button variant="ghost" size="icon" className="h-7 w-7">
+              <MoreVertical className="w-4 h-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-40">
+            <DropdownMenuItem onClick={() => onAddChild(node.id)}>
+              <Plus className="w-4 h-4 mr-2" /> Add Child
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onMoveUp(node)}>
+              <ArrowUp className="w-4 h-4 mr-2" /> Move Up
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onMoveDown(node)}>
+              <ArrowDown className="w-4 h-4 mr-2" /> Move Down
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onUpdate(node)}>
+              <Edit2 className="w-4 h-4 mr-2" /> Edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => onDelete(node.id)}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
