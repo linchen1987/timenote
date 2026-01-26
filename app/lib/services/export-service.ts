@@ -1,14 +1,15 @@
 import { db } from '../db';
+import { type BackupData } from './backup-types';
 
 export const ExportService = {
-  async exportData() {
+  async exportData(): Promise<BackupData> {
     const notebooks = await db.notebooks.toArray();
     const notes = await db.notes.toArray();
     const tags = await db.tags.toArray();
     const noteTags = await db.noteTags.toArray();
     const menuItems = await db.menuItems.toArray();
 
-    const data = {
+    const data: BackupData = {
       notebooks,
       notes,
       tags,
@@ -27,5 +28,7 @@ export const ExportService = {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+
+    return data;
   }
 };

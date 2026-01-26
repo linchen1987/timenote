@@ -1,16 +1,9 @@
-import { db, type Notebook, type Note, type Tag, type NoteTag, type MenuItem } from '../db';
-
-export interface ImportData {
-  notebooks?: Notebook[];
-  notes?: Note[];
-  tags?: Tag[];
-  noteTags?: NoteTag[];
-  menuItems?: MenuItem[];
-}
+import { db } from '../db';
+import { type BackupData, type ImportStats } from './backup-types';
 
 export const ImportService = {
-  async importData(data: ImportData): Promise<{ success: number; skipped: number; errors: string[] }> {
-    const stats = { success: 0, skipped: 0, errors: [] as string[] };
+  async importData(data: BackupData): Promise<ImportStats> {
+    const stats: ImportStats = { success: 0, skipped: 0, errors: [] };
 
     await db.transaction('rw', [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems], async () => {
       // 1. Process Notebooks

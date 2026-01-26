@@ -2,7 +2,8 @@ import { useState, useRef } from "react";
 import { Link, type MetaFunction } from "react-router";
 import { toast } from "sonner";
 import { NoteService } from "../lib/services/note-service";
-import { ImportService, type ImportData } from "../lib/services/import-service";
+import { ImportService } from "../lib/services/import-service";
+import { type BackupData } from "../lib/services/backup-types";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -94,7 +95,7 @@ export default function NotebooksPage() {
 
     try {
       const text = await file.text();
-      const data = JSON.parse(text) as ImportData;
+      const data = JSON.parse(text) as BackupData;
       
       toast.promise(ImportService.importData(data), {
         loading: 'Importing data...',

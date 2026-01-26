@@ -22,12 +22,24 @@
 ## Project Structure
 - `app/` - Main application code
   - `routes/` - Route components (pages)
-    - `notebooks.tsx` - Notebook list (Home) notebook 列表页
-    - `notebook-timeline.tsx` - Note list in a notebook. note 列表页 list page
+    - `notebooks.tsx` - Notebook list (Home)
+    - `notebook-timeline.tsx` - Note list in a notebook
     - `note-detail.tsx` - Note editor/view
+    - `tags.tsx` - Tag management/list
+    - `manifest.tsx` - Web app manifest
+    - `api.fs.ts` - File system API endpoints
+    - `playground/` - Feature testing and demos
+      - `webdav.tsx` - WebDAV integration testing page
   - `components/` - Reusable UI components
-  - `lib/` - Logic and state
+    - `ui/` - Shadcn UI components
+    - `editor/` - Markdown editor components
+  - `services/` - External services (e.g., File System client)
+  - `hooks/` - Custom React hooks
+  - `lib/` - Logic, state, and utilities
     - `db.ts` - Dexie database schema and instance
+    - `services/` - Core business logic services (Note, Menu, Import/Export)
+    - `utils/` - Shared utility functions
+    - `constants.ts` - Application constants
   - `root.tsx` - Root layout and context providers
   - `routes.ts` - React Router route configuration
 - `wrangler.jsonc` - Cloudflare configuration
