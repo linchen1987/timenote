@@ -88,11 +88,26 @@ export const NoteService = {
   },
 
   async updateNote(id: string, content: string): Promise<void> {
+    const normalize = (s: string) => s.replace(/\r/g, '').trim();
     await db.transaction('rw', [db.notes, db.syncEvents], async () => {
+      const existing = await db.notes.get(id);
+      if (existing && normalize(existing.content) === normalize(content)) return;
+
       await db.notes.update(id, {
         content,
         updatedAt: Date.now(),
       });
+    });
+  },
+
+  async updateNoteWithTags(id: string, notebookId: string, content: string): Promise<void> {
+    const normalize = (s: string) => s.replace(/\r/g, '').trim();
+    await db.transaction('rw', [db.notes, db.tags, db.noteTags, db.syncEvents], async () => {
+      const existing = await db.notes.get(id);
+      if (existing && normalize(existing.content) === normalize(content)) return;
+
+      await this.updateNote(id, content);
+      await this.syncNoteTagsFromContent(id, notebookId, content);
     });
   },
 
@@ -232,13 +247,6 @@ export const NoteService = {
         await this.syncNoteTagsFromContent(id, notebookId, content);
       }
       return id;
-    });
-  },
-
-  async updateNoteWithTags(id: string, notebookId: string, content: string): Promise<void> {
-    await db.transaction('rw', [db.notes, db.tags, db.noteTags, db.syncEvents], async () => {
-      await this.updateNote(id, content);
-      await this.syncNoteTagsFromContent(id, notebookId, content);
     });
   },
 };

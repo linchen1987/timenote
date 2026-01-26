@@ -28,14 +28,14 @@ export default function TagsPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20 px-4 py-3">
-        <div className="max-w-4xl mx-auto flex items-center gap-2">
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex items-center gap-2">
           <TagIcon className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold">Tags</h2>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto p-4 sm:p-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {tagsWithCounts.map((tag) => (
             <Card
