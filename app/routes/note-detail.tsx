@@ -1,10 +1,12 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
+import { Calendar } from 'lucide-react';
 import { useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { NoteTagsView } from '~/components/note-tags-view';
+import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
 import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
@@ -37,33 +39,40 @@ export default function NoteDetailPage() {
   const availableTagNames = (notebookTags || []).map((t) => t.name);
 
   return (
-    <main className="min-h-screen bg-white dark:bg-gray-900">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <nav className="flex items-center justify-between mb-8">
+    <>
+      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20 px-4 py-3">
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
           <Link
             to={`/s/${notebookToken}`}
-            className="text-gray-900 dark:text-white font-bold text-xl hover:opacity-70 transition-opacity"
+            className="text-lg font-bold hover:text-primary transition-colors flex items-center gap-2"
           >
             ← Timeline
           </Link>
           <div className="flex items-center gap-4">
-            <span className="text-xs text-gray-400 font-medium">
-              Updated: {new Date(note.updatedAt).toLocaleString()}
-            </span>
-            <button
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <Calendar className="w-3.5 h-3.5 opacity-70" />
+              {new Date(note.updatedAt).toLocaleString([], {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              })}
+            </div>
+            <Button
               onClick={() => {
                 const content = editorRef.current?.getMarkdown() || '';
                 handleSyncTags(content);
                 navigate(`/s/${notebookToken}`);
               }}
-              className="bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-sm"
+              size="sm"
+              className="rounded-full px-6 font-bold"
             >
               Done
-            </button>
+            </Button>
           </div>
-        </nav>
+        </div>
+      </header>
 
-        <div className="mb-6 px-4">
+      <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6">
+        <div className="px-4">
           <NoteTagsView noteId={nId} />
         </div>
 
@@ -81,17 +90,18 @@ export default function NoteDetailPage() {
             availableTags={availableTagNames}
             autoFocus
             minHeight="70vh"
-            className="text-lg"
+            className="text-lg bg-transparent border-none shadow-none p-0"
+            showToolbar={true}
           />
         </div>
 
-        <footer className="mt-8 pt-8 border-t border-gray-100 dark:border-gray-800 flex justify-between text-gray-400 text-sm">
+        <footer className="mt-8 pt-8 border-t border-muted/20 flex justify-between text-muted-foreground text-sm px-4 pb-12">
           <div>
-            Note ID: <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">{nId}</code>
+            Note ID: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{nId}</code>
           </div>
           <div>{note.content.length} characters</div>
         </footer>
       </div>
-    </main>
+    </>
   );
 }

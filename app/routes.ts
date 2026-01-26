@@ -4,10 +4,12 @@ export default [
   index('routes/notebooks.tsx'),
   route('settings', 'routes/settings.tsx'),
 
-  route('s/:notebookToken/tags', 'routes/tags.tsx'),
-  route('s/:notebookToken', 'routes/notebook-timeline.tsx'),
-  route('s/:notebookToken/manifest.webmanifest', 'routes/manifest.tsx'),
-  route('s/:notebookToken/:noteId', 'routes/note-detail.tsx'),
+  route('s/:notebookToken', 'routes/notebook-layout.tsx', [
+    index('routes/notebook-timeline.tsx'),
+    route('tags', 'routes/tags.tsx'),
+    route('manifest.webmanifest', 'routes/manifest.tsx'),
+    route(':noteId', 'routes/note-detail.tsx'),
+  ]),
 
   // Playground 模块
   route('playground', 'routes/playground/index.tsx'),
