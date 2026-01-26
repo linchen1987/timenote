@@ -1,13 +1,13 @@
-import { ReactRenderer } from '@tiptap/react'
-import tippy, { type Instance as TippyInstance } from 'tippy.js'
-import { TagList } from './tag-list'
+import { ReactRenderer } from '@tiptap/react';
+import tippy, { type Instance as TippyInstance } from 'tippy.js';
+import { TagList } from '~/components/editor/tag-list';
 
 export const createTagSuggestion = (getTags: () => string[]) => ({
   char: '#',
   items: ({ query }: { query: string }) => {
     return getTags()
-      .filter(item => item.toLowerCase().startsWith(query.toLowerCase()))
-      .slice(0, 10)
+      .filter((item) => item.toLowerCase().startsWith(query.toLowerCase()))
+      .slice(0, 10);
   },
 
   command: ({ editor, range, props }: any) => {
@@ -21,22 +21,22 @@ export const createTagSuggestion = (getTags: () => string[]) => ({
           text: `#${props.id} `,
         },
       ])
-      .run()
+      .run();
   },
 
   render: () => {
-    let component: ReactRenderer<any>
-    let popup: TippyInstance[]
+    let component: ReactRenderer<any>;
+    let popup: TippyInstance[];
 
     return {
       onStart: (props: any) => {
         component = new ReactRenderer(TagList, {
           props,
           editor: props.editor,
-        })
+        });
 
         if (!props.clientRect) {
-          return
+          return;
         }
 
         popup = tippy('body', {
@@ -47,34 +47,34 @@ export const createTagSuggestion = (getTags: () => string[]) => ({
           interactive: true,
           trigger: 'manual',
           placement: 'bottom-start',
-        })
+        });
       },
 
       onUpdate(props: any) {
-        component.updateProps(props)
+        component.updateProps(props);
 
         if (!props.clientRect) {
-          return
+          return;
         }
 
         popup[0].setProps({
           getReferenceClientRect: props.clientRect,
-        })
+        });
       },
 
       onKeyDown(props: any) {
         if (props.event.key === 'Escape') {
-          popup[0].hide()
-          return true
+          popup[0].hide();
+          return true;
         }
 
-        return component.ref?.onKeyDown(props)
+        return component.ref?.onKeyDown(props);
       },
 
       onExit() {
-        popup[0].destroy()
-        component.destroy()
+        popup[0].destroy();
+        component.destroy();
       },
-    }
+    };
   },
-})
+});

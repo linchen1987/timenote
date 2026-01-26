@@ -1,23 +1,23 @@
-import { useParams, Link, useNavigate, type MetaFunction } from "react-router";
-import { useLiveQuery } from "dexie-react-hooks";
-import { NoteService } from "../lib/services/note-service";
-import { parseNotebookId } from "../lib/utils/token";
-import { getNotebookMeta } from "../lib/utils/pwa";
-import { NotebookSidebar } from "../components/notebook-sidebar";
-import { Hash, Tag as TagIcon, ChevronRight } from "lucide-react";
-import { Card, CardContent } from "~/components/ui/card";
-import { Button } from "~/components/ui/button";
-import type { Route } from "./+types/tags";
+import { useLiveQuery } from 'dexie-react-hooks';
+import { ChevronRight, Hash, Tag as TagIcon } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { NotebookSidebar } from '~/components/notebook-sidebar';
+import { Button } from '~/components/ui/button';
+import { Card, CardContent } from '~/components/ui/card';
+import { NoteService } from '~/lib/services/note-service';
+import { getNotebookMeta } from '~/lib/utils/pwa';
+import { parseNotebookId } from '~/lib/utils/token';
+import type { Route } from './+types/tags';
 
 export const meta: Route.MetaFunction = ({ params }) => {
-  return getNotebookMeta("Tags", params.notebookToken);
+  return getNotebookMeta('Tags', params.notebookToken);
 };
 
 export default function TagsPage() {
   const { notebookToken } = useParams();
-  const nbId = parseNotebookId(notebookToken || "");
+  const nbId = parseNotebookId(notebookToken || '');
   const navigate = useNavigate();
-  
+
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const tagsWithCounts = useLiveQuery(() => NoteService.getTagsWithCounts(nbId), [nbId]) || [];
 
@@ -33,12 +33,12 @@ export default function TagsPage() {
 
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <NotebookSidebar 
-        notebookId={nbId} 
-        onSelectSearch={handleSelectSearch} 
+      <NotebookSidebar
+        notebookId={nbId}
+        onSelectSearch={handleSelectSearch}
         onSelectNote={handleSelectNote}
       />
-      
+
       <main className="flex-1 overflow-y-auto">
         <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20 px-4 py-3">
           <div className="max-w-4xl mx-auto flex items-center gap-2">
@@ -50,8 +50,8 @@ export default function TagsPage() {
         <div className="max-w-4xl mx-auto p-4 sm:p-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {tagsWithCounts.map((tag) => (
-              <Card 
-                key={tag.id} 
+              <Card
+                key={tag.id}
                 className="group hover:border-primary/50 transition-colors cursor-pointer"
                 onClick={() => handleSelectSearch(`#${tag.name}`)}
               >
@@ -80,7 +80,7 @@ export default function TagsPage() {
                   Tags will appear here once you add them to your notes using the # symbol.
                 </p>
                 <Button variant="outline" className="mt-6" asChild>
-                   <Link to={`/s/${notebookToken}`}>Go to Timeline</Link>
+                  <Link to={`/s/${notebookToken}`}>Go to Timeline</Link>
                 </Button>
               </div>
             )}

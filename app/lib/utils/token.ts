@@ -25,7 +25,7 @@ export function decodeBase58(str: string): string {
   let x = 0n;
   for (const c of str) {
     const i = ALPHABET.indexOf(c);
-    if (i === -1) return ''; 
+    if (i === -1) return '';
     x = x * 58n + BigInt(i);
   }
   const res: number[] = [];

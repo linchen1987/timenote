@@ -1,4 +1,4 @@
-import { type Notebook, type Note, type Tag, type NoteTag, type MenuItem } from '../db';
+import type { MenuItem, Note, Notebook, NoteTag, Tag } from '~/lib/types';
 
 export interface BackupData {
   notebooks?: Notebook[];

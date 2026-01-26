@@ -1,5 +1,5 @@
-import { db } from '../db';
-import { type BackupData } from './backup-types';
+import { db } from '~/lib/db';
+import type { BackupData } from '~/lib/services/backup-types';
 
 export const ExportService = {
   async exportData(): Promise<BackupData> {
@@ -16,7 +16,7 @@ export const ExportService = {
       noteTags,
       menuItems,
       version: 5,
-      exportedAt: Date.now()
+      exportedAt: Date.now(),
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -30,5 +30,5 @@ export const ExportService = {
     URL.revokeObjectURL(url);
 
     return data;
-  }
+  },
 };

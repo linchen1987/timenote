@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import {
   isRouteErrorResponse,
   Links,
@@ -5,38 +6,33 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
-} from "react-router";
-import { useEffect } from "react";
+} from 'react-router';
 
-import type { Route } from "./+types/root";
-import "./app.css";
-import { ThemeProvider, themeScript } from "./components/theme-provider";
-import { Toaster } from "./components/ui/sonner";
+import type { Route } from './+types/root';
+import './app.css';
+import { ThemeProvider, themeScript } from '~/components/theme-provider';
+import { Toaster } from '~/components/ui/sonner';
 
 export const links: Route.LinksFunction = () => [
-  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
   {
-    rel: "preconnect",
-    href: "https://fonts.gstatic.com",
-    crossOrigin: "anonymous",
+    rel: 'preconnect',
+    href: 'https://fonts.gstatic.com',
+    crossOrigin: 'anonymous',
   },
   {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap",
+    rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap',
   },
-  { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+  { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // 注册 Service Worker 以支持离线缓存
-    if (
-      typeof window !== "undefined" &&
-      "serviceWorker" in navigator &&
-      import.meta.env.PROD
-    ) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("/sw.js").catch(console.error);
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').catch(console.error);
       });
     }
   }, []);
@@ -70,16 +66,14 @@ export default function App() {
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  let message = "Oops!";
-  let details = "An unexpected error occurred.";
+  let message = 'Oops!';
+  let details = 'An unexpected error occurred.';
   let stack: string | undefined;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
+    message = error.status === 404 ? '404' : 'Error';
     details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
+      error.status === 404 ? 'The requested page could not be found.' : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
     stack = error.stack;

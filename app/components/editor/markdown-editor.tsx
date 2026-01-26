@@ -1,19 +1,19 @@
-"use client";
+'use client';
 
-import { useEditor, EditorContent, Extension } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { Markdown } from "tiptap-markdown";
-import { Table } from "@tiptap/extension-table";
-import { TableRow } from "@tiptap/extension-table-row";
-import { TableHeader } from "@tiptap/extension-table-header";
-import { TableCell } from "@tiptap/extension-table-cell";
-import TaskList from "@tiptap/extension-task-list";
-import TaskItem from "@tiptap/extension-task-item";
-import HorizontalRule from "@tiptap/extension-horizontal-rule";
-import Mention from "@tiptap/extension-mention";
-import Placeholder from "@tiptap/extension-placeholder";
-import { useEffect, forwardRef, useImperativeHandle, useRef } from "react";
-import { createTagSuggestion } from "./suggestion";
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import Mention from '@tiptap/extension-mention';
+import Placeholder from '@tiptap/extension-placeholder';
+import { Table } from '@tiptap/extension-table';
+import { TableCell } from '@tiptap/extension-table-cell';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableRow } from '@tiptap/extension-table-row';
+import TaskItem from '@tiptap/extension-task-item';
+import TaskList from '@tiptap/extension-task-list';
+import { EditorContent, Extension, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { Markdown } from 'tiptap-markdown';
+import { createTagSuggestion } from '~/components/editor/suggestion';
 
 const SubmitHandler = Extension.create({
   name: 'submitHandler',
@@ -23,7 +23,7 @@ const SubmitHandler = Extension.create({
         this.options.onSubmit?.();
         return true;
       },
-    }
+    };
   },
 });
 
@@ -36,7 +36,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
           className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
-            editor.isActive("bold") ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('bold')
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           B
@@ -44,7 +46,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
           className={`px-2 py-1 rounded text-xs italic transition-colors ${
-            editor.isActive("italic") ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('italic')
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           I
@@ -55,7 +59,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
           className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
-            editor.isActive("heading", { level: 1 }) ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('heading', { level: 1 })
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           H1
@@ -63,7 +69,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
           className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
-            editor.isActive("heading", { level: 2 }) ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('heading', { level: 2 })
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           H2
@@ -74,7 +82,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           className={`px-2 py-1 rounded text-xs transition-colors ${
-            editor.isActive("bulletList") ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('bulletList')
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           • List
@@ -82,7 +92,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleTaskList().run()}
           className={`px-2 py-1 rounded text-xs transition-colors ${
-            editor.isActive("taskList") ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('taskList')
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           ☑ Todo
@@ -91,7 +103,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
 
       <div className="flex gap-0.5 p-1">
         <button
-          onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+          onClick={() =>
+            editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+          }
           className="px-2 py-1 rounded text-xs hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
         >
           Table
@@ -99,7 +113,9 @@ const MenuBar = ({ editor }: { editor: any }) => {
         <button
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
           className={`px-2 py-1 rounded text-xs transition-colors ${
-            editor.isActive("codeBlock") ? "bg-blue-600 text-white" : "hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
+            editor.isActive('codeBlock')
+              ? 'bg-blue-600 text-white'
+              : 'hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300'
           }`}
         >
           Code
@@ -130,7 +146,22 @@ interface MarkdownEditorProps {
 }
 
 const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
-  ({ initialValue = "", onChange, onSubmit, onBlur, availableTags = [], className = "", placeholder = "", showToolbar = true, autoFocus = false, minHeight = "auto", editable = true }, ref) => {
+  (
+    {
+      initialValue = '',
+      onChange,
+      onSubmit,
+      onBlur,
+      availableTags = [],
+      className = '',
+      placeholder = '',
+      showToolbar = true,
+      autoFocus = false,
+      minHeight = 'auto',
+      editable = true,
+    },
+    ref,
+  ) => {
     // 使用 Ref 追踪最新的标签列表，避免 useEditor 闭包捕获旧值
     const tagsRef = useRef(availableTags);
     useEffect(() => {
@@ -143,8 +174,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         Markdown.configure({
           html: true,
           tightLists: true,
-          tightListClass: "tight",
-          bulletListMarker: "-",
+          tightListClass: 'tight',
+          bulletListMarker: '-',
           linkify: false,
           breaks: false,
         }),
@@ -162,7 +193,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         }),
         Mention.configure({
           HTMLAttributes: {
-            class: 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold px-1 rounded',
+            class:
+              'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold px-1 rounded',
           },
           suggestion: createTagSuggestion(() => tagsRef.current),
         }),
@@ -206,7 +238,11 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
 
     // Update editor content when initialValue changes from outside
     useEffect(() => {
-      if (editor && initialValue !== undefined && initialValue !== (editor.storage as any).markdown.getMarkdown()) {
+      if (
+        editor &&
+        initialValue !== undefined &&
+        initialValue !== (editor.storage as any).markdown.getMarkdown()
+      ) {
         // Only update if not focused to avoid flickering while typing
         if (!editor.isFocused) {
           editor.commands.setContent(initialValue, { emitUpdate: false });
@@ -219,12 +255,15 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
     return (
       <div className="flex flex-col w-full">
         {editable && showToolbar && <MenuBar editor={editor} />}
-        <div className={`${editable ? 'border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-lg bg-white dark:bg-gray-800' : ''} ${editable && !showToolbar ? 'border-t rounded-t-lg' : ''}`}>
+        <div
+          className={`${editable ? 'border border-t-0 border-gray-200 dark:border-gray-700 rounded-b-lg bg-white dark:bg-gray-800' : ''} ${editable && !showToolbar ? 'border-t rounded-t-lg' : ''}`}
+        >
           <EditorContent editor={editor} />
         </div>
-        
-        <style dangerouslySetInnerHTML={{
-          __html: `
+
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
             .ProseMirror { outline: none; line-height: 1.6; }
             .ProseMirror h1 { font-size: 1.8rem; font-weight: 800; margin-top: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 0.2rem; }
             .ProseMirror h2 { font-size: 1.4rem; font-weight: 700; margin-top: 0.8rem; margin-bottom: 0.4rem; }
@@ -251,13 +290,14 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               pointer-events: none;
               height: 0;
             }
-          `
-        }} />
+          `,
+          }}
+        />
       </div>
     );
-  }
+  },
 );
 
-MarkdownEditor.displayName = "MarkdownEditor";
+MarkdownEditor.displayName = 'MarkdownEditor';
 
 export default MarkdownEditor;

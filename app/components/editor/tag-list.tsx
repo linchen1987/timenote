@@ -1,63 +1,58 @@
-import React, {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useState,
-} from 'react'
+import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 
 export interface TagListProps {
-  items: string[]
-  command: (props: { id: string }) => void
+  items: string[];
+  command: (props: { id: string }) => void;
 }
 
 export const TagList = forwardRef((props: TagListProps, ref) => {
-  const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const selectItem = (index: number) => {
-    const item = props.items[index]
+    const item = props.items[index];
 
     if (item) {
-      props.command({ id: item })
+      props.command({ id: item });
     }
-  }
+  };
 
   const upHandler = () => {
-    setSelectedIndex(((selectedIndex + props.items.length - 1) % props.items.length))
-  }
+    setSelectedIndex((selectedIndex + props.items.length - 1) % props.items.length);
+  };
 
   const downHandler = () => {
-    setSelectedIndex(((selectedIndex + 1) % props.items.length))
-  }
+    setSelectedIndex((selectedIndex + 1) % props.items.length);
+  };
 
   const enterHandler = () => {
-    selectItem(selectedIndex)
-  }
+    selectItem(selectedIndex);
+  };
 
-  useEffect(() => setSelectedIndex(0), [props.items])
+  useEffect(() => setSelectedIndex(0), []);
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }: { event: KeyboardEvent }) => {
       if (event.key === 'ArrowUp') {
-        upHandler()
-        return true
+        upHandler();
+        return true;
       }
 
       if (event.key === 'ArrowDown') {
-        downHandler()
-        return true
+        downHandler();
+        return true;
       }
 
       if (event.key === 'Enter') {
-        enterHandler()
-        return true
+        enterHandler();
+        return true;
       }
 
-      return false
+      return false;
     },
-  }))
+  }));
 
   if (!props.items || props.items.length === 0) {
-    return null
+    return null;
   }
 
   return (
@@ -81,7 +76,7 @@ export const TagList = forwardRef((props: TagListProps, ref) => {
         ))}
       </div>
     </div>
-  )
-})
+  );
+});
 
-TagList.displayName = 'TagList'
+TagList.displayName = 'TagList';

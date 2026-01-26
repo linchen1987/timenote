@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from 'react';
 
 // Hook for safe local storage usage with hydration support
 export function useLocalStorage(key: string, initialValue: string) {
@@ -8,7 +8,7 @@ export function useLocalStorage(key: string, initialValue: string) {
 
   useEffect(() => {
     // Check if running in browser
-    if (typeof window !== "undefined") {
+    if (typeof window !== 'undefined') {
       const stored = localStorage.getItem(key);
       if (stored !== null) {
         setValue(stored);
@@ -18,7 +18,7 @@ export function useLocalStorage(key: string, initialValue: string) {
   }, [key]);
 
   useEffect(() => {
-    if (isHydrated && typeof window !== "undefined") {
+    if (isHydrated && typeof window !== 'undefined') {
       localStorage.setItem(key, value);
     }
   }, [key, value, isHydrated]);

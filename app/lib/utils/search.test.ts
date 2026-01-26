@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { filterNotes } from './search';
+import { describe, expect, it } from 'vitest';
+import { filterNotes } from '~/lib/utils/search';
 
 describe('filterNotes', () => {
   const mockNotes = [
@@ -37,8 +37,8 @@ describe('filterNotes', () => {
   it('should filter by tags', () => {
     const result = filterNotes(mockNotes, '#react', mockTagsMap);
     expect(result).toHaveLength(2);
-    expect(result.map(r => r.id)).toContain('1');
-    expect(result.map(r => r.id)).toContain('3');
+    expect(result.map((r) => r.id)).toContain('1');
+    expect(result.map((r) => r.id)).toContain('3');
   });
 
   it('should filter by mixed text and tags', () => {

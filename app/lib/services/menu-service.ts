@@ -1,33 +1,38 @@
-import { db, generateId, type MenuItem } from '../db';
+import { db, generateId } from '~/lib/db';
+import type { MenuItem } from '~/lib/types';
 
 export const MenuService = {
   async getMenuItemsByNotebook(notebookId: string): Promise<MenuItem[]> {
-    return db.menuItems
-      .where('notebookId')
-      .equals(notebookId)
-      .sortBy('order');
+    return db.menuItems.where('notebookId').equals(notebookId).sortBy('order');
   },
 
   async createMenuItem(item: Omit<MenuItem, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
     const id = generateId();
-    await db.menuItems.add({
-      ...item,
-      id,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+    await db.transaction('rw', [db.menuItems, db.syncEvents], async () => {
+      await db.menuItems.add({
+        ...item,
+        id,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      });
     });
     return id;
   },
 
-  async updateMenuItem(id: string, updates: Partial<Omit<MenuItem, 'id' | 'notebookId' | 'createdAt'>>): Promise<void> {
-    await db.menuItems.update(id, {
-      ...updates,
-      updatedAt: Date.now(),
+  async updateMenuItem(
+    id: string,
+    updates: Partial<Omit<MenuItem, 'id' | 'notebookId' | 'createdAt'>>,
+  ): Promise<void> {
+    await db.transaction('rw', [db.menuItems, db.syncEvents], async () => {
+      await db.menuItems.update(id, {
+        ...updates,
+        updatedAt: Date.now(),
+      });
     });
   },
 
   async deleteMenuItem(id: string): Promise<void> {
-    await db.transaction('rw', db.menuItems, async () => {
+    await db.transaction('rw', [db.menuItems, db.syncEvents], async () => {
       // Also delete children
       const children = await db.menuItems.where('parentId').equals(id).toArray();
       for (const child of children) {
@@ -37,8 +42,10 @@ export const MenuService = {
     });
   },
 
-  async reorderMenuItems(items: { id: string; order: number; parentId: string | null }[]): Promise<void> {
-    await db.transaction('rw', db.menuItems, async () => {
+  async reorderMenuItems(
+    items: { id: string; order: number; parentId: string | null }[],
+  ): Promise<void> {
+    await db.transaction('rw', [db.menuItems, db.syncEvents], async () => {
       for (const item of items) {
         await db.menuItems.update(item.id, {
           order: item.order,
@@ -47,5 +54,5 @@ export const MenuService = {
         });
       }
     });
-  }
+  },
 };
