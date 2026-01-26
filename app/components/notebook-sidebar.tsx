@@ -76,6 +76,7 @@ interface NotebookSidebarProps {
   notebookId: string;
   onSelectSearch: (query: string, menuItemId?: string) => void;
   onSelectNote: (noteId: string, menuItemId?: string) => void;
+  onSelectNotebook?: () => void;
   selectedItemId?: string;
 }
 
@@ -83,8 +84,10 @@ export function NotebookSidebar({
   notebookId,
   onSelectSearch,
   onSelectNote,
+  onSelectNotebook,
   selectedItemId,
-}: NotebookSidebarProps) {
+  className,
+}: NotebookSidebarProps & { className?: string }) {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -348,7 +351,7 @@ export function NotebookSidebar({
   );
 
   return (
-    <aside className="w-64 bg-sidebar border-r flex flex-col h-full shrink-0">
+    <aside className={cn('w-64 bg-sidebar border-r flex flex-col h-full shrink-0', className)}>
       <div className="p-3 flex justify-between items-center">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -370,7 +373,10 @@ export function NotebookSidebar({
             {notebooks.map((nb) => (
               <DropdownMenuItem
                 key={nb.id}
-                onClick={() => navigate(`/s/${createNotebookToken(nb.id, nb.name)}`)}
+                onClick={() => {
+                  navigate(`/s/${createNotebookToken(nb.id, nb.name)}`);
+                  onSelectNotebook?.();
+                }}
                 className={cn(
                   nb.id === notebookId && 'bg-sidebar-accent text-sidebar-accent-foreground',
                 )}
@@ -380,7 +386,12 @@ export function NotebookSidebar({
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => navigate('/')}>
+            <DropdownMenuItem
+              onClick={() => {
+                navigate('/');
+                onSelectNotebook?.();
+              }}
+            >
               <List className="w-4 h-4 mr-2" />
               All Notebooks
             </DropdownMenuItem>
@@ -413,7 +424,10 @@ export function NotebookSidebar({
                 ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                 : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
             )}
-            onClick={() => onSelectSearch('')}
+            onClick={() => {
+              onSelectSearch('');
+              onSelectNotebook?.();
+            }}
           >
             <div className="flex items-center gap-1 min-w-0 flex-1">
               <div className="w-4" />
@@ -436,7 +450,10 @@ export function NotebookSidebar({
                 ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                 : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
             )}
-            onClick={() => navigate(`/s/${notebookToken}/tags`)}
+            onClick={() => {
+              navigate(`/s/${notebookToken}/tags`);
+              onSelectNotebook?.();
+            }}
           >
             <div className="flex items-center gap-1 min-w-0 flex-1">
               <div className="w-4" />

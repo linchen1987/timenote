@@ -5,6 +5,7 @@ import {
   Calendar,
   CloudDownload,
   Maximize2,
+  Menu,
   MoreVertical,
   Plus,
   PlusSquare,
@@ -14,7 +15,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router';
+import { Link, useOutletContext, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { NoteTagsView } from '~/components/note-tags-view';
@@ -62,6 +63,7 @@ export const meta: Route.MetaFunction = ({ params }) => {
 export default function NotebookTimeline() {
   const { notebookToken } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { setIsSidebarOpen } = useOutletContext<{ setIsSidebarOpen: (open: boolean) => void }>();
   const nbId = parseNotebookId(notebookToken || '');
   const q = searchParams.get('q') || '';
 
@@ -284,15 +286,25 @@ export default function NotebookTimeline() {
     <>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
-          <h2 className="text-lg font-bold truncate pr-4">
-            {targetNoteId
-              ? 'Note Details'
-              : selectedTagId
-                ? `Notes with #${notebookTags?.find((t) => t.id === selectedTagId)?.name}`
-                : searchQuery
-                  ? `Search: ${searchQuery}`
-                  : notebook.name}
-          </h2>
+          <div className="flex items-center gap-2 overflow-hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden shrink-0"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+            <h2 className="text-lg font-bold truncate pr-4">
+              {targetNoteId
+                ? 'Note Details'
+                : selectedTagId
+                  ? `Notes with #${notebookTags?.find((t) => t.id === selectedTagId)?.name}`
+                  : searchQuery
+                    ? `Search: ${searchQuery}`
+                    : notebook.name}
+            </h2>
+          </div>
 
           <div className="flex items-center gap-1 w-full max-w-[320px] justify-end">
             <Button
