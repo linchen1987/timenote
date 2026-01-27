@@ -10,6 +10,12 @@ export default function PlaygroundIndex() {
       href: '/playground/webdav',
       icon: <Globe className="w-6 h-6 text-blue-500" />,
     },
+    {
+      title: 'Data Tools',
+      description: 'Raw data operations, maintenance, and database migrations.',
+      href: '/playground/data-tools',
+      icon: <FlaskConical className="w-6 h-6 text-orange-500" />,
+    },
     // 未来可以在这里添加更多
   ];
 

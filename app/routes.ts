@@ -14,6 +14,7 @@ export default [
   // Playground 模块
   route('playground', 'routes/playground/index.tsx'),
   route('playground/webdav', 'routes/playground/webdav.tsx'),
+  route('playground/data-tools', 'routes/playground/data-tools.tsx'),
 
   // API
   route('api/fs', 'routes/api.fs.ts'),

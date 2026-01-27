@@ -1,4 +1,4 @@
-import Dexie, { type Table } from 'dexie';
+import Dexie, { type Table, type Transaction } from 'dexie';
 import { nanoid } from 'nanoid';
 import type { MenuItem, Note, Notebook, NoteTag, SyncEvent, Tag } from '~/lib/types';
 
@@ -14,11 +14,11 @@ export class TimenoteDatabase extends Dexie {
 
   constructor() {
     super('TimenoteDB');
-    this.version(5).stores({
+    this.version(6).stores({
       notebooks: 'id, name, createdAt, updatedAt',
       notes: 'id, notebookId, createdAt, updatedAt, [notebookId+updatedAt]',
       tags: 'id, notebookId, name',
-      noteTags: '[noteId+tagId], noteId, tagId',
+      noteTags: '[noteId+tagId], noteId, tagId, notebookId',
       menuItems: 'id, notebookId, parentId, order',
       syncEvents: 'id, notebookId, createdAt, [notebookId+createdAt]',
     });
@@ -31,7 +31,7 @@ export class TimenoteDatabase extends Dexie {
     const tables = ['notebooks', 'notes', 'tags', 'menuItems', 'noteTags'] as const;
 
     tables.forEach((tableName) => {
-      this.table(tableName).hook('creating', (primKey, obj, transaction) => {
+      this.table(tableName).hook('creating', (primKey, obj, transaction: Transaction) => {
         if ((transaction as any).source === 'sync') return;
 
         // For noteTags, primKey might be an array or object depending on schema, but we use composite key string for event
@@ -49,25 +49,10 @@ export class TimenoteDatabase extends Dexie {
 
         if (notebookId) {
           this.logSyncEvent(transaction, notebookId, tableName, entityId, 'create');
-        } else if (tableName === 'noteTags') {
-          // For noteTags, we need to find the notebookId from the note or tag.
-          const noteId = (obj as NoteTag).noteId;
-          let noteTable;
-          try {
-            noteTable = transaction.table('notes');
-          } catch (_e) {
-            noteTable = this.notes;
-          }
-
-          noteTable.get(noteId).then((note: Note) => {
-            if (note) {
-              this.logSyncEvent(transaction, note.notebookId, tableName, entityId, 'create');
-            }
-          });
         }
       });
 
-      this.table(tableName).hook('updating', (_mods, primKey, obj, transaction) => {
+      this.table(tableName).hook('updating', (_mods, primKey, obj, transaction: Transaction) => {
         if ((transaction as any).source === 'sync') return;
 
         let entityId = String(primKey);
@@ -83,22 +68,10 @@ export class TimenoteDatabase extends Dexie {
 
         if (notebookId) {
           this.logSyncEvent(transaction, notebookId, tableName, entityId, 'update');
-        } else if (tableName === 'noteTags') {
-          let noteTable;
-          try {
-            noteTable = transaction.table('notes');
-          } catch (_e) {
-            noteTable = this.notes;
-          }
-          noteTable.get((obj as NoteTag).noteId).then((note: Note) => {
-            if (note) {
-              this.logSyncEvent(transaction, note.notebookId, tableName, entityId, 'update');
-            }
-          });
         }
       });
 
-      this.table(tableName).hook('deleting', (primKey, obj, transaction) => {
+      this.table(tableName).hook('deleting', (primKey, obj, transaction: Transaction) => {
         if ((transaction as any).source === 'sync') return;
 
         let entityId = String(primKey);
@@ -114,25 +87,13 @@ export class TimenoteDatabase extends Dexie {
 
         if (notebookId) {
           this.logSyncEvent(transaction, notebookId, tableName, entityId, 'delete');
-        } else if (tableName === 'noteTags') {
-          let noteTable;
-          try {
-            noteTable = transaction.table('notes');
-          } catch (_e) {
-            noteTable = this.notes;
-          }
-          noteTable.get((obj as NoteTag).noteId).then((note: Note) => {
-            if (note) {
-              this.logSyncEvent(transaction, note.notebookId, tableName, entityId, 'delete');
-            }
-          });
         }
       });
     });
   }
 
   logSyncEvent(
-    transaction: any,
+    transaction: Transaction,
     notebookId: string,
     entityName: string,
     entityId: string,

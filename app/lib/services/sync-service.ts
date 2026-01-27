@@ -205,7 +205,7 @@ export class SyncService {
       menuItems,
     };
 
-    const content = JSON.stringify(data, null, 2);
+    const content = JSON.stringify(data);
     const path = `${ROOT_PATH}/nb_${notebookId}/data.json`;
 
     await WebDAVService.write(path, content);

@@ -43,10 +43,12 @@ export const NoteService = {
       'rw',
       [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems, db.syncEvents],
       async () => {
-        await db.notebooks.delete(id);
+        await db.noteTags.where('notebookId').equals(id).delete();
         await db.notes.where('notebookId').equals(id).delete();
         await db.tags.where('notebookId').equals(id).delete();
         await db.menuItems.where('notebookId').equals(id).delete();
+        await db.syncEvents.where('notebookId').equals(id).delete();
+        await db.notebooks.delete(id);
       },
     );
   },
@@ -142,7 +144,7 @@ export const NoteService = {
 
       // 添加新的关联
       for (const tagId of tagIds) {
-        await this.addTagToNote(noteId, tagId);
+        await this.addTagToNote(noteId, tagId, notebookId);
       }
     });
   },
@@ -190,10 +192,10 @@ export const NoteService = {
 
   // --- Note-Tag Association Operations ---
 
-  async addTagToNote(noteId: string, tagId: string): Promise<void> {
+  async addTagToNote(noteId: string, tagId: string, notebookId: string): Promise<void> {
     try {
       await db.transaction('rw', [db.noteTags, db.syncEvents, db.notes], async () => {
-        await db.noteTags.add({ noteId, tagId });
+        await db.noteTags.add({ noteId, tagId, notebookId });
       });
     } catch (_e) {
       // Ignore duplicate errors

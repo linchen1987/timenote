@@ -115,11 +115,16 @@ export const ImportService = {
         // 5. Process NoteTags
         if (data.noteTags) {
           for (const nt of data.noteTags) {
-            const noteExists = importedNoteIds.has(nt.noteId) || (await db.notes.get(nt.noteId));
+            const note = importedNoteIds.has(nt.noteId)
+              ? await db.notes.get(nt.noteId)
+              : await db.notes.get(nt.noteId);
             const tagExists = importedTagIds.has(nt.tagId) || (await db.tags.get(nt.tagId));
 
-            if (noteExists && tagExists) {
-              await db.noteTags.put(nt);
+            if (note && tagExists) {
+              await db.noteTags.put({
+                ...nt,
+                notebookId: nt.notebookId || note.notebookId,
+              });
               stats.success++;
             } else {
               stats.skipped++;

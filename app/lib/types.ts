@@ -23,6 +23,7 @@ export interface Tag {
 export interface NoteTag {
   noteId: string;
   tagId: string;
+  notebookId: string;
 }
 
 export interface MenuItem {
