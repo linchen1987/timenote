@@ -1,7 +1,7 @@
 import type { Transaction } from 'dexie';
 import { db, type SyncableTableName, TABLE_NAMES } from '~/lib/db';
 import type { BackupData, DataApplyResult, SyncableEntity } from '~/lib/services/sync/types';
-import type { MenuItem as MenuItemType, NoteTag, SyncEvent } from '~/lib/types';
+import type { MenuItem as MenuItemType, NoteTag } from '~/lib/types';
 import { getEntitySyncId } from './sync/utils';
 
 export const DataService = {
@@ -82,137 +82,169 @@ export const DataService = {
     data: BackupData,
     options: { notebookId?: string } = {},
   ): Promise<DataApplyResult> {
+    console.log('[applyBackupData] Starting');
     const totalResult: DataApplyResult = { success: 0, skipped: 0, errors: [] };
 
-    await db.transaction(
-      'rw',
-      [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems, db.syncEvents],
-      async (transaction: Transaction & { source?: string }) => {
-        transaction.source = 'sync';
+    const addError = (message: string) => {
+      totalResult.errors.push(message);
+      console.error('applyBackupData:', message);
+    };
 
-        const syncEvents = options.notebookId
-          ? await db.syncEvents.where('notebookId').equals(options.notebookId).toArray()
-          : [];
+    try {
+      console.log('[applyBackupData] Fetching sync events');
+      const syncEvents = options.notebookId
+        ? await db.syncEvents.where('notebookId').equals(options.notebookId).toArray()
+        : [];
 
-        const knownNotebookIds = new Set<string>();
-        const notebookExists = async (id: string) => {
-          if (knownNotebookIds.has(id)) return true;
-          return (await db.notebooks.where('id').equals(id).count()) > 0;
-        };
+      console.log('[applyBackupData] Starting transaction');
+      await db.transaction(
+        'rw',
+        [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems],
+        async (transaction: Transaction & { source?: string }) => {
+          transaction.source = 'sync';
 
-        const processTable = async (tableName: SyncableTableName, remoteList: SyncableEntity[]) => {
-          const table = db.table(tableName);
-          const localList = options.notebookId
-            ? tableName === TABLE_NAMES.NOTEBOOKS
-              ? await db.notebooks.where('id').equals(options.notebookId).toArray()
-              : await table.where('notebookId').equals(options.notebookId).toArray()
-            : await table.toArray();
+          // Pre-fetch all notebook IDs to avoid async checks in loops
+          const validNotebookIds = new Set<string>(
+            (await db.notebooks.toCollection().primaryKeys()) as string[],
+          );
 
-          const res = await this.applyEntities(tableName, remoteList, localList, {
-            syncEvents,
-            notebookExists: tableName !== TABLE_NAMES.NOTEBOOKS ? notebookExists : undefined,
-          });
+          const tables: Array<{ name: SyncableTableName; data: SyncableEntity[] }> = [
+            { name: TABLE_NAMES.NOTEBOOKS, data: data.notebooks || [] },
+            { name: TABLE_NAMES.TAGS, data: data.tags || [] },
+            { name: TABLE_NAMES.NOTES, data: data.notes || [] },
+            { name: TABLE_NAMES.MENU_ITEMS, data: data.menuItems || [] },
+            { name: TABLE_NAMES.NOTE_TAGS, data: data.noteTags || [] },
+          ];
 
-          if (tableName === TABLE_NAMES.NOTEBOOKS) {
-            for (const nb of remoteList) {
-              knownNotebookIds.add(getEntitySyncId(tableName, nb));
+          for (const { name, data: remoteList } of tables) {
+            try {
+              console.log(
+                `[applyBackupData] Processing table: ${name}, count: ${remoteList.length}`,
+              );
+
+              const localList = options.notebookId
+                ? name === TABLE_NAMES.NOTEBOOKS
+                  ? await db.notebooks.where('id').equals(options.notebookId).toArray()
+                  : await db.table(name).where('notebookId').equals(options.notebookId).toArray()
+                : await db.table(name).toArray();
+
+              const remoteMap = new Map<string, SyncableEntity>();
+              for (const item of remoteList) {
+                try {
+                  remoteMap.set(getEntitySyncId(name, item), item);
+                } catch (e) {
+                  addError(
+                    `[${name}] Failed to map remote ID: ${e instanceof Error ? e.message : 'Unknown error'}`,
+                  );
+                }
+              }
+
+              const localMap = new Map<string, SyncableEntity>();
+              for (const item of localList) {
+                try {
+                  localMap.set(getEntitySyncId(name, item), item);
+                } catch (e) {
+                  addError(
+                    `[${name}] Failed to map local ID: ${e instanceof Error ? e.message : 'Unknown error'}`,
+                  );
+                }
+              }
+
+              let tableSuccess = 0;
+              let tableSkipped = 0;
+
+              for (const rawRItem of remoteList) {
+                try {
+                  const rItem = this.prepareEntityForStorage(name, rawRItem);
+                  const rId = getEntitySyncId(name, rItem);
+                  const lItem = localMap.get(rId);
+
+                  if (name !== TABLE_NAMES.NOTEBOOKS) {
+                    const nbId = (rItem as { notebookId?: string }).notebookId;
+                    if (nbId && !validNotebookIds.has(nbId)) {
+                      tableSkipped++;
+                      continue;
+                    }
+                  }
+
+                  if (lItem) {
+                    if ('updatedAt' in rItem && 'updatedAt' in lItem) {
+                      const rUpdatedAt = (rItem as { updatedAt: number }).updatedAt;
+                      const lUpdatedAt = (lItem as { updatedAt: number }).updatedAt;
+                      if (rUpdatedAt > lUpdatedAt) {
+                        await db.table(name).put(rItem);
+                        tableSuccess++;
+                      } else {
+                        tableSkipped++;
+                      }
+                    } else {
+                      await db.table(name).put(rItem);
+                      tableSuccess++;
+                    }
+                  } else {
+                    const deletedLocally = syncEvents.some(
+                      (e) => e.entityId === rId && e.action === 'delete' && e.entityName === name,
+                    );
+                    if (!deletedLocally) {
+                      await db.table(name).put(rItem);
+                      if (name === TABLE_NAMES.NOTEBOOKS) {
+                        validNotebookIds.add(rId);
+                      }
+                      tableSuccess++;
+                    } else {
+                      tableSkipped++;
+                    }
+                  }
+                } catch (e) {
+                  addError(
+                    `[${name}] Failed to process item: ${e instanceof Error ? e.message : 'Unknown error'}`,
+                  );
+                }
+              }
+
+              for (const lItem of localList) {
+                try {
+                  const lId = getEntitySyncId(name, lItem);
+                  if (!remoteMap.has(lId)) {
+                    const createdLocally = syncEvents.some(
+                      (e) => e.entityId === lId && e.action === 'create' && e.entityName === name,
+                    );
+                    if (!createdLocally) {
+                      if (name === TABLE_NAMES.NOTE_TAGS) {
+                        const nt = lItem as NoteTag;
+                        await db.noteTags.delete([nt.noteId, nt.tagId]);
+                      } else {
+                        await db.table(name).delete(lId);
+                        if (name === TABLE_NAMES.NOTEBOOKS) {
+                          validNotebookIds.delete(lId);
+                        }
+                      }
+                    }
+                  }
+                } catch (e) {
+                  addError(
+                    `[${name}] Failed to delete item: ${e instanceof Error ? e.message : 'Unknown error'}`,
+                  );
+                }
+              }
+
+              totalResult.success += tableSuccess;
+              totalResult.skipped += tableSkipped;
+              console.log(`[applyBackupData] Completed ${name}: ${tableSuccess}, ${tableSkipped}`);
+            } catch (e) {
+              addError(
+                `[${name}] Processing failed: ${e instanceof Error ? e.message : 'Unknown error'}`,
+              );
             }
           }
+        },
+      );
 
-          totalResult.success += res.success;
-          totalResult.skipped += res.skipped;
-          totalResult.errors.push(...res.errors);
-        };
-
-        await processTable(TABLE_NAMES.NOTEBOOKS, data.notebooks || []);
-        await processTable(TABLE_NAMES.TAGS, data.tags || []);
-        await processTable(TABLE_NAMES.NOTES, data.notes || []);
-        await processTable(TABLE_NAMES.MENU_ITEMS, data.menuItems || []);
-        await processTable(TABLE_NAMES.NOTE_TAGS, data.noteTags || []);
-      },
-    );
+      console.log('[applyBackupData] Transaction completed');
+    } catch (e) {
+      addError(`Transaction failed: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    }
 
     return totalResult;
-  },
-
-  /**
-   * Generic method to apply remote entities to local database.
-   */
-  async applyEntities(
-    tableName: SyncableTableName,
-    remoteList: SyncableEntity[],
-    localList: SyncableEntity[],
-    options: {
-      syncEvents?: SyncEvent[];
-      notebookExists?: (id: string) => Promise<boolean> | boolean;
-    },
-  ): Promise<DataApplyResult> {
-    const result: DataApplyResult = { success: 0, skipped: 0, errors: [] };
-    const remoteMap = new Map(remoteList.map((i) => [getEntitySyncId(tableName, i), i]));
-    const localMap = new Map(localList.map((i) => [getEntitySyncId(tableName, i), i]));
-    const events = options.syncEvents || [];
-
-    // 1. Remote -> Local
-    for (const rawRItem of remoteList) {
-      const rItem = this.prepareEntityForStorage(tableName, rawRItem);
-      const rId = getEntitySyncId(tableName, rItem);
-      const lItem = localMap.get(rId);
-
-      if (options.notebookExists && tableName !== TABLE_NAMES.NOTEBOOKS) {
-        const nbId = (rItem as { notebookId?: string }).notebookId;
-        if (nbId && !(await options.notebookExists(nbId))) {
-          result.skipped++;
-          continue;
-        }
-      }
-
-      if (lItem) {
-        if ('updatedAt' in rItem && 'updatedAt' in lItem) {
-          const rUpdatedAt = (rItem as { updatedAt: number }).updatedAt;
-          const lUpdatedAt = (lItem as { updatedAt: number }).updatedAt;
-          if (rUpdatedAt > lUpdatedAt) {
-            await db.table(tableName).put(rItem);
-            result.success++;
-          } else {
-            result.skipped++;
-          }
-        } else {
-          await db.table(tableName).put(rItem);
-          result.success++;
-        }
-      } else {
-        const deletedLocally = events.some(
-          (e) => e.entityId === rId && e.action === 'delete' && e.entityName === tableName,
-        );
-
-        if (!deletedLocally) {
-          await db.table(tableName).put(rItem);
-          result.success++;
-        } else {
-          result.skipped++;
-        }
-      }
-    }
-
-    // 2. Local -> Delete
-    for (const lItem of localList) {
-      const lId = getEntitySyncId(tableName, lItem);
-      if (!remoteMap.has(lId)) {
-        const createdLocally = events.some(
-          (e) => e.entityId === lId && e.action === 'create' && e.entityName === tableName,
-        );
-
-        if (!createdLocally) {
-          if (tableName === TABLE_NAMES.NOTE_TAGS) {
-            const nt = lItem as NoteTag;
-            await db.noteTags.delete([nt.noteId, nt.tagId]);
-          } else {
-            await db.table(tableName).delete(lId);
-          }
-        }
-      }
-    }
-
-    return result;
   },
 };

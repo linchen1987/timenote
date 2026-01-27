@@ -71,9 +71,15 @@ export const SyncService = {
 
     if (!remoteData) return;
 
-    await DataService.applyBackupData(remoteData, {
+    const result = await DataService.applyBackupData(remoteData, {
       notebookId,
     });
+
+    if (result.errors.length > 0) {
+      throw new Error(
+        `Pull completed with ${result.errors.length} error(s): ${result.errors.join(', ')}`,
+      );
+    }
   },
 
   async push(notebookId: string) {

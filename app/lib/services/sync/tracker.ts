@@ -13,7 +13,7 @@ import { getEntityNotebookId, getEntitySyncId } from './utils';
 
 const logSyncEvent = (
   db: TimenoteDatabase,
-  transaction: Transaction,
+  transaction: Transaction & { source?: string },
   notebookId: string,
   entityName: SyncableTableName,
   entityId: string,
@@ -41,9 +41,13 @@ const logSyncEvent = (
   if (hasSyncEvents) {
     transaction.table(SYNC_EVENTS_TABLE).add(event);
   } else {
-    db.syncEvents.add(event).catch((err: Error) => {
-      console.error(`Failed to log sync event for ${entityName} ${action}:`, err);
-    });
+    // Don't attempt to add sync event if it's not part of the transaction
+    // This prevents the NotFoundError during sync operations
+    if (transaction.source !== 'sync') {
+      db.syncEvents.add(event).catch((err: Error) => {
+        console.error(`Failed to log sync event for ${entityName} ${action}:`, err);
+      });
+    }
   }
 };
 

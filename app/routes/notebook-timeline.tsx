@@ -216,8 +216,9 @@ export default function NotebookTimeline() {
       await SyncService.syncNotebook(nbId);
       toast.success('Synced successfully');
     } catch (e) {
-      console.error(e);
-      toast.error('Sync failed');
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+      console.error('Sync error:', e);
+      toast.error(`Sync failed: ${errorMessage}`);
     } finally {
       setIsSyncing(false);
     }
@@ -229,8 +230,9 @@ export default function NotebookTimeline() {
       await SyncService.pull(nbId);
       toast.success('Pulled successfully');
     } catch (e) {
-      console.error(e);
-      toast.error('Pull failed');
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+      console.error('Pull error:', e);
+      toast.error(`Pull failed: ${errorMessage}`);
     } finally {
       setIsSyncing(false);
     }
