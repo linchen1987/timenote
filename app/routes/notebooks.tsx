@@ -320,7 +320,10 @@ export default function NotebooksPage() {
                   </>
                 )}
               </CardHeader>
-              <CardFooter className="bg-muted/30 border-t border-muted/40 py-3 flex justify-between items-center text-xs text-muted-foreground font-medium">
+              <CardFooter
+                className="bg-muted/30 border-t border-muted/40 py-3 flex justify-between items-center text-xs text-muted-foreground font-medium"
+                suppressHydrationWarning
+              >
                 <div className="flex items-center gap-1">
                   <Calendar className="w-3.5 h-3.5 opacity-70" />
                   {new Date(nb.createdAt).toLocaleDateString()}

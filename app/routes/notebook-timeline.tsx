@@ -401,6 +401,7 @@ export default function NotebookTimeline() {
                   <Link
                     to={`/s/${notebookToken}/${note.id}`}
                     className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium hover:text-primary transition-colors cursor-pointer"
+                    suppressHydrationWarning
                   >
                     <Calendar className="w-3.5 h-3.5 opacity-70" />
                     {new Date(note.updatedAt).toLocaleString([], {

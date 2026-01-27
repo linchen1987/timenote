@@ -49,7 +49,10 @@ export default function NoteDetailPage() {
             ← Timeline
           </Link>
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+            <div
+              className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"
+              suppressHydrationWarning
+            >
               <Calendar className="w-3.5 h-3.5 opacity-70" />
               {new Date(note.updatedAt).toLocaleString([], {
                 dateStyle: 'medium',

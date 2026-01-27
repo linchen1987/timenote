@@ -18,12 +18,14 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('theme') as Theme) || 'system';
+  const [theme, setTheme] = useState<Theme>('system');
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as Theme;
+    if (savedTheme) {
+      setTheme(savedTheme);
     }
-    return 'system';
-  });
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;

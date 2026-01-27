@@ -183,6 +183,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
     }, [onChange, onSubmit, onBlur]);
 
     const editor = useEditor({
+      autofocus: autoFocus ? 'end' : false,
       extensions: [
         StarterKit,
         Markdown.configure({
@@ -217,7 +218,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       ],
       content: initialValue,
       editable,
-      immediatelyRender: false,
+      immediatelyRender: true,
       editorProps: {
         attributes: {
           class: `prose prose-sm dark:prose-invert max-w-none focus:outline-none ${editable ? 'p-4' : 'p-0'} ${className}`,
@@ -239,12 +240,6 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       setMarkdown: (content: string) => editor?.commands.setContent(content),
       focus: () => editor?.commands.focus(),
     }));
-
-    useEffect(() => {
-      if (editor && autoFocus && editable) {
-        editor.commands.focus();
-      }
-    }, [editor, autoFocus, editable]);
 
     useEffect(() => {
       if (editor) {

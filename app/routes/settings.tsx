@@ -1,4 +1,4 @@
-import { AlertCircle, ArrowLeft, Check } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -15,6 +15,7 @@ export default function SettingsPage() {
   const [username, setUsername] = useLocalStorage(STORAGE_KEYS.WEBDAV_USERNAME, '');
   const [password, setPassword] = useLocalStorage(STORAGE_KEYS.WEBDAV_PASSWORD, '');
 
+  const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
   const handleTestConnection = async () => {
@@ -68,11 +69,27 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label>Password</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4 text-zinc-500" />
+                  ) : (
+                    <Eye className="w-4 h-4 text-zinc-500" />
+                  )}
+                </Button>
+              </div>
             </div>
 
             <div className="pt-2">
