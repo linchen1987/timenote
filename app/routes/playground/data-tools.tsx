@@ -12,6 +12,7 @@ export default function DataToolsPage() {
   const [isMigrating, setIsMigrating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('');
+  const [isClearingSyncEvents, setIsClearingSyncEvents] = useState(false);
 
   const migrateNoteTags = async () => {
     setIsMigrating(true);
@@ -69,6 +70,23 @@ export default function DataToolsPage() {
     }
   };
 
+  const clearSyncEvents = async () => {
+    setIsClearingSyncEvents(true);
+    setStatus('');
+
+    try {
+      await db.syncEvents.clear();
+      setStatus('All syncEvents cleared successfully!');
+      toast.success('SyncEvents cleared');
+    } catch (error) {
+      console.error('Clear syncEvents failed:', error);
+      setStatus(`Clear failed: ${error instanceof Error ? error.message : String(error)}`);
+      toast.error('Clear failed');
+    } finally {
+      setIsClearingSyncEvents(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-8">
       <div className="max-w-2xl mx-auto space-y-8">
@@ -104,6 +122,29 @@ export default function DataToolsPage() {
             <div className="flex gap-4">
               <Button onClick={migrateNoteTags} disabled={isMigrating}>
                 {isMigrating ? 'Running...' : 'Run Task'}
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/playground">Back to Playground</Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Clear All SyncEvents</CardTitle>
+            <CardDescription>
+              Delete all records from the <code>syncEvents</code> table.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <span className="text-sm">{status || 'Ready'}</span>
+            </div>
+
+            <div className="flex gap-4">
+              <Button onClick={clearSyncEvents} disabled={isClearingSyncEvents}>
+                {isClearingSyncEvents ? 'Clearing...' : 'Clear SyncEvents'}
               </Button>
               <Button variant="outline" asChild>
                 <Link to="/playground">Back to Playground</Link>
