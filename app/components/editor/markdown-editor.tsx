@@ -195,7 +195,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
           tightLists: true,
           tightListClass: 'tight',
           bulletListMarker: '-',
-          linkify: false,
+          linkify: true,
           breaks: false,
         }),
         Table.configure({ resizable: true }),
@@ -226,7 +226,19 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       editorProps: {
         attributes: {
           class: `prose prose-sm dark:prose-invert max-w-none focus:outline-none ${editable ? 'p-4' : 'p-0'} ${className}`,
-          style: `min-height: ${minHeight}`,
+          style: `min-height: ${minHeight}; ${!editable ? 'user-select: text;' : ''}`,
+        },
+        handleClickOn: (_view, _pos, node, _nodePos, event, _direct) => {
+          if (!editable && node.type.name === 'text') {
+            const marks = node.marks;
+            const linkMark = marks.find((mark) => mark.type.name === 'link');
+            if (linkMark) {
+              event.preventDefault();
+              window.open(linkMark.attrs.href, '_blank', 'noopener,noreferrer');
+              return true;
+            }
+          }
+          return false;
         },
       },
       onUpdate: ({ editor }) => {
@@ -315,6 +327,18 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               color: #adb5bd;
               pointer-events: none;
               height: 0;
+            }
+            .ProseMirror[contenteditable="false"] {
+              user-select: text;
+              -webkit-user-select: text;
+            }
+            .ProseMirror a {
+              color: #3b82f6;
+              text-decoration: underline;
+              cursor: pointer;
+            }
+            .ProseMirror a:hover {
+              color: #2563eb;
             }
           `,
           }}
