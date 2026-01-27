@@ -1,5 +1,6 @@
 'use client';
 
+import type { Transaction } from 'dexie';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -32,26 +33,30 @@ export default function DataToolsPage() {
       let processed = 0;
 
       // Use a transaction for better performance
-      await db.transaction('rw', [db.noteTags, db.notes], async (tx) => {
-        // Mark as sync source to avoid triggering hooks during maintenance
-        (tx as any).source = 'sync';
+      await db.transaction(
+        'rw',
+        [db.noteTags, db.notes],
+        async (tx: Transaction & { source?: string }) => {
+          // Mark as sync source to avoid triggering hooks during maintenance
+          tx.source = 'sync';
 
-        for (const nt of allNoteTags) {
-          if (!nt.notebookId) {
-            const note = await db.notes.get(nt.noteId);
-            if (note) {
-              await db.noteTags.where({ noteId: nt.noteId, tagId: nt.tagId }).modify({
-                notebookId: note.notebookId,
-              });
+          for (const nt of allNoteTags) {
+            if (!nt.notebookId) {
+              const note = await db.notes.get(nt.noteId);
+              if (note) {
+                await db.noteTags.where({ noteId: nt.noteId, tagId: nt.tagId }).modify({
+                  notebookId: note.notebookId,
+                });
+              }
+            }
+            processed++;
+            if (processed % 10 === 0 || processed === total) {
+              setProgress(Math.round((processed / total) * 100));
+              setStatus(`Processed ${processed}/${total}...`);
             }
           }
-          processed++;
-          if (processed % 10 === 0 || processed === total) {
-            setProgress(Math.round((processed / total) * 100));
-            setStatus(`Processed ${processed}/${total}...`);
-          }
-        }
-      });
+        },
+      );
 
       setStatus('Task completed successfully!');
       toast.success('Task completed');

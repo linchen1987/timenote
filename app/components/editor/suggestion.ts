@@ -10,6 +10,7 @@ export const createTagSuggestion = (getTags: () => string[]) => ({
       .slice(0, 10);
   },
 
+  // biome-ignore lint/suspicious/noExplicitAny: Tiptap suggestion command props are complex
   command: ({ editor, range, props }: any) => {
     // 插入纯文本 #tagname
     editor
@@ -25,10 +26,12 @@ export const createTagSuggestion = (getTags: () => string[]) => ({
   },
 
   render: () => {
+    // biome-ignore lint/suspicious/noExplicitAny: Tiptap ReactRenderer props
     let component: ReactRenderer<any>;
     let popup: TippyInstance[];
 
     return {
+      // biome-ignore lint/suspicious/noExplicitAny: Tiptap suggestion props
       onStart: (props: any) => {
         component = new ReactRenderer(TagList, {
           props,
@@ -50,6 +53,7 @@ export const createTagSuggestion = (getTags: () => string[]) => ({
         });
       },
 
+      // biome-ignore lint/suspicious/noExplicitAny: Tiptap suggestion props
       onUpdate(props: any) {
         component.updateProps(props);
 
@@ -62,6 +66,7 @@ export const createTagSuggestion = (getTags: () => string[]) => ({
         });
       },
 
+      // biome-ignore lint/suspicious/noExplicitAny: Tiptap suggestion props
       onKeyDown(props: any) {
         if (props.event.key === 'Escape') {
           popup[0].hide();

@@ -1,4 +1,4 @@
-import { db, TABLE_NAMES } from '~/lib/db';
+import { db } from '~/lib/db';
 import { WebDAVService } from '~/lib/services/webdav-service';
 import { DataService } from '../data-service';
 import { type BackupData, SYNC_ROOT_PATH } from './types';

@@ -1,6 +1,7 @@
+import type { Transaction } from 'dexie';
 import { db, type SyncableTableName, TABLE_NAMES } from '~/lib/db';
 import type { BackupData, DataApplyResult, SyncableEntity } from '~/lib/services/sync/types';
-import type { MenuItem as MenuItemType, Note, NoteTag, SyncEvent, Tag } from '~/lib/types';
+import type { MenuItem as MenuItemType, NoteTag, SyncEvent } from '~/lib/types';
 import { getEntitySyncId } from './sync/utils';
 
 export const DataService = {
@@ -57,8 +58,8 @@ export const DataService = {
         try {
           const parsed = JSON.parse(item.target);
           if (Array.isArray(parsed)) {
-            const normalizedTarget = parsed
-              .map((p: any) => {
+            const normalizedTarget = (parsed as { type?: string; keywords?: string[] }[])
+              .map((p) => {
                 if (p.type === 'keywords' && Array.isArray(p.keywords)) {
                   return p.keywords.join(' ');
                 }
@@ -86,8 +87,8 @@ export const DataService = {
     await db.transaction(
       'rw',
       [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems, db.syncEvents],
-      async (transaction) => {
-        (transaction as any).source = 'sync';
+      async (transaction: Transaction & { source?: string }) => {
+        transaction.source = 'sync';
 
         const syncEvents = options.notebookId
           ? await db.syncEvents.where('notebookId').equals(options.notebookId).toArray()
@@ -113,7 +114,9 @@ export const DataService = {
           });
 
           if (tableName === TABLE_NAMES.NOTEBOOKS) {
-            remoteList.forEach((nb) => knownNotebookIds.add(getEntitySyncId(tableName, nb)));
+            for (const nb of remoteList) {
+              knownNotebookIds.add(getEntitySyncId(tableName, nb));
+            }
           }
 
           totalResult.success += res.success;
@@ -156,7 +159,7 @@ export const DataService = {
       const lItem = localMap.get(rId);
 
       if (options.notebookExists && tableName !== TABLE_NAMES.NOTEBOOKS) {
-        const nbId = (rItem as any).notebookId;
+        const nbId = (rItem as { notebookId?: string }).notebookId;
         if (nbId && !(await options.notebookExists(nbId))) {
           result.skipped++;
           continue;
@@ -165,7 +168,9 @@ export const DataService = {
 
       if (lItem) {
         if ('updatedAt' in rItem && 'updatedAt' in lItem) {
-          if ((rItem as any).updatedAt > (lItem as any).updatedAt) {
+          const rUpdatedAt = (rItem as { updatedAt: number }).updatedAt;
+          const lUpdatedAt = (lItem as { updatedAt: number }).updatedAt;
+          if (rUpdatedAt > lUpdatedAt) {
             await db.table(tableName).put(rItem);
             result.success++;
           } else {

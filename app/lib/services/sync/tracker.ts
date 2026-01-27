@@ -52,9 +52,9 @@ const handleHook = (
   tableName: SyncableTableName,
   action: 'create' | 'update' | 'delete',
   obj: SyncableEntity,
-  transaction: Transaction,
+  transaction: Transaction & { source?: string },
 ) => {
-  if ((transaction as any).source === 'sync') return;
+  if (transaction.source === 'sync') return;
 
   const entityId = getEntitySyncId(tableName, obj);
   const notebookId = getEntityNotebookId(tableName, obj);

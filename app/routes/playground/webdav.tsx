@@ -7,6 +7,7 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { useLocalStorage } from '~/hooks/use-local-storage';
 import { STORAGE_KEYS } from '~/lib/constants';
+import type { FsStat } from '~/services/fs-client';
 
 export default function WebDAVPlayground() {
   const [url, setUrl] = useLocalStorage(STORAGE_KEYS.WEBDAV_URL, 'https://dav.jianguoyun.com/dav/');
@@ -15,14 +16,14 @@ export default function WebDAVPlayground() {
 
   const [currentPath, setCurrentPath] = useState('/');
 
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<FsStat[]>([]);
   const [fileContent, setFileContent] = useState('');
   const [viewingFile, setViewingFile] = useState<string | null>(null);
 
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
-  const callApi = async (method: string, path: string, args?: any) => {
+  const callApi = async <T = unknown>(method: string, path: string, args?: unknown): Promise<T> => {
     setStatus('loading');
     setMessage('');
     try {
@@ -36,20 +37,21 @@ export default function WebDAVPlayground() {
           args,
         }),
       });
-      const data = (await res.json()) as { error?: string; result?: any };
+      const data = (await res.json()) as { error?: string; result?: T };
       if (!res.ok || data.error) throw new Error(data.error || 'Request failed');
       setStatus('success');
-      return data.result;
-    } catch (e: any) {
+      return data.result as T;
+    } catch (e) {
+      const err = e as Error;
       setStatus('error');
-      setMessage(e.message);
-      throw e;
+      setMessage(err.message);
+      throw err;
     }
   };
 
   const handleList = async (path = currentPath) => {
     try {
-      const result = await callApi('list', path);
+      const result = await callApi<FsStat | FsStat[]>('list', path);
       // Ensure result is array, API might wrap it or return single object if not dir
       const list = Array.isArray(result) ? result : [result];
       setItems(list);
@@ -58,9 +60,9 @@ export default function WebDAVPlayground() {
     } catch (_e) {}
   };
 
-  const handleRead = async (item: any) => {
+  const handleRead = async (item: FsStat) => {
     try {
-      const content = await callApi('read', item.filename);
+      const content = await callApi<string>('read', item.filename);
       setFileContent(content);
       setViewingFile(item.filename);
     } catch (_e) {}
@@ -175,6 +177,7 @@ export default function WebDAVPlayground() {
               <div className="divide-y">
                 {currentPath !== '/' && (
                   <button
+                    type="button"
                     onClick={() => handleList(currentPath.split('/').slice(0, -1).join('/') || '/')}
                     className="w-full text-left p-3 hover:bg-muted flex items-center gap-2 text-sm"
                   >
@@ -187,6 +190,7 @@ export default function WebDAVPlayground() {
                     className="group flex items-center justify-between p-3 hover:bg-muted text-sm"
                   >
                     <button
+                      type="button"
                       className="flex items-center gap-2 flex-1 truncate text-left"
                       onClick={() =>
                         item.type === 'directory' ? handleList(item.filename) : handleRead(item)

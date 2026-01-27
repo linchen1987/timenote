@@ -66,7 +66,13 @@ export default function NotebooksPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [remoteNotebooks, setRemoteNotebooks] = useState<any[]>([]);
+  interface RemoteNotebook {
+    id: string;
+    name: string;
+    path: string;
+  }
+
+  const [remoteNotebooks, setRemoteNotebooks] = useState<RemoteNotebook[]>([]);
   const [isLoadingRemote, setIsLoadingRemote] = useState(false);
   const [syncingId, setSyncingId] = useState<string | null>(null);
 

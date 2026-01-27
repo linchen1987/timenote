@@ -170,7 +170,10 @@ export default function NotebookTimeline() {
     if (selectedTagId && noteTagNamesMap) {
       const tag = notebookTags?.find((t) => t.id === selectedTagId);
       if (tag) {
-        result = result.filter((note) => noteTagNamesMap[note.id!]?.includes(tag.name));
+        result = result.filter((note) => {
+          if (!note.id) return false;
+          return noteTagNamesMap[note.id]?.includes(tag.name);
+        });
       }
     }
     return result;
@@ -409,7 +412,7 @@ export default function NotebookTimeline() {
                       timeStyle: 'short',
                     })}
                   </Link>
-                  <NoteTagsView noteId={note.id!} />
+                  {note.id && <NoteTagsView noteId={note.id} />}
                 </div>
                 <div className="flex gap-1">
                   <DropdownMenu>
@@ -426,16 +429,18 @@ export default function NotebookTimeline() {
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         onClick={() => {
-                          setMenuNoteId(note.id!);
-                          setMenuName(`Menu for Note ${note.id?.slice(0, 4)}`);
-                          setIsMenuDialogOpen(true);
+                          if (note.id) {
+                            setMenuNoteId(note.id);
+                            setMenuName(`Menu for Note ${note.id.slice(0, 4)}`);
+                            setIsMenuDialogOpen(true);
+                          }
                         }}
                       >
                         <PlusSquare className="w-4 h-4 mr-2" /> Add to menu
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         className="text-destructive focus:text-destructive"
-                        onClick={() => handleDelete(note.id!)}
+                        onClick={() => note.id && handleDelete(note.id)}
                       >
                         <Trash2 className="w-4 h-4 mr-2" /> Delete
                       </DropdownMenuItem>
@@ -452,9 +457,11 @@ export default function NotebookTimeline() {
                       ref={editorRef}
                       initialValue={note.content}
                       onSubmit={() => {
-                        const content = editorRef.current?.getMarkdown() || '';
-                        handleUpdate(note.id!, content);
-                        setEditingId(null);
+                        if (note.id) {
+                          const content = editorRef.current?.getMarkdown() || '';
+                          handleUpdate(note.id, content);
+                          setEditingId(null);
+                        }
                       }}
                       availableTags={availableTagNames}
                       autoFocus
@@ -478,9 +485,11 @@ export default function NotebookTimeline() {
                         <Button
                           size="sm"
                           onClick={() => {
-                            const content = editorRef.current?.getMarkdown() || '';
-                            handleUpdate(note.id!, content);
-                            setEditingId(null);
+                            if (note.id) {
+                              const content = editorRef.current?.getMarkdown() || '';
+                              handleUpdate(note.id, content);
+                              setEditingId(null);
+                            }
                           }}
                           className="rounded-full"
                         >
@@ -490,9 +499,13 @@ export default function NotebookTimeline() {
                     </div>
                   </div>
                 ) : (
-                  <div
-                    onDoubleClick={() => setEditingId(note.id!)}
-                    className="cursor-text p-6 min-h-[100px] hover:bg-accent/5 transition-colors"
+                  <button
+                    type="button"
+                    onDoubleClick={() => note.id && setEditingId(note.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && note.id) setEditingId(note.id);
+                    }}
+                    className="cursor-text p-6 min-h-[100px] hover:bg-accent/5 transition-colors w-full text-left block"
                   >
                     <MarkdownEditor
                       key={`view-${note.id}`}
@@ -505,7 +518,7 @@ export default function NotebookTimeline() {
                         <span className="italic text-sm">Empty note, click to write...</span>
                       </div>
                     )}
-                  </div>
+                  </button>
                 )}
               </CardContent>
             </Card>

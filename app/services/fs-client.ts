@@ -36,7 +36,7 @@ export function createFsClient(connection: FsConnection): FsClient {
   if (connection.type === 'webdav') {
     return new WebDavFsClient(connection);
   }
-  throw new Error(`Unsupported connection type: ${(connection as any).type}`);
+  throw new Error(`Unsupported connection type: ${connection.type}`);
 }
 
 class WebDavFsClient implements FsClient {
@@ -78,7 +78,7 @@ class WebDavFsClient implements FsClient {
         mime: item.mime,
         etag: item.etag,
       }));
-    } catch (e: any) {
+    } catch (e) {
       console.error('WebDAV readdir error:', e);
       throw e;
     }

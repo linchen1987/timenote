@@ -47,8 +47,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <Meta />
         <Links />
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: Intentional theme script
+          dangerouslySetInnerHTML={{ __html: themeScript }}
+        />
       </head>
+
       <body>
         <ThemeProvider>
           {children}

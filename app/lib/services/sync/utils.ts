@@ -12,7 +12,7 @@ export const getEntitySyncId = (tableName: SyncableTableName, entity: SyncableEn
     return `${nt.noteId}:${nt.tagId}`;
   }
   // All other syncable entities have a single 'id' property
-  return (entity as any).id;
+  return (entity as { id: string }).id;
 };
 
 /**
@@ -26,5 +26,5 @@ export const getEntityNotebookId = (
     return (entity as Notebook).id;
   }
   // Note, Tag, MenuItem, NoteTag all have notebookId
-  return (entity as any).notebookId;
+  return (entity as { notebookId: string }).notebookId;
 };

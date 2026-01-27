@@ -63,15 +63,14 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     const body = (await request.json()) as FsApiRequest;
-    // @ts-expect-error
-    const { connection, method, path, args } = body;
+    const { connection, method, path } = body;
 
     if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
     if (!method) return data({ error: 'Missing method' }, { status: 400 });
 
     const client = createFsClient(connection);
 
-    let result;
+    let result: unknown;
     switch (method) {
       case 'list':
       case 'readdir':
@@ -119,12 +118,13 @@ export async function action({ request }: ActionFunctionArgs) {
     }
 
     return data({ result });
-  } catch (error: any) {
-    console.error('FS API Error:', error);
-    if (error.response) {
-      const status = error.response.status;
+  } catch (error) {
+    const err = error as Error & { response?: Response };
+    console.error('FS API Error:', err);
+    if (err.response) {
+      const status = err.response.status;
       console.error('Upstream Response Status:', status);
-      const text = await error.response.text().catch(() => 'N/A');
+      const text = await err.response.text().catch(() => 'N/A');
       console.error('Upstream Response Text:', text);
 
       if (status === 520) {
@@ -137,6 +137,6 @@ export async function action({ request }: ActionFunctionArgs) {
         );
       }
     }
-    return data({ error: error.message || 'Unknown error' }, { status: 500 });
+    return data({ error: err.message || 'Unknown error' }, { status: 500 });
   }
 }

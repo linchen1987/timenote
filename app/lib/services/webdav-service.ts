@@ -17,7 +17,7 @@ const getConfig = (): WebDAVConfig | null => {
   };
 };
 
-const callApi = async (method: string, path: string, args?: any) => {
+const callApi = async <T = unknown>(method: string, path: string, args?: unknown): Promise<T> => {
   const config = getConfig();
   if (!config) throw new Error('WebDAV not configured');
 
@@ -32,9 +32,9 @@ const callApi = async (method: string, path: string, args?: any) => {
     }),
   });
 
-  const data = (await res.json()) as { error?: string; result?: any };
+  const data = (await res.json()) as { error?: string; result?: T };
   if (!res.ok || data.error) throw new Error(data.error || 'Request failed');
-  return data.result;
+  return data.result as T;
 };
 
 export const WebDAVService = {

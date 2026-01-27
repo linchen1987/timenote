@@ -2,7 +2,6 @@ import {
   closestCenter,
   DndContext,
   type DragEndEvent,
-  type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
   KeyboardSensor,
@@ -51,7 +50,6 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -410,16 +408,10 @@ export function NotebookSidebar({
       <Separator className="bg-sidebar-border" />
       <ScrollArea className="flex-1">
         <div className="p-2 space-y-1 w-full max-w-full overflow-hidden">
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                onSelectSearch('');
-              }
-            }}
+          <button
+            type="button"
             className={cn(
-              'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium',
+              'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full text-left',
               isAllNotesPage
                 ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                 : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
@@ -434,18 +426,12 @@ export function NotebookSidebar({
               <LayoutGrid className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate">All Notes</span>
             </div>
-          </div>
+          </button>
 
-          <div
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
-                navigate(`/s/${notebookToken}/tags`);
-              }
-            }}
+          <button
+            type="button"
             className={cn(
-              'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium',
+              'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full text-left',
               isTagsPage
                 ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                 : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
@@ -460,7 +446,7 @@ export function NotebookSidebar({
               <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
               <span className="truncate">Tags</span>
             </div>
-          </div>
+          </button>
 
           <Separator className="my-2 bg-sidebar-border/50" />
 
@@ -624,11 +610,15 @@ function flattenTree(
     result.push({ ...item, level, hasChildren: children.length > 0 });
 
     if (expandedIds.has(item.id)) {
-      children.forEach((child) => traverse(child, level + 1));
+      for (const child of children) {
+        traverse(child, level + 1);
+      }
     }
   }
 
-  rootItems.forEach((root) => traverse(root, 0));
+  for (const root of rootItems) {
+    traverse(root, 0);
+  }
 
   return result;
 }
@@ -678,17 +668,20 @@ function MenuItemComponent({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden',
+        'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors text-sm font-medium w-full max-w-full overflow-hidden',
         isSelected
           ? 'bg-sidebar-accent text-sidebar-accent-foreground'
           : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
       )}
-      onClick={() => {
-        if (node.type === 'note') onSelectNote(node.target, node.id);
-        else onSelectSearch(node.target, node.id);
-      }}
     >
-      <div className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden">
+      <button
+        type="button"
+        className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden text-left"
+        onClick={() => {
+          if (node.type === 'note') onSelectNote(node.target, node.id);
+          else onSelectSearch(node.target, node.id);
+        }}
+      >
         {node.hasChildren ? (
           <Button
             variant="ghost"
@@ -713,27 +706,21 @@ function MenuItemComponent({
           <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
         )}
 
-        <span className="truncate text-ellipsis overflow-hidden whitespace-nowrap">
+        <span className="truncate text-ellipsis overflow-hidden whitespace-nowrap ml-1">
           {node.name}
         </span>
-      </div>
+      </button>
 
       <div className="opacity-0 group-hover:opacity-100 flex items-center shrink-0 ml-1">
-        <div
+        <button
           {...attributes}
           {...listeners}
-          role="button"
-          tabIndex={0}
+          type="button"
           className="p-1 cursor-grab active:cursor-grabbing hover:bg-sidebar-accent rounded mr-0.5"
           onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.stopPropagation();
-            }
-          }}
         >
           <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
-        </div>
+        </button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
             <Button variant="ghost" size="icon" className="h-7 w-7">

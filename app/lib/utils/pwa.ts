@@ -1,5 +1,5 @@
 export function getNotebookMeta(title: string, notebookToken?: string) {
-  const meta: any[] = [{ title: `${title} - TimeNote` }];
+  const meta: Record<string, string>[] = [{ title: `${title} - TimeNote` }];
 
   if (notebookToken) {
     meta.push({

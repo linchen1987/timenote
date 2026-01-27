@@ -9,7 +9,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
-import { EditorContent, Extension, useEditor } from '@tiptap/react';
+import { type Editor, EditorContent, Extension, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 import { Markdown } from 'tiptap-markdown';
@@ -27,7 +27,11 @@ const SubmitHandler = Extension.create({
   },
 });
 
-const MenuBar = ({ editor }: { editor: any }) => {
+interface MarkdownStorage {
+  getMarkdown: () => string;
+}
+
+const MenuBar = ({ editor }: { editor: Editor }) => {
   if (!editor) return null;
 
   return (
@@ -226,17 +230,24 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         },
       },
       onUpdate: ({ editor }) => {
-        const markdown = (editor.storage as any).markdown.getMarkdown();
+        const markdown = (
+          editor.storage as unknown as Record<string, MarkdownStorage>
+        ).markdown.getMarkdown();
         callbacksRef.current.onChange?.(markdown);
       },
       onBlur: ({ editor }) => {
-        const markdown = (editor.storage as any).markdown.getMarkdown();
+        const markdown = (
+          editor.storage as unknown as Record<string, MarkdownStorage>
+        ).markdown.getMarkdown();
         callbacksRef.current.onBlur?.(markdown);
       },
     });
 
     useImperativeHandle(ref, () => ({
-      getMarkdown: () => (editor?.storage as any).markdown.getMarkdown(),
+      getMarkdown: () =>
+        (
+          editor?.storage as unknown as Record<string, MarkdownStorage> | undefined
+        )?.markdown.getMarkdown() || '',
       setMarkdown: (content: string) => editor?.commands.setContent(content),
       focus: () => editor?.commands.focus(),
     }));
@@ -252,7 +263,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       if (
         editor &&
         initialValue !== undefined &&
-        initialValue !== (editor.storage as any).markdown.getMarkdown()
+        initialValue !==
+          (editor.storage as unknown as Record<string, MarkdownStorage>).markdown.getMarkdown()
       ) {
         // Only update if not focused to avoid flickering while typing
         if (!editor.isFocused) {
@@ -275,6 +287,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         </div>
 
         <style
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: Intentional styles
           dangerouslySetInnerHTML={{
             __html: `
             .ProseMirror { outline: none; line-height: 1.6; }

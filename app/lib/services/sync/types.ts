@@ -1,4 +1,3 @@
-import type { SyncableTableName } from '~/lib/db';
 import type { MenuItem, Note, Notebook, NoteTag, Tag } from '~/lib/types';
 
 export type SyncableEntity = Notebook | Note | Tag | MenuItem | NoteTag;
