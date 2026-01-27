@@ -8,8 +8,8 @@ import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
-import { SyncService } from '~/lib/services/sync/service';
 import { WebDAVService } from '~/lib/services/webdav-service';
+import { useSyncStore } from '~/lib/stores/sync-store';
 import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
@@ -29,8 +29,8 @@ export default function NoteDetailPage() {
   const editorRef = useRef<MarkdownEditorRef>(null);
   const initialContentRef = useRef('');
   const [isSaving, setIsSaving] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const { isSyncing, syncPush } = useSyncStore();
 
   useEffect(() => {
     if (note) {
@@ -49,23 +49,6 @@ export default function NoteDetailPage() {
     }
   }, [notebook]);
 
-  const handleSync = useCallback(async () => {
-    if (!WebDAVService.isConfigured()) {
-      return;
-    }
-
-    setIsSyncing(true);
-    try {
-      await SyncService.push(nbId);
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-      console.error('Sync error:', e);
-      toast.error(`Sync failed: ${errorMessage}`);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [nbId]);
-
   const handleSaveLocal = useCallback(async () => {
     const content = editorRef.current?.getMarkdown() || '';
     if (content === initialContentRef.current) {
@@ -78,16 +61,14 @@ export default function NoteDetailPage() {
       initialContentRef.current = content;
       setHasUnsavedChanges(false);
 
-      if (WebDAVService.isConfigured()) {
-        await handleSync();
-      }
+      syncPush(nbId);
     } catch (e) {
       console.error('Save error:', e);
       toast.error('Failed to save note');
     } finally {
       setIsSaving(false);
     }
-  }, [nId, nbId, handleSync]);
+  }, [nId, nbId, syncPush]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

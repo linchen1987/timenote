@@ -50,6 +50,7 @@ import { Label } from '~/components/ui/label';
 import { MenuService } from '~/lib/services/menu-service';
 import { NoteService } from '~/lib/services/note-service';
 import { SyncService } from '~/lib/services/sync/service';
+import { useSyncStore } from '~/lib/stores/sync-store';
 import type { Note } from '~/lib/types';
 import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';
@@ -99,7 +100,7 @@ export default function NotebookTimeline() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
-  const [isSyncing, setIsSyncing] = useState(false);
+  const { isSyncing, setSyncing, syncPush } = useSyncStore();
   const [hasPulledInSession, setHasPulledInSession] = useState(false);
 
   // Auto pull on mount
@@ -237,7 +238,7 @@ export default function NotebookTimeline() {
   };
 
   const handleSync = async () => {
-    setIsSyncing(true);
+    setSyncing(true, nbId);
     try {
       if (hasPulledInSession) {
         await SyncService.push(nbId);
@@ -253,26 +254,16 @@ export default function NotebookTimeline() {
       console.error('Sync error:', e);
       toast.error(`Sync failed: ${errorMessage}`);
     } finally {
-      setIsSyncing(false);
+      setSyncing(false);
     }
   };
 
   const handlePushOnly = async () => {
-    setIsSyncing(true);
-    try {
-      await SyncService.push(nbId);
-      toast.success('Pushed successfully');
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-      console.error('Push error:', e);
-      toast.error(`Push failed: ${errorMessage}`);
-    } finally {
-      setIsSyncing(false);
-    }
+    syncPush(nbId, true);
   };
 
   const handlePull = async () => {
-    setIsSyncing(true);
+    setSyncing(true, nbId);
     try {
       await SyncService.pull(nbId);
       toast.success('Pulled successfully');
@@ -281,7 +272,7 @@ export default function NotebookTimeline() {
       console.error('Pull error:', e);
       toast.error(`Pull failed: ${errorMessage}`);
     } finally {
-      setIsSyncing(false);
+      setSyncing(false);
     }
   };
 
