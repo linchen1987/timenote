@@ -6,76 +6,76 @@ export interface WebDAVConfig {
   password?: string;
 }
 
-export class WebDAVService {
-  private static getConfig(): WebDAVConfig | null {
-    if (typeof window === 'undefined') return null;
-    const url = localStorage.getItem(STORAGE_KEYS.WEBDAV_URL);
-    if (!url) return null;
-    return {
-      url,
-      username: localStorage.getItem(STORAGE_KEYS.WEBDAV_USERNAME) || '',
-      password: localStorage.getItem(STORAGE_KEYS.WEBDAV_PASSWORD) || '',
-    };
-  }
+const getConfig = (): WebDAVConfig | null => {
+  if (typeof window === 'undefined') return null;
+  const url = localStorage.getItem(STORAGE_KEYS.WEBDAV_URL);
+  if (!url) return null;
+  return {
+    url,
+    username: localStorage.getItem(STORAGE_KEYS.WEBDAV_USERNAME) || '',
+    password: localStorage.getItem(STORAGE_KEYS.WEBDAV_PASSWORD) || '',
+  };
+};
 
-  private static async callApi(method: string, path: string, args?: any) {
-    const config = WebDAVService.getConfig();
-    if (!config) throw new Error('WebDAV not configured');
+const callApi = async (method: string, path: string, args?: any) => {
+  const config = getConfig();
+  if (!config) throw new Error('WebDAV not configured');
 
-    const res = await fetch('/api/fs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        connection: { type: 'webdav', ...config },
-        method,
-        path,
-        args,
-      }),
-    });
+  const res = await fetch('/api/fs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      connection: { type: 'webdav', ...config },
+      method,
+      path,
+      args,
+    }),
+  });
 
-    const data = (await res.json()) as { error?: string; result?: any };
-    if (!res.ok || data.error) throw new Error(data.error || 'Request failed');
-    return data.result;
-  }
+  const data = (await res.json()) as { error?: string; result?: any };
+  if (!res.ok || data.error) throw new Error(data.error || 'Request failed');
+  return data.result;
+};
 
-  static async list(path: string) {
-    const result = await WebDAVService.callApi('list', path);
+export const WebDAVService = {
+  async list(path: string) {
+    const result = await callApi('list', path);
     return Array.isArray(result) ? result : [result];
-  }
+  },
 
-  static async read(path: string): Promise<string> {
-    return await WebDAVService.callApi('read', path);
-  }
+  async read(path: string): Promise<string> {
+    return await callApi('read', path);
+  },
 
-  static async write(path: string, content: string) {
-    return await WebDAVService.callApi('write', path, { content });
-  }
+  async write(path: string, content: string) {
+    return await callApi('write', path, { content });
+  },
 
-  static async delete(path: string) {
-    return await WebDAVService.callApi('delete', path);
-  }
+  async delete(path: string) {
+    return await callApi('delete', path);
+  },
 
-  static async mkdir(path: string) {
-    return await WebDAVService.callApi('mkdir', path);
-  }
+  async mkdir(path: string) {
+    return await callApi('mkdir', path);
+  },
 
-  static async exists(path: string): Promise<boolean> {
+  async exists(path: string): Promise<boolean> {
     try {
-      await WebDAVService.callApi('stat', path);
+      await callApi('stat', path);
       return true;
     } catch (_e) {
       return false;
     }
-  }
+  },
 
-  static async ensureDir(path: string) {
+  async ensureDir(path: string) {
     const parts = path.split('/').filter((p) => p);
     let current = '';
     for (const part of parts) {
       current += `/${part}`;
-      if (!(await WebDAVService.exists(current))) {
-        await WebDAVService.mkdir(current);
+      if (!(await this.exists(current))) {
+        await this.mkdir(current);
       }
     }
-  }
-}
+  },
+};

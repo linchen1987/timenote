@@ -1,5 +1,7 @@
 import type { MenuItem, Note, Notebook, NoteTag, Tag } from '~/lib/types';
 
+export const SYNC_ROOT_PATH = '/timenote';
+
 export interface BackupData {
   notebooks?: Notebook[];
   notes?: Note[];

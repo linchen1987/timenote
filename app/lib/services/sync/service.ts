@@ -1,21 +1,19 @@
-import { db } from '~/lib/db';
-import type { BackupData } from '~/lib/services/backup-types';
+import { db, type SyncableTableName, TABLE_NAMES } from '~/lib/db';
 import { WebDAVService } from '~/lib/services/webdav-service';
+import { type BackupData, SYNC_ROOT_PATH } from './types';
 
-const ROOT_PATH = '/timenote';
-
-export class SyncService {
-  static async init() {
-    if (!(await WebDAVService.exists(ROOT_PATH))) {
-      await WebDAVService.mkdir(ROOT_PATH);
+export const SyncService = {
+  async init() {
+    if (!(await WebDAVService.exists(SYNC_ROOT_PATH))) {
+      await WebDAVService.mkdir(SYNC_ROOT_PATH);
     }
-  }
+  },
 
-  static async getRemoteNotebooks() {
-    if (!(await WebDAVService.exists(ROOT_PATH))) return [];
+  async getRemoteNotebooks() {
+    if (!(await WebDAVService.exists(SYNC_ROOT_PATH))) return [];
 
     try {
-      const list = await WebDAVService.list(ROOT_PATH);
+      const list = await WebDAVService.list(SYNC_ROOT_PATH);
       const notebooks = [];
 
       for (const item of list) {
@@ -47,21 +45,21 @@ export class SyncService {
       console.error('Failed to list remote notebooks', e);
       return [];
     }
-  }
+  },
 
-  static async syncNotebook(notebookId: string) {
+  async syncNotebook(notebookId: string) {
     await SyncService.init();
-    const notebookPath = `${ROOT_PATH}/nb_${notebookId}`;
+    const notebookPath = `${SYNC_ROOT_PATH}/nb_${notebookId}`;
     if (!(await WebDAVService.exists(notebookPath))) {
       await WebDAVService.mkdir(notebookPath);
     }
 
     await SyncService.pull(notebookId);
     await SyncService.push(notebookId);
-  }
+  },
 
-  static async pull(notebookId: string) {
-    const dataPath = `${ROOT_PATH}/nb_${notebookId}/data.json`;
+  async pull(notebookId: string) {
+    const dataPath = `${SYNC_ROOT_PATH}/nb_${notebookId}/data.json`;
     let remoteData: BackupData | null = null;
     try {
       const content = await WebDAVService.read(dataPath);
@@ -80,7 +78,7 @@ export class SyncService {
         const events = await db.syncEvents.where('notebookId').equals(notebookId).toArray();
 
         const processEntity = async <T extends { id: string }>(
-          tableName: 'notes' | 'tags' | 'menuItems' | 'notebooks',
+          tableName: SyncableTableName,
           remoteList: T[] = [],
           localList: T[] = [],
         ) => {
@@ -99,8 +97,6 @@ export class SyncService {
                   await db.table(tableName).put(rItem);
                 }
               } else {
-                // For items without updatedAt (like Tags), assume Remote overwrites Local if different?
-                // Or simply Put to ensure consistency
                 await db.table(tableName).put(rItem);
               }
             } else {
@@ -133,19 +129,19 @@ export class SyncService {
 
         // 1. Notebooks
         const localNotebooks = await db.notebooks.where('id').equals(notebookId).toArray();
-        await processEntity('notebooks', remoteData.notebooks, localNotebooks);
+        await processEntity(TABLE_NAMES.NOTEBOOKS, remoteData.notebooks, localNotebooks);
 
         // 2. Notes
         const localNotes = await db.notes.where('notebookId').equals(notebookId).toArray();
-        await processEntity('notes', remoteData.notes, localNotes);
+        await processEntity(TABLE_NAMES.NOTES, remoteData.notes, localNotes);
 
         // 3. Tags
         const localTags = await db.tags.where('notebookId').equals(notebookId).toArray();
-        await processEntity('tags', remoteData.tags, localTags);
+        await processEntity(TABLE_NAMES.TAGS, remoteData.tags, localTags);
 
         // 4. MenuItems
         const localMenuItems = await db.menuItems.where('notebookId').equals(notebookId).toArray();
-        await processEntity('menuItems', remoteData.menuItems, localMenuItems);
+        await processEntity(TABLE_NAMES.MENU_ITEMS, remoteData.menuItems, localMenuItems);
 
         // 5. NoteTags
         const rNoteTags = remoteData.noteTags || [];
@@ -160,10 +156,13 @@ export class SyncService {
           const key = `${rNt.noteId}:${rNt.tagId}`;
           if (!lNtSet.has(key)) {
             const deleted = events.some(
-              (e) => e.entityId === key && e.action === 'delete' && e.entityName === 'noteTags',
+              (e) =>
+                e.entityId === key &&
+                e.action === 'delete' &&
+                e.entityName === TABLE_NAMES.NOTE_TAGS,
             );
             if (!deleted) {
-              await db.noteTags.put(rNt); // put supports composite key if defined
+              await db.noteTags.put(rNt);
             }
           }
         }
@@ -173,7 +172,10 @@ export class SyncService {
           const key = `${lNt.noteId}:${lNt.tagId}`;
           if (!rNtSet.has(key)) {
             const created = events.some(
-              (e) => e.entityId === key && e.action === 'create' && e.entityName === 'noteTags',
+              (e) =>
+                e.entityId === key &&
+                e.action === 'create' &&
+                e.entityName === TABLE_NAMES.NOTE_TAGS,
             );
             if (!created) {
               await db.noteTags.where({ noteId: lNt.noteId, tagId: lNt.tagId }).delete();
@@ -182,9 +184,9 @@ export class SyncService {
         }
       },
     );
-  }
+  },
 
-  static async push(notebookId: string) {
+  async push(notebookId: string) {
     const notebooks = await db.notebooks.where('id').equals(notebookId).toArray();
     if (notebooks.length === 0) return;
 
@@ -206,10 +208,10 @@ export class SyncService {
     };
 
     const content = JSON.stringify(data);
-    const path = `${ROOT_PATH}/nb_${notebookId}/data.json`;
+    const path = `${SYNC_ROOT_PATH}/nb_${notebookId}/data.json`;
 
     await WebDAVService.write(path, content);
 
     await db.syncEvents.where('notebookId').equals(notebookId).delete();
-  }
-}
+  },
+};

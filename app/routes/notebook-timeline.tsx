@@ -48,7 +48,7 @@ import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
 import { MenuService } from '~/lib/services/menu-service';
 import { NoteService } from '~/lib/services/note-service';
-import { SyncService } from '~/lib/services/sync-service';
+import { SyncService } from '~/lib/services/sync/service';
 import type { Note } from '~/lib/types';
 import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';

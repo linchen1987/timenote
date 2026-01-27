@@ -43,11 +43,11 @@ import {
   DropdownMenuTrigger,
 } from '~/components/ui/dropdown-menu';
 import { Input } from '~/components/ui/input';
-import type { BackupData } from '~/lib/services/backup-types';
 import { ExportService } from '~/lib/services/export-service';
 import { ImportService } from '~/lib/services/import-service';
 import { NoteService } from '~/lib/services/note-service';
-import { SyncService } from '~/lib/services/sync-service';
+import { SyncService } from '~/lib/services/sync/service';
+import type { BackupData } from '~/lib/services/sync/types';
 import { createNotebookToken } from '~/lib/utils/token';
 
 export const meta: MetaFunction = () => {

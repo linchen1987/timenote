@@ -1,5 +1,5 @@
 import { db } from '~/lib/db';
-import type { BackupData } from '~/lib/services/backup-types';
+import type { BackupData } from '~/lib/services/sync/types';
 
 export const ExportService = {
   async exportData(): Promise<BackupData> {
