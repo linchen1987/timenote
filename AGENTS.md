@@ -25,8 +25,8 @@
 - `app/` - Main application code
   - `routes/` - Route components (pages)
     - `notebooks.tsx` - Notebook list (Home)
-    - `notebook-timeline.tsx` - Note list in a notebook
-    - `note-detail.tsx` - Note editor/view
+    - `notebook-notes.tsx` - Note list in a notebook
+    - `notebook-notedetail.tsx` - Note editor/view
     - `tags.tsx` - Tag management/list
     - `manifest.tsx` - Web app manifest
     - `api.fs.ts` - File system API endpoints

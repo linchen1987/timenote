@@ -13,7 +13,7 @@ import { useSyncStore } from '~/lib/stores/sync-store';
 import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
-import type { Route } from './+types/note-detail';
+import type { Route } from './+types/notebook-notedetail';
 
 export const meta: Route.MetaFunction = ({ params }) => {
   return getNotebookMeta('', params.notebookToken);
@@ -122,7 +122,6 @@ export default function NoteDetailPage() {
             initialValue={note.content}
             onChange={handleUpdate}
             onSubmit={handleSaveLocal}
-            autoFocus
             minHeight="70vh"
             className="text-lg bg-transparent border-none shadow-none p-0"
             showToolbar={true}

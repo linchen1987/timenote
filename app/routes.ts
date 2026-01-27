@@ -5,10 +5,10 @@ export default [
   route('settings', 'routes/settings.tsx'),
 
   route('s/:notebookToken', 'routes/notebook-layout.tsx', [
-    index('routes/notebook-timeline.tsx'),
+    index('routes/notebook-notes.tsx'),
     route('tags', 'routes/tags.tsx'),
     route('manifest.webmanifest', 'routes/manifest.tsx'),
-    route(':noteId', 'routes/note-detail.tsx'),
+    route(':noteId', 'routes/notebook-notedetail.tsx'),
   ]),
 
   // Playground 模块
