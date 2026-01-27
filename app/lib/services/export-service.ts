@@ -1,23 +1,9 @@
-import { db } from '~/lib/db';
 import type { BackupData } from '~/lib/services/sync/types';
+import { DataService } from './data-service';
 
 export const ExportService = {
   async exportData(): Promise<BackupData> {
-    const notebooks = await db.notebooks.toArray();
-    const notes = await db.notes.toArray();
-    const tags = await db.tags.toArray();
-    const noteTags = await db.noteTags.toArray();
-    const menuItems = await db.menuItems.toArray();
-
-    const data: BackupData = {
-      notebooks,
-      notes,
-      tags,
-      noteTags,
-      menuItems,
-      version: 5,
-      exportedAt: Date.now(),
-    };
+    const data = await DataService.fetchBackupData();
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);

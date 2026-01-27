@@ -15,7 +15,7 @@ export interface BackupData {
   exportedAt: number;
 }
 
-export interface ImportStats {
+export interface DataApplyResult {
   success: number;
   skipped: number;
   errors: string[];

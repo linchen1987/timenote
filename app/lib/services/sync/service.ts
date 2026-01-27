@@ -1,7 +1,7 @@
-import { db, type SyncableTableName, TABLE_NAMES } from '~/lib/db';
+import { db, TABLE_NAMES } from '~/lib/db';
 import { WebDAVService } from '~/lib/services/webdav-service';
-import { type BackupData, SYNC_ROOT_PATH, type SyncableEntity } from './types';
-import { getEntitySyncId } from './utils';
+import { DataService } from '../data-service';
+import { type BackupData, SYNC_ROOT_PATH } from './types';
 
 export const SyncService = {
   async init() {
@@ -71,112 +71,13 @@ export const SyncService = {
 
     if (!remoteData) return;
 
-    await db.transaction(
-      'rw',
-      [db.notebooks, db.notes, db.tags, db.noteTags, db.menuItems, db.syncEvents],
-      async (transaction) => {
-        (transaction as any).source = 'sync';
-        const events = await db.syncEvents.where('notebookId').equals(notebookId).toArray();
-
-        const processEntity = async (
-          tableName: SyncableTableName,
-          remoteList: SyncableEntity[] = [],
-          localList: SyncableEntity[] = [],
-        ) => {
-          const remoteMap = new Map(remoteList.map((i) => [getEntitySyncId(tableName, i), i]));
-          const localMap = new Map(localList.map((i) => [getEntitySyncId(tableName, i), i]));
-
-          // 1. Remote -> Local
-          for (const rItem of remoteList) {
-            const rId = getEntitySyncId(tableName, rItem);
-            const lItem = localMap.get(rId);
-
-            if (lItem) {
-              // Update check
-              if ('updatedAt' in rItem && 'updatedAt' in lItem) {
-                const rTime = (rItem as any).updatedAt || 0;
-                const lTime = (lItem as any).updatedAt || 0;
-                if (rTime > lTime) {
-                  await db.table(tableName).put(rItem);
-                }
-              } else {
-                // For items without updatedAt (like Tags and NoteTags),
-                // we put to ensure local data matches remote if there's any discrepancy
-                await db.table(tableName).put(rItem);
-              }
-            } else {
-              // Check if deleted locally
-              const deleted = events.some(
-                (e) => e.entityId === rId && e.action === 'delete' && e.entityName === tableName,
-              );
-              if (!deleted) {
-                await db.table(tableName).put(rItem);
-              }
-            }
-          }
-
-          // 2. Local -> Check deletion
-          for (const lItem of localList) {
-            const lId = getEntitySyncId(tableName, lItem);
-            if (!remoteMap.has(lId)) {
-              // Check if created locally
-              const created = events.some(
-                (e) => e.entityId === lId && e.action === 'create' && e.entityName === tableName,
-              );
-              if (!created) {
-                // Deleted remotely
-                if (tableName === TABLE_NAMES.NOTE_TAGS) {
-                  const nt = lItem as any;
-                  await db.noteTags.delete([nt.noteId, nt.tagId]);
-                } else {
-                  await db.table(tableName).delete(lId);
-                }
-              }
-            }
-          }
-        };
-
-        // 1. Notebooks
-        const localNotebooks = await db.notebooks.where('id').equals(notebookId).toArray();
-        await processEntity(TABLE_NAMES.NOTEBOOKS, remoteData.notebooks, localNotebooks);
-
-        // 2. Notes
-        const localNotes = await db.notes.where('notebookId').equals(notebookId).toArray();
-        await processEntity(TABLE_NAMES.NOTES, remoteData.notes, localNotes);
-
-        // 3. Tags
-        const localTags = await db.tags.where('notebookId').equals(notebookId).toArray();
-        await processEntity(TABLE_NAMES.TAGS, remoteData.tags, localTags);
-
-        // 4. MenuItems
-        const localMenuItems = await db.menuItems.where('notebookId').equals(notebookId).toArray();
-        await processEntity(TABLE_NAMES.MENU_ITEMS, remoteData.menuItems, localMenuItems);
-
-        // 5. NoteTags
-        const localNoteTags = await db.noteTags.where('notebookId').equals(notebookId).toArray();
-        await processEntity(TABLE_NAMES.NOTE_TAGS, remoteData.noteTags, localNoteTags);
-      },
-    );
+    await DataService.applyBackupData(remoteData, {
+      notebookId,
+    });
   },
 
   async push(notebookId: string) {
-    const notebooks = await db.notebooks.where('id').equals(notebookId).toArray();
-    if (notebooks.length === 0) return;
-
-    const notes = await db.notes.where('notebookId').equals(notebookId).toArray();
-    const tags = await db.tags.where('notebookId').equals(notebookId).toArray();
-    const menuItems = await db.menuItems.where('notebookId').equals(notebookId).toArray();
-    const noteTags = await db.noteTags.where('notebookId').equals(notebookId).toArray();
-
-    const data: BackupData = {
-      version: 1,
-      exportedAt: Date.now(),
-      notebooks,
-      notes,
-      tags,
-      noteTags,
-      menuItems,
-    };
+    const data = await DataService.fetchBackupData(notebookId);
 
     const content = JSON.stringify(data);
     const path = `${SYNC_ROOT_PATH}/nb_${notebookId}/data.json`;
