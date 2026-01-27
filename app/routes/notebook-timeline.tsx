@@ -2,6 +2,7 @@
 
 import { useLiveQuery } from 'dexie-react-hooks';
 import {
+  ArrowUpFromLine,
   Calendar,
   CloudDownload,
   Maximize2,
@@ -99,6 +100,31 @@ export default function NotebookTimeline() {
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hasPulledInSession, setHasPulledInSession] = useState(false);
+
+  // Auto pull on mount
+  useEffect(() => {
+    const pullKey = `timenote:pull:${nbId}`;
+    const hasPulled = sessionStorage.getItem(pullKey) === 'true';
+
+    if (!hasPulled) {
+      const autoPull = async () => {
+        try {
+          await SyncService.pull(nbId);
+          sessionStorage.setItem(pullKey, 'true');
+          setHasPulledInSession(true);
+          toast.success('Data pulled successfully');
+        } catch (e) {
+          const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+          console.error('Auto pull error:', e);
+          toast.error(`Auto pull failed: ${errorMessage}`);
+        }
+      };
+      autoPull();
+    } else {
+      setHasPulledInSession(true);
+    }
+  }, [nbId]);
 
   // Queries
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
@@ -213,12 +239,33 @@ export default function NotebookTimeline() {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      await SyncService.syncNotebook(nbId);
-      toast.success('Synced successfully');
+      if (hasPulledInSession) {
+        await SyncService.push(nbId);
+        toast.success('Pushed successfully');
+      } else {
+        await SyncService.syncNotebook(nbId);
+        sessionStorage.setItem(`timenote:pull:${nbId}`, 'true');
+        setHasPulledInSession(true);
+        toast.success('Synced successfully');
+      }
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
       console.error('Sync error:', e);
       toast.error(`Sync failed: ${errorMessage}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handlePushOnly = async () => {
+    setIsSyncing(true);
+    try {
+      await SyncService.push(nbId);
+      toast.success('Pushed successfully');
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+      console.error('Push error:', e);
+      toast.error(`Push failed: ${errorMessage}`);
     } finally {
       setIsSyncing(false);
     }
@@ -312,22 +359,32 @@ export default function NotebookTimeline() {
           </div>
 
           <div className="flex items-center gap-1 w-full max-w-[320px] justify-end">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handlePull}
-              disabled={isSyncing}
-              title="Pull from Cloud (Download Only)"
-              className="shrink-0 text-muted-foreground hover:text-primary"
-            >
-              <CloudDownload className={cn('w-4 h-4', isSyncing && 'animate-pulse')} />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={isSyncing}
+                  className="shrink-0 text-muted-foreground hover:text-primary"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handlePull}>
+                  <CloudDownload className="w-4 h-4 mr-2" /> Pull
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handlePushOnly}>
+                  <ArrowUpFromLine className="w-4 h-4 mr-2" /> Push
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button
               variant="ghost"
               size="icon"
               onClick={handleSync}
               disabled={isSyncing}
-              title="Sync Notebook (Push & Pull)"
+              title="Sync Notebook"
               className="shrink-0 mr-2 text-muted-foreground hover:text-primary"
             >
               <RefreshCw className={cn('w-4 h-4', isSyncing && 'animate-spin')} />
