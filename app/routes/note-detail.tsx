@@ -1,38 +1,79 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { Calendar } from 'lucide-react';
-import { useRef } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { ChevronLeft, Save } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link, useParams } from 'react-router';
+import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { NoteTagsView } from '~/components/note-tags-view';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
+import { SyncService } from '~/lib/services/sync/service';
+import { WebDAVService } from '~/lib/services/webdav-service';
+import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
 import type { Route } from './+types/note-detail';
 
 export const meta: Route.MetaFunction = ({ params }) => {
-  return getNotebookMeta('Note Detail', params.notebookToken);
+  return getNotebookMeta('', params.notebookToken);
 };
 
 export default function NoteDetailPage() {
   const { notebookToken, noteId } = useParams();
-  const navigate = useNavigate();
   const nId = noteId || '';
   const nbId = parseNotebookId(notebookToken || '');
 
   const note = useLiveQuery(() => NoteService.getNote(nId), [nId]);
   const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
   const editorRef = useRef<MarkdownEditorRef>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleUpdate = async (content: string) => {
     await NoteService.updateNote(nId, content);
   };
 
+  const handleSave = useCallback(async () => {
+    const content = editorRef.current?.getMarkdown() || '';
+    setIsSaving(true);
+    try {
+      await NoteService.updateNoteWithTags(nId, nbId, content);
+      toast.success('Note saved successfully');
+
+      if (WebDAVService.isConfigured()) {
+        try {
+          await SyncService.push(nbId);
+          toast.success('Synced to cloud');
+        } catch (e) {
+          const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+          console.error('Sync error:', e);
+          toast.error(`Sync failed: ${errorMessage}`);
+        }
+      }
+    } catch (e) {
+      console.error('Save error:', e);
+      toast.error('Failed to save note');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [nId, nbId]);
+
   const handleSyncTags = async (content: string) => {
     await NoteService.updateNoteWithTags(nId, nbId, content);
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleSave]);
 
   if (!note) return null;
 
@@ -42,35 +83,21 @@ export default function NoteDetailPage() {
     <>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
-          <Link
-            to={`/s/${notebookToken}`}
-            className="text-lg font-bold hover:text-primary transition-colors flex items-center gap-2"
+          <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Link to={`/s/${notebookToken}`} title="Back to Timeline">
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSave}
+            disabled={isSaving}
+            className="rounded-full cursor-pointer"
+            title="Save (⌘+S)"
           >
-            ← Timeline
-          </Link>
-          <div className="flex items-center gap-4">
-            <div
-              className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium"
-              suppressHydrationWarning
-            >
-              <Calendar className="w-3.5 h-3.5 opacity-70" />
-              {new Date(note.updatedAt).toLocaleString([], {
-                dateStyle: 'medium',
-                timeStyle: 'short',
-              })}
-            </div>
-            <Button
-              onClick={() => {
-                const content = editorRef.current?.getMarkdown() || '';
-                handleSyncTags(content);
-                navigate(`/s/${notebookToken}`);
-              }}
-              size="sm"
-              className="rounded-full px-6 font-bold"
-            >
-              Done
-            </Button>
-          </div>
+            <Save className={cn('w-5 h-5', isSaving && 'animate-spin')} />
+          </Button>
         </div>
       </header>
 
@@ -85,11 +112,7 @@ export default function NoteDetailPage() {
             initialValue={note.content}
             onChange={handleUpdate}
             onBlur={handleSyncTags}
-            onSubmit={() => {
-              const content = editorRef.current?.getMarkdown() || '';
-              handleSyncTags(content);
-              navigate(`/s/${notebookToken}`);
-            }}
+            onSubmit={handleSave}
             availableTags={availableTagNames}
             autoFocus
             minHeight="70vh"

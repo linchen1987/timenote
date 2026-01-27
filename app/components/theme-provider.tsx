@@ -33,11 +33,21 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('theme', theme);
 
     if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light';
-      root.classList.add(systemTheme);
-      return;
+      const applySystemTheme = () => {
+        const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+        root.classList.remove('light', 'dark');
+        root.classList.add(systemTheme);
+      };
+
+      applySystemTheme();
+
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = () => applySystemTheme();
+
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
     }
 
     root.classList.add(theme);

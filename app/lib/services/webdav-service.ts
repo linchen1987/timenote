@@ -38,6 +38,9 @@ const callApi = async <T = unknown>(method: string, path: string, args?: unknown
 };
 
 export const WebDAVService = {
+  isConfigured(): boolean {
+    return getConfig() !== null;
+  },
   async list(path: string) {
     const result = await callApi('list', path);
     return Array.isArray(result) ? result : [result];
