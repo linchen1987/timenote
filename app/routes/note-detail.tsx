@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
-import { NoteTagsView } from '~/components/note-tags-view';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
 import { SyncService } from '~/lib/services/sync/service';
@@ -26,30 +25,61 @@ export default function NoteDetailPage() {
   const nbId = parseNotebookId(notebookToken || '');
 
   const note = useLiveQuery(() => NoteService.getNote(nId), [nId]);
-  const notebookTags = useLiveQuery(() => NoteService.getTagsByNotebook(nbId), [nbId]);
+  const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const editorRef = useRef<MarkdownEditorRef>(null);
+  const initialContentRef = useRef('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  const handleUpdate = async (content: string) => {
-    await NoteService.updateNote(nId, content);
-  };
+  useEffect(() => {
+    if (note) {
+      initialContentRef.current = note.content;
+    }
+  }, [note]);
 
-  const handleSave = useCallback(async () => {
+  const handleUpdate = useCallback((content: string) => {
+    const hasChanges = content !== initialContentRef.current;
+    setHasUnsavedChanges(hasChanges);
+  }, []);
+
+  useEffect(() => {
+    if (notebook) {
+      document.title = `${notebook.name} | Time Note`;
+    }
+  }, [notebook]);
+
+  const handleSync = useCallback(async () => {
+    if (!WebDAVService.isConfigured()) {
+      return;
+    }
+
+    setIsSyncing(true);
+    try {
+      await SyncService.push(nbId);
+    } catch (e) {
+      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
+      console.error('Sync error:', e);
+      toast.error(`Sync failed: ${errorMessage}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [nbId]);
+
+  const handleSaveLocal = useCallback(async () => {
     const content = editorRef.current?.getMarkdown() || '';
+    if (content === initialContentRef.current) {
+      return;
+    }
+
     setIsSaving(true);
     try {
       await NoteService.updateNoteWithTags(nId, nbId, content);
-      toast.success('Note saved successfully');
+      initialContentRef.current = content;
+      setHasUnsavedChanges(false);
 
       if (WebDAVService.isConfigured()) {
-        try {
-          await SyncService.push(nbId);
-          toast.success('Synced to cloud');
-        } catch (e) {
-          const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-          console.error('Sync error:', e);
-          toast.error(`Sync failed: ${errorMessage}`);
-        }
+        await handleSync();
       }
     } catch (e) {
       console.error('Save error:', e);
@@ -57,27 +87,23 @@ export default function NoteDetailPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [nId, nbId]);
-
-  const handleSyncTags = async (content: string) => {
-    await NoteService.updateNoteWithTags(nId, nbId, content);
-  };
+  }, [nId, nbId, handleSync]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        handleSave();
+        if (hasUnsavedChanges) {
+          handleSaveLocal();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleSave]);
+  }, [handleSaveLocal, hasUnsavedChanges]);
 
   if (!note) return null;
-
-  const availableTagNames = (notebookTags || []).map((t) => t.name);
 
   return (
     <>
@@ -88,32 +114,33 @@ export default function NoteDetailPage() {
               <ChevronLeft className="w-5 h-5" />
             </Link>
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="rounded-full cursor-pointer"
-            title="Save (⌘+S)"
-          >
-            <Save className={cn('w-5 h-5', isSaving && 'animate-spin')} />
-          </Button>
+          <div className="flex items-center gap-2">
+            {isSyncing && (
+              <span className="text-xs text-muted-foreground font-medium">Syncing...</span>
+            )}
+            {hasUnsavedChanges && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSaveLocal}
+                disabled={isSaving}
+                className="rounded-full cursor-pointer"
+                title="Save to local (⌘+S)"
+              >
+                <Save className={cn('w-5 h-5 text-amber-500', isSaving && 'animate-spin')} />
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8 space-y-6">
-        <div className="px-4">
-          <NoteTagsView noteId={nId} />
-        </div>
-
+      <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-1 sm:pt-2 pb-4 sm:pb-8">
         <div className="min-h-[70vh]">
           <MarkdownEditor
             ref={editorRef}
             initialValue={note.content}
             onChange={handleUpdate}
-            onBlur={handleSyncTags}
-            onSubmit={handleSave}
-            availableTags={availableTagNames}
+            onSubmit={handleSaveLocal}
             autoFocus
             minHeight="70vh"
             className="text-lg bg-transparent border-none shadow-none p-0"
