@@ -7,7 +7,9 @@ import {
   TABLE_NAMES,
   type TimenoteDatabase,
 } from '~/lib/db';
-import type { Notebook, NoteTag, SyncEvent } from '~/lib/types';
+import type { SyncEvent } from '~/lib/types';
+import type { SyncableEntity } from './types';
+import { getEntityNotebookId, getEntitySyncId } from './utils';
 
 const logSyncEvent = (
   db: TimenoteDatabase,
@@ -45,63 +47,35 @@ const logSyncEvent = (
   }
 };
 
+const handleHook = (
+  db: TimenoteDatabase,
+  tableName: SyncableTableName,
+  action: 'create' | 'update' | 'delete',
+  obj: SyncableEntity,
+  transaction: Transaction,
+) => {
+  if ((transaction as any).source === 'sync') return;
+
+  const entityId = getEntitySyncId(tableName, obj);
+  const notebookId = getEntityNotebookId(tableName, obj);
+
+  if (notebookId) {
+    logSyncEvent(db, transaction, notebookId, tableName, entityId, action);
+  }
+};
+
 export const initSyncTracker = (db: TimenoteDatabase) => {
-  SYNCABLE_TABLES.forEach((tableName: SyncableTableName) => {
-    db.table(tableName).hook('creating', (primKey, obj, transaction: Transaction) => {
-      if ((transaction as any).source === 'sync') return;
-
-      let entityId = String(primKey);
-      if (tableName === TABLE_NAMES.NOTE_TAGS) {
-        const nt = obj as NoteTag;
-        entityId = `${nt.noteId}:${nt.tagId}`;
-      }
-
-      let notebookId = (obj as any).notebookId;
-      if (tableName === TABLE_NAMES.NOTEBOOKS) {
-        notebookId = (obj as Notebook).id;
-      }
-
-      if (notebookId) {
-        logSyncEvent(db, transaction, notebookId, tableName, entityId, 'create');
-      }
+  SYNCABLE_TABLES.forEach((tableName) => {
+    db.table(tableName).hook('creating', (_primKey, obj, transaction) => {
+      handleHook(db, tableName, 'create', obj as SyncableEntity, transaction);
     });
 
-    db.table(tableName).hook('updating', (_mods, primKey, obj, transaction: Transaction) => {
-      if ((transaction as any).source === 'sync') return;
-
-      let entityId = String(primKey);
-      if (tableName === TABLE_NAMES.NOTE_TAGS) {
-        const nt = obj as NoteTag;
-        entityId = `${nt.noteId}:${nt.tagId}`;
-      }
-
-      let notebookId = (obj as any).notebookId;
-      if (tableName === TABLE_NAMES.NOTEBOOKS) {
-        notebookId = (obj as Notebook).id;
-      }
-
-      if (notebookId) {
-        logSyncEvent(db, transaction, notebookId, tableName, entityId, 'update');
-      }
+    db.table(tableName).hook('updating', (_mods, _primKey, obj, transaction) => {
+      handleHook(db, tableName, 'update', obj as SyncableEntity, transaction);
     });
 
-    db.table(tableName).hook('deleting', (primKey, obj, transaction: Transaction) => {
-      if ((transaction as any).source === 'sync') return;
-
-      let entityId = String(primKey);
-      if (tableName === TABLE_NAMES.NOTE_TAGS) {
-        const nt = obj as NoteTag;
-        entityId = `${nt.noteId}:${nt.tagId}`;
-      }
-
-      let notebookId = (obj as any).notebookId;
-      if (tableName === TABLE_NAMES.NOTEBOOKS) {
-        notebookId = (obj as Notebook).id;
-      }
-
-      if (notebookId) {
-        logSyncEvent(db, transaction, notebookId, tableName, entityId, 'delete');
-      }
+    db.table(tableName).hook('deleting', (_primKey, obj, transaction) => {
+      handleHook(db, tableName, 'delete', obj as SyncableEntity, transaction);
     });
   });
 };
