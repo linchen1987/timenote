@@ -7,6 +7,7 @@ export default [
   route('s/:notebookToken', 'routes/notebook-layout.tsx', [
     index('routes/notebook-notes.tsx'),
     route('tags', 'routes/tags.tsx'),
+    route('settings', 'routes/notebook-settings.tsx'),
     route('manifest.webmanifest', 'routes/manifest.tsx'),
     route(':noteId', 'routes/notebook-notedetail.tsx'),
   ]),

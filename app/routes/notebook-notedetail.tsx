@@ -8,7 +8,6 @@ import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
-import { WebDAVService } from '~/lib/services/webdav-service';
 import { useSyncStore } from '~/lib/stores/sync-store';
 import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';

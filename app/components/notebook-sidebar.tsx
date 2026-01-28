@@ -34,6 +34,7 @@ import {
   MoreVertical,
   Plus,
   Search,
+  Settings,
   Sun,
   Tag,
   Trash2,
@@ -428,28 +429,6 @@ export function NotebookSidebar({
             </div>
           </button>
 
-          <button
-            type="button"
-            className={cn(
-              'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full text-left',
-              isTagsPage
-                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
-            )}
-            onClick={() => {
-              navigate(`/s/${notebookToken}/tags`);
-              onSelectNotebook?.();
-            }}
-          >
-            <div className="flex items-center gap-1 min-w-0 flex-1">
-              <div className="w-4" />
-              <Tag className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">Tags</span>
-            </div>
-          </button>
-
-          <Separator className="my-2 bg-sidebar-border/50" />
-
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -505,30 +484,66 @@ export function NotebookSidebar({
       </ScrollArea>
 
       <div className="p-2 border-t bg-sidebar-accent/20">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-2 h-9 px-2 text-sidebar-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
-            >
-              {theme === 'light' && <Sun className="w-4 h-4" />}
-              {theme === 'dark' && <Moon className="w-4 h-4" />}
-              {theme === 'system' && <Monitor className="w-4 h-4" />}
-              <span className="capitalize">{theme} Theme</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top" className="w-40">
-            <DropdownMenuItem onClick={() => setTheme('light')}>
-              <Sun className="w-4 h-4 mr-2" /> Light
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')}>
-              <Moon className="w-4 h-4 mr-2" /> Dark
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')}>
-              <Monitor className="w-4 h-4 mr-2" /> System
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'flex-1 h-9 justify-center text-sidebar-foreground',
+              location.pathname.endsWith('/settings')
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'hover:bg-sidebar-accent/50',
+            )}
+            onClick={() => {
+              navigate(`/s/${notebookToken}/settings`);
+              onSelectNotebook?.();
+            }}
+          >
+            <Settings className="w-4 h-4" />
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className={cn(
+              'flex-1 h-9 justify-center text-sidebar-foreground',
+              isTagsPage
+                ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                : 'hover:bg-sidebar-accent/50',
+            )}
+            onClick={() => {
+              navigate(`/s/${notebookToken}/tags`);
+              onSelectNotebook?.();
+            }}
+          >
+            <Tag className="w-4 h-4" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="flex-1 h-9 justify-center text-sidebar-foreground hover:bg-sidebar-accent/50"
+              >
+                {theme === 'light' && <Sun className="w-4 h-4" />}
+                {theme === 'dark' && <Moon className="w-4 h-4" />}
+                {theme === 'system' && <Monitor className="w-4 h-4" />}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="top" className="w-40">
+              <DropdownMenuItem onClick={() => setTheme('light')}>
+                <Sun className="w-4 h-4 mr-2" /> Light
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('dark')}>
+                <Moon className="w-4 h-4 mr-2" /> Dark
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme('system')}>
+                <Monitor className="w-4 h-4 mr-2" /> System
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
