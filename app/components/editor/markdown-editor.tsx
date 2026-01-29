@@ -11,7 +11,7 @@ import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
 import { type Editor, EditorContent, Extension, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Markdown } from 'tiptap-markdown';
 import { createTagSuggestion } from '~/components/editor/suggestion';
 
@@ -31,11 +31,32 @@ interface MarkdownStorage {
   getMarkdown: () => string;
 }
 
-const MenuBar = ({ editor }: { editor: Editor }) => {
+const MenuBar = ({
+  editor,
+  isRawMode,
+  onToggleRawMode,
+}: {
+  editor: Editor;
+  isRawMode: boolean;
+  onToggleRawMode: () => void;
+}) => {
   if (!editor) return null;
 
   return (
     <div className="border border-muted/30 rounded-t-lg p-1 bg-muted/20 flex flex-wrap gap-0.5">
+      <div className="flex gap-0.5 p-1 border-r border-muted/30">
+        <button
+          type="button"
+          onClick={onToggleRawMode}
+          className={`px-2 py-1 rounded text-xs font-bold transition-colors ${
+            isRawMode
+              ? 'bg-primary text-primary-foreground'
+              : 'hover:bg-muted text-muted-foreground'
+          }`}
+        >
+          &lt;/&gt;
+        </button>
+      </div>
       <div className="flex gap-0.5 p-1 border-r border-muted/30">
         <button
           type="button"
@@ -174,6 +195,9 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
     },
     ref,
   ) => {
+    const [isRawMode, setIsRawMode] = useState(false);
+    const [rawContent, setRawContent] = useState(initialValue);
+
     // 使用 Ref 追踪最新的标签列表和回调，避免 useEditor 闭包捕获旧值
     const tagsRef = useRef(availableTags);
     const callbacksRef = useRef({ onChange, onSubmit, onBlur });
@@ -257,10 +281,15 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
 
     useImperativeHandle(ref, () => ({
       getMarkdown: () =>
-        (
-          editor?.storage as unknown as Record<string, MarkdownStorage> | undefined
-        )?.markdown.getMarkdown() || '',
-      setMarkdown: (content: string) => editor?.commands.setContent(content),
+        isRawMode
+          ? rawContent
+          : (
+              editor?.storage as unknown as Record<string, MarkdownStorage> | undefined
+            )?.markdown.getMarkdown() || '',
+      setMarkdown: (content: string) => {
+        setRawContent(content);
+        editor?.commands.setContent(content);
+      },
       focus: () => editor?.commands.focus(),
     }));
 
@@ -285,17 +314,70 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       }
     }, [initialValue, editor]);
 
-    if (!editor) return null;
+    // Update raw content when initialValue changes
+    useEffect(() => {
+      setRawContent(initialValue);
+    }, [initialValue]);
+
+    const toggleRawMode = () => {
+      if (isRawMode) {
+        // raw to rich: set editor content from raw
+        editor?.commands.setContent(rawContent, { emitUpdate: true });
+        setIsRawMode(false);
+      } else {
+        // rich to raw: get markdown from editor
+        if (editor) {
+          const markdown = (
+            editor.storage as unknown as Record<string, MarkdownStorage>
+          ).markdown.getMarkdown();
+          setRawContent(markdown);
+          setIsRawMode(true);
+        }
+      }
+    };
+
+    const handleRawContentChange = (content: string) => {
+      setRawContent(content);
+      callbacksRef.current.onChange?.(content);
+    };
+
+    const handleRawBlur = () => {
+      callbacksRef.current.onBlur?.(rawContent);
+    };
+
+    const handleRawKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.metaKey && e.key === 'Enter') {
+        e.preventDefault();
+        callbacksRef.current.onSubmit?.();
+      }
+    };
+
+    if (!editor && !isRawMode) return null;
 
     const hasBgClass = className.includes('bg-');
 
     return (
       <div className="flex flex-col w-full">
-        {editable && showToolbar && <MenuBar editor={editor} />}
+        {editable && showToolbar && (
+          <MenuBar editor={editor} isRawMode={isRawMode} onToggleRawMode={toggleRawMode} />
+        )}
         <div
           className={`${editable ? 'border border-t-0 border-muted/30 rounded-b-lg' : ''} ${editable && !hasBgClass ? 'bg-muted/20' : ''} ${editable && !showToolbar ? 'border-t rounded-t-lg' : ''}`}
         >
-          <EditorContent editor={editor} />
+          {isRawMode ? (
+            <textarea
+              value={rawContent}
+              onChange={(e) => editable && handleRawContentChange(e.target.value)}
+              onBlur={handleRawBlur}
+              onKeyDown={handleRawKeyDown}
+              placeholder={placeholder}
+              disabled={!editable}
+              className={`w-full p-4 font-mono text-sm resize-none focus:outline-none ${className}`}
+              style={{ minHeight, userSelect: editable ? 'auto' : 'text' }}
+            />
+          ) : (
+            <EditorContent editor={editor} />
+          )}
         </div>
 
         <style
