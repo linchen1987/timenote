@@ -307,6 +307,12 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             .ProseMirror h2 { font-size: 1.4rem; font-weight: 700; margin-top: 0.8rem; margin-bottom: 0.4rem; }
             .ProseMirror h3 { font-size: 1.2rem; font-weight: 600; margin-top: 0.6rem; margin-bottom: 0.3rem; }
             .ProseMirror p { margin-top: 0.3rem; margin-bottom: 0.3rem; }
+            .ProseMirror ul { padding-left: 1.5rem; margin: 0.5rem 0; list-style-type: disc; }
+            .ProseMirror ul ul { list-style-type: circle; }
+            .ProseMirror ul ul ul { list-style-type: square; }
+            .ProseMirror ol { padding-left: 1.5rem; margin: 0.5rem 0; list-style-type: decimal; }
+            .ProseMirror ol ol { list-style-type: lower-alpha; }
+            .ProseMirror ol ol ol { list-style-type: lower-roman; }
             .ProseMirror ul[data-type="taskList"] { list-style: none; padding: 0; margin: 0.5rem 0; }
             .ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.2rem; }
             .ProseMirror ul[data-type="taskList"] li > label { margin-top: 0.3rem; flex: 0 0 auto; }
