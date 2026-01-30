@@ -136,10 +136,23 @@ export default function NotebookTimeline() {
     [searchQuery, nbId],
   );
 
-  const notebookNotes = useLiveQuery(
-    () => (searchQuery ? Promise.resolve([]) : NoteService.getNotesByNotebook(nbId, limit)),
-    [nbId, limit, searchQuery],
-  );
+  // Manual notes state for the timeline to prevent auto-reordering on edit
+  const [notes, setNotes] = useState<Note[]>([]);
+
+  useEffect(() => {
+    if (searchQuery) return;
+    
+    let isMounted = true;
+    NoteService.getNotesByNotebook(nbId, limit).then((fetchedNotes) => {
+      if (isMounted) {
+        setNotes(fetchedNotes);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [nbId, limit, searchQuery]);
 
   const totalCount = useLiveQuery(
     () => (searchQuery ? Promise.resolve(0) : NoteService.getNoteCountByNotebook(nbId)),
@@ -161,8 +174,7 @@ export default function NotebookTimeline() {
   const hasMore =
     !searchQuery &&
     totalCount !== undefined &&
-    notebookNotes !== undefined &&
-    notebookNotes.length < totalCount;
+    notes.length < totalCount;
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -181,7 +193,7 @@ export default function NotebookTimeline() {
 
   const filteredNotes = useMemo(() => {
     if (targetNoteId) {
-      const source = searchQuery ? allNotesForSearch : notebookNotes;
+      const source = searchQuery ? allNotesForSearch : notes;
       return (source || []).filter((note) => note.id === targetNoteId);
     }
 
@@ -193,7 +205,7 @@ export default function NotebookTimeline() {
       );
     }
 
-    let result = notebookNotes || [];
+    let result = notes || [];
     if (selectedTagId && noteTagNamesMap) {
       const tag = notebookTags?.find((t) => t.id === selectedTagId);
       if (tag) {
@@ -205,7 +217,7 @@ export default function NotebookTimeline() {
     }
     return result;
   }, [
-    notebookNotes,
+    notes,
     allNotesForSearch,
     searchQuery,
     selectedTagId,
@@ -216,6 +228,10 @@ export default function NotebookTimeline() {
 
   // Handlers
   const handleUpdate = async (id: string, content: string) => {
+    // Optimistic update to prevent reordering
+    setNotes((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, content, updatedAt: Date.now() } : n)),
+    );
     await NoteService.updateNoteWithTags(id, nbId, content);
   };
 
@@ -228,6 +244,7 @@ export default function NotebookTimeline() {
     if (noteToDelete) {
       try {
         await NoteService.deleteNote(noteToDelete);
+        setNotes((prev) => prev.filter((n) => n.id !== noteToDelete));
         setNoteToDelete(null);
         setIsDeleteDialogOpen(false);
         toast.success('Note deleted successfully');
@@ -245,6 +262,9 @@ export default function NotebookTimeline() {
         toast.success('Pushed successfully');
       } else {
         await SyncService.syncNotebook(nbId);
+        // Refresh list after sync
+        const syncedNotes = await NoteService.getNotesByNotebook(nbId, limit);
+        setNotes(syncedNotes);
         sessionStorage.setItem(`timenote:pull:${nbId}`, 'true');
         setHasPulledInSession(true);
         toast.success('Synced successfully');
@@ -266,6 +286,9 @@ export default function NotebookTimeline() {
     setSyncing(true, nbId);
     try {
       await SyncService.pull(nbId);
+      // Refresh list after pull
+      const pulledNotes = await NoteService.getNotesByNotebook(nbId, limit);
+      setNotes(pulledNotes);
       toast.success('Pulled successfully');
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
@@ -311,7 +334,12 @@ export default function NotebookTimeline() {
   const handleComposerSubmit = async () => {
     if (!composerContent.trim()) return;
     try {
-      await NoteService.createNoteWithContent(nbId, composerContent);
+      const newId = await NoteService.createNoteWithContent(nbId, composerContent);
+      // Fetch the new note to add it to the list
+      const newNote = await NoteService.getNote(newId);
+      if (newNote) {
+        setNotes((prev) => [newNote, ...prev]);
+      }
       setComposerContent('');
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
