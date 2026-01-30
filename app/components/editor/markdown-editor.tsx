@@ -409,6 +409,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             .ProseMirror code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.9em; }
             .dark .ProseMirror code { background: #334155; }
             .ProseMirror blockquote { border-left: 3px solid #e2e8f0; padding-left: 0.8rem; margin: 0.5rem 0; color: #64748b; }
+            .ProseMirror hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75rem 0; }
+            .dark .ProseMirror hr { border-color: #334155; }
             .ProseMirror p.is-editor-empty:first-child::before {
               content: attr(data-placeholder);
               float: left;
