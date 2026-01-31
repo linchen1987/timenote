@@ -39,6 +39,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
           : 'light';
         root.classList.remove('light', 'dark');
         root.classList.add(systemTheme);
+        updateThemeColorMeta(systemTheme);
       };
 
       applySystemTheme();
@@ -51,9 +52,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
 
     root.classList.add(theme);
+    updateThemeColorMeta(theme);
   }, [theme]);
 
   return <ThemeContext.Provider value={{ theme, setTheme }}>{children}</ThemeContext.Provider>;
+}
+
+function updateThemeColorMeta(theme: 'light' | 'dark') {
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    const color = theme === 'dark' ? '#0a0a0a' : '#ffffff';
+    metaThemeColor.setAttribute('content', color);
+  }
 }
 
 export const themeScript = `
@@ -62,11 +72,15 @@ export const themeScript = `
       var theme = localStorage.getItem("theme") || "system";
       var root = document.documentElement;
       root.classList.remove("light", "dark");
+      var actualTheme = theme;
       if (theme === "system") {
-        var systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-        root.classList.add(systemTheme);
-      } else {
-        root.classList.add(theme);
+        actualTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+      }
+      root.classList.add(actualTheme);
+      var color = actualTheme === "dark" ? "#0a0a0a" : "#ffffff";
+      var metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute("content", color);
       }
     } catch (e) {}
   })();
