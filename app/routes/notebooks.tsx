@@ -304,7 +304,6 @@ export default function NotebooksPage() {
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleRename(nb.id)}
-                      onBlur={() => setEditingId(null)}
                     />
                     <div className="flex gap-2 justify-end">
                       <Button size="sm" onClick={() => handleRename(nb.id)}>
