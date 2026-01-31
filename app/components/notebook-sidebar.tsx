@@ -77,6 +77,7 @@ interface NotebookSidebarProps {
   onSelectNote: (noteId: string, menuItemId?: string) => void;
   onSelectNotebook?: () => void;
   selectedItemId?: string;
+  isPWA?: boolean;
 }
 
 export function NotebookSidebar({
@@ -85,6 +86,7 @@ export function NotebookSidebar({
   onSelectNote,
   onSelectNotebook,
   selectedItemId,
+  isPWA,
   className,
 }: NotebookSidebarProps & { className?: string }) {
   const { theme, setTheme } = useTheme();
@@ -352,50 +354,62 @@ export function NotebookSidebar({
   return (
     <aside className={cn('w-64 bg-sidebar border-r flex flex-col h-full shrink-0', className)}>
       <div className="p-3 flex justify-between items-center">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              className="px-2 h-9 flex items-center gap-2 hover:bg-sidebar-accent/50 max-w-[180px] justify-start overflow-hidden"
-            >
-              <Book className="w-4 h-4 text-primary shrink-0" />
-              <span className="font-semibold truncate text-sidebar-foreground">
-                {currentNotebook?.name || 'Notebook'}
-              </span>
-              <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
-            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              Switch Notebook
-            </div>
-            {notebooks.map((nb) => (
+        {isPWA ? (
+          <Button
+            variant="ghost"
+            className="px-2 h-9 flex items-center gap-2 max-w-[180px] justify-start overflow-hidden cursor-default"
+          >
+            <Book className="w-4 h-4 text-primary shrink-0" />
+            <span className="font-semibold truncate text-sidebar-foreground">
+              {currentNotebook?.name || 'Notebook'}
+            </span>
+          </Button>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="px-2 h-9 flex items-center gap-2 hover:bg-sidebar-accent/50 max-w-[180px] justify-start overflow-hidden"
+              >
+                <Book className="w-4 h-4 text-primary shrink-0" />
+                <span className="font-semibold truncate text-sidebar-foreground">
+                  {currentNotebook?.name || 'Notebook'}
+                </span>
+                <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Switch Notebook
+              </div>
+              {notebooks.map((nb) => (
+                <DropdownMenuItem
+                  key={nb.id}
+                  onClick={() => {
+                    navigate(`/s/${createNotebookToken(nb.id, nb.name)}`);
+                    onSelectNotebook?.();
+                  }}
+                  className={cn(
+                    nb.id === notebookId && 'bg-sidebar-accent text-sidebar-accent-foreground',
+                  )}
+                >
+                  <Book className="w-4 h-4 mr-2" />
+                  <span className="truncate">{nb.name}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
               <DropdownMenuItem
-                key={nb.id}
                 onClick={() => {
-                  navigate(`/s/${createNotebookToken(nb.id, nb.name)}`);
+                  navigate('/');
                   onSelectNotebook?.();
                 }}
-                className={cn(
-                  nb.id === notebookId && 'bg-sidebar-accent text-sidebar-accent-foreground',
-                )}
               >
-                <Book className="w-4 h-4 mr-2" />
-                <span className="truncate">{nb.name}</span>
+                <List className="w-4 h-4 mr-2" />
+                All Notebooks
               </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                navigate('/');
-                onSelectNotebook?.();
-              }}
-            >
-              <List className="w-4 h-4 mr-2" />
-              All Notebooks
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
         <Button
           variant="ghost"

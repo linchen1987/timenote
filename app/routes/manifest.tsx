@@ -9,7 +9,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
   const manifest = {
     // 使用 notebookToken 作为唯一标识符，确保不同笔记本是独立的 App 实例
     id: `/s/${notebookToken}`,
-    name: `${displayName} - TimeNote`,
+    name: `${displayName}`,
     short_name: displayName,
     description: `Notes for ${displayName}`,
     start_url: `/s/${notebookToken}`,

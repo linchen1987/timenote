@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
 import { NotebookSidebar } from '~/components/notebook-sidebar';
 import { Sheet, SheetContent } from '~/components/ui/sheet';
+import { usePWA } from '~/hooks/use-pwa';
 import { parseNotebookId } from '~/lib/utils/token';
 
 export default function NotebookLayout() {
@@ -13,6 +14,7 @@ export default function NotebookLayout() {
   const nbId = parseNotebookId(notebookToken || '');
   const activeMenuItemId = searchParams.get('m') || undefined;
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const isPWA = usePWA();
 
   const handleSelectSearch = (query: string, menuItemId?: string) => {
     const params = new URLSearchParams();
@@ -38,6 +40,7 @@ export default function NotebookLayout() {
           onSelectSearch={handleSelectSearch}
           onSelectNote={handleSelectNote}
           selectedItemId={activeMenuItemId}
+          isPWA={isPWA}
         />
       </div>
 
@@ -50,6 +53,7 @@ export default function NotebookLayout() {
             onSelectNote={handleSelectNote}
             onSelectNotebook={() => setIsMobileOpen(false)}
             selectedItemId={activeMenuItemId}
+            isPWA={isPWA}
             className="w-full border-none"
           />
         </SheetContent>
