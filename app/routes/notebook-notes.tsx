@@ -10,7 +10,6 @@ import {
   MoreVertical,
   Plus,
   PlusSquare,
-  RefreshCw,
   Search as SearchIcon,
   Trash2,
   X,
@@ -20,6 +19,7 @@ import { Link, useOutletContext, useParams, useSearchParams } from 'react-router
 import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { NoteTagsView } from '~/components/note-tags-view';
+import { SyncActions } from '~/components/sync-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +47,7 @@ import {
 } from '~/components/ui/dropdown-menu';
 import { Input } from '~/components/ui/input';
 import { Label } from '~/components/ui/label';
+import { db } from '~/lib/db';
 import { MenuService } from '~/lib/services/menu-service';
 import { NoteService } from '~/lib/services/note-service';
 import { SyncService } from '~/lib/services/sync/service';
@@ -65,7 +66,11 @@ export const meta: Route.MetaFunction = ({ params }) => {
 export default function NotebookTimeline() {
   const { notebookToken } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { setIsSidebarOpen } = useOutletContext<{ setIsSidebarOpen: (open: boolean) => void }>();
+  const { setIsSidebarOpen, isDesktopSidebarOpen, toggleDesktopSidebar } = useOutletContext<{
+    setIsSidebarOpen: (open: boolean) => void;
+    isDesktopSidebarOpen: boolean;
+    toggleDesktopSidebar: () => void;
+  }>();
   const nbId = parseNotebookId(notebookToken || '');
   const q = searchParams.get('q') || '';
 
@@ -100,32 +105,17 @@ export default function NotebookTimeline() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
-  const { isSyncing, setSyncing, syncPush } = useSyncStore();
-  const [hasPulledInSession, setHasPulledInSession] = useState(false);
+  const { isSyncing, sync, ensurePulled } = useSyncStore();
+  const [isSaving, setIsSaving] = useState(false);
+  const hasSyncEvents = useLiveQuery(
+    () => db.syncEvents.where('notebookId').equals(nbId).count(),
+    [nbId],
+  );
 
   // Auto pull on mount
   useEffect(() => {
-    const pullKey = `timenote:pull:${nbId}`;
-    const hasPulled = sessionStorage.getItem(pullKey) === 'true';
-
-    if (!hasPulled) {
-      const autoPull = async () => {
-        try {
-          await SyncService.pull(nbId);
-          sessionStorage.setItem(pullKey, 'true');
-          setHasPulledInSession(true);
-          toast.success('Data pulled successfully');
-        } catch (e) {
-          const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-          console.error('Auto pull error:', e);
-          toast.error(`Auto pull failed: ${errorMessage}`);
-        }
-      };
-      autoPull();
-    } else {
-      setHasPulledInSession(true);
-    }
-  }, [nbId]);
+    ensurePulled(nbId);
+  }, [nbId, ensurePulled]);
 
   // Queries
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
@@ -141,7 +131,7 @@ export default function NotebookTimeline() {
 
   useEffect(() => {
     if (searchQuery) return;
-    
+
     let isMounted = true;
     NoteService.getNotesByNotebook(nbId, limit).then((fetchedNotes) => {
       if (isMounted) {
@@ -171,10 +161,7 @@ export default function NotebookTimeline() {
   }, [searchParams]);
 
   // Infinite scroll observer
-  const hasMore =
-    !searchQuery &&
-    totalCount !== undefined &&
-    notes.length < totalCount;
+  const hasMore = !searchQuery && totalCount !== undefined && notes.length < totalCount;
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -228,11 +215,11 @@ export default function NotebookTimeline() {
 
   // Handlers
   const handleUpdate = async (id: string, content: string) => {
-    // Optimistic update to prevent reordering
     setNotes((prev) =>
       prev.map((n) => (n.id === id ? { ...n, content, updatedAt: Date.now() } : n)),
     );
     await NoteService.updateNoteWithTags(id, nbId, content);
+    sync(nbId);
   };
 
   const handleDelete = (id: string) => {
@@ -248,6 +235,7 @@ export default function NotebookTimeline() {
         setNoteToDelete(null);
         setIsDeleteDialogOpen(false);
         toast.success('Note deleted successfully');
+        sync(nbId);
       } catch (_error) {
         toast.error('Failed to delete note');
       }
@@ -255,38 +243,20 @@ export default function NotebookTimeline() {
   };
 
   const handleSync = async () => {
-    setSyncing(true, nbId);
-    try {
-      if (hasPulledInSession) {
-        await SyncService.push(nbId);
-        toast.success('Pushed successfully');
-      } else {
-        await SyncService.syncNotebook(nbId);
-        // Refresh list after sync
-        const syncedNotes = await NoteService.getNotesByNotebook(nbId, limit);
-        setNotes(syncedNotes);
-        sessionStorage.setItem(`timenote:pull:${nbId}`, 'true');
-        setHasPulledInSession(true);
-        toast.success('Synced successfully');
-      }
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-      console.error('Sync error:', e);
-      toast.error(`Sync failed: ${errorMessage}`);
-    } finally {
-      setSyncing(false);
-    }
+    await sync(nbId, async () => {
+      const syncedNotes = await NoteService.getNotesByNotebook(nbId, limit);
+      setNotes(syncedNotes);
+    });
   };
 
   const handlePushOnly = async () => {
-    syncPush(nbId, true);
+    sync(nbId);
   };
 
   const handlePull = async () => {
-    setSyncing(true, nbId);
+    setIsSaving(true);
     try {
       await SyncService.pull(nbId);
-      // Refresh list after pull
       const pulledNotes = await NoteService.getNotesByNotebook(nbId, limit);
       setNotes(pulledNotes);
       toast.success('Pulled successfully');
@@ -295,7 +265,7 @@ export default function NotebookTimeline() {
       console.error('Pull error:', e);
       toast.error(`Pull failed: ${errorMessage}`);
     } finally {
-      setSyncing(false);
+      setIsSaving(false);
     }
   };
 
@@ -335,7 +305,6 @@ export default function NotebookTimeline() {
     if (!composerContent.trim()) return;
     try {
       const newId = await NoteService.createNoteWithContent(nbId, composerContent);
-      // Fetch the new note to add it to the list
       const newNote = await NoteService.getNote(newId);
       if (newNote) {
         setNotes((prev) => [newNote, ...prev]);
@@ -344,6 +313,7 @@ export default function NotebookTimeline() {
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
       toast.success('Note posted successfully');
+      sync(nbId);
     } catch (error) {
       console.error(error);
       toast.error('Failed to post note');
@@ -366,6 +336,16 @@ export default function NotebookTimeline() {
             >
               <Menu className="w-5 h-5" />
             </Button>
+            {!isDesktopSidebarOpen && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleDesktopSidebar}
+                className="hidden md:flex shrink-0 h-8 w-8 hover:bg-accent"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+            )}
             <h2 className="text-lg font-bold truncate pr-4">
               {targetNoteId
                 ? 'Note Details'
@@ -383,7 +363,7 @@ export default function NotebookTimeline() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  disabled={isSyncing}
+                  disabled={isSaving}
                   className="shrink-0 text-muted-foreground hover:text-primary"
                 >
                   <MoreVertical className="w-4 h-4" />
@@ -398,16 +378,12 @@ export default function NotebookTimeline() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleSync}
-              disabled={isSyncing}
-              title="Sync Notebook"
-              className="shrink-0 mr-2 text-muted-foreground hover:text-primary"
-            >
-              <RefreshCw className={cn('w-4 h-4', isSyncing && 'animate-spin')} />
-            </Button>
+            <SyncActions
+              isSyncing={isSyncing}
+              showSaveButton={!!hasSyncEvents && hasSyncEvents > 0}
+              onSave={handleSync}
+              size="small"
+            />
             <form onSubmit={handleSearchSubmit} className="relative group w-full">
               <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input

@@ -1,15 +1,15 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronLeft, Save } from 'lucide-react';
+import { ChevronLeft, Menu } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useOutletContext, useParams } from 'react-router';
 import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
+import { SyncActions } from '~/components/sync-actions';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
 import { useSyncStore } from '~/lib/stores/sync-store';
-import { cn } from '~/lib/utils';
 import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
 import type { Route } from './+types/notebook-notedetail';
@@ -20,6 +20,10 @@ export const meta: Route.MetaFunction = ({ params }) => {
 
 export default function NoteDetailPage() {
   const { notebookToken, noteId } = useParams();
+  const { isDesktopSidebarOpen, toggleDesktopSidebar } = useOutletContext<{
+    isDesktopSidebarOpen: boolean;
+    toggleDesktopSidebar: () => void;
+  }>();
   const nId = noteId || '';
   const nbId = parseNotebookId(notebookToken || '');
 
@@ -27,9 +31,9 @@ export default function NoteDetailPage() {
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const editorRef = useRef<MarkdownEditorRef>(null);
   const initialContentRef = useRef('');
-  const [isSaving, setIsSaving] = useState(false);
+  const [_isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const { isSyncing, syncPush } = useSyncStore();
+  const { isSyncing, sync } = useSyncStore();
 
   useEffect(() => {
     if (note) {
@@ -60,14 +64,14 @@ export default function NoteDetailPage() {
       initialContentRef.current = content;
       setHasUnsavedChanges(false);
 
-      syncPush(nbId);
+      await sync(nbId);
     } catch (e) {
       console.error('Save error:', e);
       toast.error('Failed to save note');
     } finally {
       setIsSaving(false);
     }
-  }, [nId, nbId, syncPush]);
+  }, [nId, nbId, sync]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -89,28 +93,28 @@ export default function NoteDetailPage() {
     <>
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
         <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
-          <Button variant="ghost" size="icon" asChild className="rounded-full">
-            <Link to={`/s/${notebookToken}`} title="Back to Timeline">
-              <ChevronLeft className="w-5 h-5" />
-            </Link>
-          </Button>
-          <div className="flex items-center gap-2">
-            {isSyncing && (
-              <span className="text-xs text-muted-foreground font-medium">Syncing...</span>
-            )}
-            {hasUnsavedChanges && (
+          <div className="flex items-center gap-1">
+            {!isDesktopSidebarOpen && (
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleSaveLocal}
-                disabled={isSaving}
-                className="rounded-full cursor-pointer"
-                title="Save to local (⌘+S)"
+                onClick={toggleDesktopSidebar}
+                className="hidden md:flex shrink-0 h-8 w-8 hover:bg-accent rounded-full"
               >
-                <Save className={cn('w-5 h-5 text-amber-500', isSaving && 'animate-spin')} />
+                <Menu className="w-5 h-5" />
               </Button>
             )}
+            <Button variant="ghost" size="icon" asChild className="rounded-full">
+              <Link to={`/s/${notebookToken}`} title="Back to Timeline">
+                <ChevronLeft className="w-5 h-5" />
+              </Link>
+            </Button>
           </div>
+          <SyncActions
+            isSyncing={isSyncing}
+            showSaveButton={hasUnsavedChanges}
+            onSave={handleSaveLocal}
+          />
         </div>
       </header>
 

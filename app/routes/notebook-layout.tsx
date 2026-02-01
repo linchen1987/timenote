@@ -7,6 +7,7 @@ import { NotebookSidebar } from '~/components/notebook-sidebar';
 import { Sheet, SheetContent } from '~/components/ui/sheet';
 import { usePWA } from '~/hooks/use-pwa';
 import { STORAGE_KEYS } from '~/lib/constants';
+import { cn } from '~/lib/utils';
 import { parseNotebookId } from '~/lib/utils/token';
 
 export default function NotebookLayout() {
@@ -16,6 +17,7 @@ export default function NotebookLayout() {
   const nbId = parseNotebookId(notebookToken || '');
   const activeMenuItemId = searchParams.get('m') || undefined;
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);
   const isPWA = usePWA();
@@ -71,7 +73,13 @@ export default function NotebookLayout() {
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex h-full">
+      <div
+        className={cn(
+          'hidden md:flex h-full transition-all duration-300 ease-in-out',
+          !isDesktopSidebarOpen && 'w-0 opacity-0',
+        )}
+        style={{ width: isDesktopSidebarOpen ? `${sidebarWidth + 8}px` : '0px' }}
+      >
         <div style={{ width: `${sidebarWidth}px` }}>
           <NotebookSidebar
             notebookId={nbId}
@@ -79,6 +87,7 @@ export default function NotebookLayout() {
             onSelectNote={handleSelectNote}
             selectedItemId={activeMenuItemId}
             isPWA={isPWA}
+            onClose={() => setIsDesktopSidebarOpen(false)}
           />
         </div>
         <button
@@ -108,7 +117,13 @@ export default function NotebookLayout() {
       </Sheet>
 
       <main className="flex-1 overflow-y-auto scroll-smooth relative">
-        <Outlet context={{ setIsSidebarOpen: setIsMobileOpen }} />
+        <Outlet
+          context={{
+            setIsSidebarOpen: setIsMobileOpen,
+            isDesktopSidebarOpen,
+            toggleDesktopSidebar: () => setIsDesktopSidebarOpen((prev) => !prev),
+          }}
+        />
       </main>
     </div>
   );

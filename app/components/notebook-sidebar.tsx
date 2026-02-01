@@ -29,6 +29,7 @@ import {
   GripVertical,
   LayoutGrid,
   List,
+  Menu,
   Monitor,
   Moon,
   MoreVertical,
@@ -78,6 +79,7 @@ interface NotebookSidebarProps {
   onSelectNotebook?: () => void;
   selectedItemId?: string;
   isPWA?: boolean;
+  onClose?: () => void;
 }
 
 export function NotebookSidebar({
@@ -87,6 +89,7 @@ export function NotebookSidebar({
   onSelectNotebook,
   selectedItemId,
   isPWA,
+  onClose,
   className,
 }: NotebookSidebarProps & { className?: string }) {
   const { theme, setTheme } = useTheme();
@@ -411,14 +414,26 @@ export function NotebookSidebar({
           </DropdownMenu>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => handleOpenAdd(null)}
-          className="h-8 w-8 text-muted-foreground shrink-0"
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          {onClose && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 text-muted-foreground shrink-0"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          )}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handleOpenAdd(null)}
+            className="h-8 w-8 text-muted-foreground shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
       <Separator className="bg-sidebar-border" />
       <ScrollArea className="flex-1">

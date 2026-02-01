@@ -1,8 +1,8 @@
 'use client';
 
-import { AlertCircle, ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Check, Eye, EyeOff, Menu } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useOutletContext, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
@@ -16,6 +16,10 @@ import { parseNotebookId } from '~/lib/utils/token';
 
 export default function NotebookSettingsPage() {
   const { notebookToken } = useParams();
+  const { isDesktopSidebarOpen, toggleDesktopSidebar } = useOutletContext<{
+    isDesktopSidebarOpen: boolean;
+    toggleDesktopSidebar: () => void;
+  }>();
   const nbId = parseNotebookId(notebookToken || '');
 
   const [url, setUrl] = useLocalStorage(STORAGE_KEYS.WEBDAV_URL, 'https://dav.jianguoyun.com/dav/');
@@ -76,7 +80,17 @@ export default function NotebookSettingsPage() {
   return (
     <div className="min-h-screen bg-background p-6">
       <div className="max-w-2xl mx-auto space-y-6">
-        <header className="flex items-center gap-4">
+        <header className="flex items-center gap-2">
+          {!isDesktopSidebarOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={toggleDesktopSidebar}
+              className="hidden md:flex shrink-0 h-8 w-8 hover:bg-accent"
+            >
+              <Menu className="w-5 h-5" />
+            </Button>
+          )}
           <Link to={`/s/${notebookToken}`}>
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-4 h-4" />
