@@ -109,7 +109,15 @@ export default function NotebookTimeline() {
 
   // Auto pull on mount
   useEffect(() => {
-    ensurePulled(nbId);
+    const doPull = async () => {
+      const pulled = await ensurePulled(nbId);
+      if (pulled) {
+        setLimit(20);
+        const syncedNotes = await NoteService.getNotesByNotebook(nbId, 20);
+        setNotes(syncedNotes);
+      }
+    };
+    doPull();
   }, [nbId, ensurePulled]);
 
   // Queries
