@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronRight, Hash, Menu, Tag as TagIcon } from 'lucide-react';
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
+import { ChevronRight, Hash, Tag as TagIcon } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router';
+import { PageHeader } from '~/components/page-header';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { NoteService } from '~/lib/services/note-service';
@@ -16,7 +17,6 @@ export default function TagsPage() {
   const { notebookToken } = useParams();
   const nbId = parseNotebookId(notebookToken || '');
   const navigate = useNavigate();
-  const { setIsSidebarOpen } = useOutletContext<{ setIsSidebarOpen: (open: boolean) => void }>();
 
   const notebook = useLiveQuery(() => NoteService.getNotebook(nbId), [nbId]);
   const tagsWithCounts = useLiveQuery(() => NoteService.getTagsWithCounts(nbId), [nbId]) || [];
@@ -29,20 +29,7 @@ export default function TagsPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden shrink-0"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-          <TagIcon className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold">Tags</h2>
-        </div>
-      </header>
+      <PageHeader title="Tags" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

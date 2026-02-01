@@ -7,6 +7,7 @@ import { NotebookSidebar } from '~/components/notebook-sidebar';
 import { Sheet, SheetContent } from '~/components/ui/sheet';
 import { usePWA } from '~/hooks/use-pwa';
 import { STORAGE_KEYS } from '~/lib/constants';
+import { useSidebarStore } from '~/lib/stores/sidebar-store';
 import { cn } from '~/lib/utils';
 import { parseNotebookId } from '~/lib/utils/token';
 
@@ -16,8 +17,8 @@ export default function NotebookLayout() {
   const navigate = useNavigate();
   const nbId = parseNotebookId(notebookToken || '');
   const activeMenuItemId = searchParams.get('m') || undefined;
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+  const { isMobileSidebarOpen, setMobileSidebarOpen, isDesktopSidebarOpen, setDesktopSidebarOpen } =
+    useSidebarStore();
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);
   const isPWA = usePWA();
@@ -27,14 +28,14 @@ export default function NotebookLayout() {
     if (query) params.set('q', query);
     if (menuItemId) params.set('m', menuItemId);
     navigate(`/s/${notebookToken}?${params.toString()}`);
-    setIsMobileOpen(false);
+    setMobileSidebarOpen(false);
   };
 
   const handleSelectNote = (noteId: string, menuItemId?: string) => {
     const params = new URLSearchParams();
     if (menuItemId) params.set('m', menuItemId);
     navigate(`/s/${notebookToken}/${noteId}?${params.toString()}`);
-    setIsMobileOpen(false);
+    setMobileSidebarOpen(false);
   };
 
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function NotebookLayout() {
             onSelectNote={handleSelectNote}
             selectedItemId={activeMenuItemId}
             isPWA={isPWA}
-            onClose={() => setIsDesktopSidebarOpen(false)}
+            onClose={() => setDesktopSidebarOpen(false)}
           />
         </div>
         <button
@@ -102,13 +103,13 @@ export default function NotebookLayout() {
       </div>
 
       {/* Mobile Sidebar (Drawer) */}
-      <Sheet open={isMobileOpen} onOpenChange={setIsMobileOpen}>
+      <Sheet open={isMobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
         <SheetContent side="left" className="p-0 w-72 border-none">
           <NotebookSidebar
             notebookId={nbId}
             onSelectSearch={handleSelectSearch}
             onSelectNote={handleSelectNote}
-            onSelectNotebook={() => setIsMobileOpen(false)}
+            onSelectNotebook={() => setMobileSidebarOpen(false)}
             selectedItemId={activeMenuItemId}
             isPWA={isPWA}
             className="w-full border-none"
@@ -117,13 +118,7 @@ export default function NotebookLayout() {
       </Sheet>
 
       <main className="flex-1 overflow-y-auto scroll-smooth relative">
-        <Outlet
-          context={{
-            setIsSidebarOpen: setIsMobileOpen,
-            isDesktopSidebarOpen,
-            toggleDesktopSidebar: () => setIsDesktopSidebarOpen((prev) => !prev),
-          }}
-        />
+        <Outlet />
       </main>
     </div>
   );

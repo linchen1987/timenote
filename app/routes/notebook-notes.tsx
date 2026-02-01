@@ -6,7 +6,6 @@ import {
   Calendar,
   CloudDownload,
   Maximize2,
-  Menu,
   MoreVertical,
   Plus,
   PlusSquare,
@@ -15,10 +14,11 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useOutletContext, useParams, useSearchParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
 import { NoteTagsView } from '~/components/note-tags-view';
+import { PageHeader } from '~/components/page-header';
 import { SyncActions } from '~/components/sync-actions';
 import {
   AlertDialog,
@@ -66,11 +66,6 @@ export const meta: Route.MetaFunction = ({ params }) => {
 export default function NotebookTimeline() {
   const { notebookToken } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { setIsSidebarOpen, isDesktopSidebarOpen, toggleDesktopSidebar } = useOutletContext<{
-    setIsSidebarOpen: (open: boolean) => void;
-    isDesktopSidebarOpen: boolean;
-    toggleDesktopSidebar: () => void;
-  }>();
   const nbId = parseNotebookId(notebookToken || '');
   const q = searchParams.get('q') || '';
 
@@ -325,90 +320,68 @@ export default function NotebookTimeline() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden shrink-0"
-              onClick={() => setIsSidebarOpen(true)}
-            >
-              <Menu className="w-5 h-5" />
-            </Button>
-            {!isDesktopSidebarOpen && (
+      <PageHeader
+        title={
+          targetNoteId
+            ? 'Note Details'
+            : selectedTagId
+              ? `Notes with #${notebookTags?.find((t) => t.id === selectedTagId)?.name}`
+              : searchQuery
+                ? `Search: ${searchQuery}`
+                : notebook.name
+        }
+      >
+        <div className="flex items-center gap-1 w-full max-w-[320px] justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={toggleDesktopSidebar}
-                className="hidden md:flex shrink-0 h-8 w-8 hover:bg-accent"
+                disabled={isSaving}
+                className="shrink-0 text-muted-foreground hover:text-primary"
               >
-                <Menu className="w-5 h-5" />
+                <MoreVertical className="w-4 h-4" />
               </Button>
-            )}
-            <h2 className="text-lg font-bold truncate pr-4">
-              {targetNoteId
-                ? 'Note Details'
-                : selectedTagId
-                  ? `Notes with #${notebookTags?.find((t) => t.id === selectedTagId)?.name}`
-                  : searchQuery
-                    ? `Search: ${searchQuery}`
-                    : notebook.name}
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-1 w-full max-w-[320px] justify-end">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isSaving}
-                  className="shrink-0 text-muted-foreground hover:text-primary"
-                >
-                  <MoreVertical className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handlePull}>
-                  <CloudDownload className="w-4 h-4 mr-2" /> Pull
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handlePushOnly}>
-                  <ArrowUpFromLine className="w-4 h-4 mr-2" /> Push
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <SyncActions
-              isSyncing={isSyncing}
-              showSaveButton={!!hasSyncEvents && hasSyncEvents > 0}
-              onSave={handleSync}
-              size="small"
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={handlePull}>
+                <CloudDownload className="w-4 h-4 mr-2" /> Pull
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handlePushOnly}>
+                <ArrowUpFromLine className="w-4 h-4 mr-2" /> Push
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <SyncActions
+            isSyncing={isSyncing}
+            showSaveButton={!!hasSyncEvents && hasSyncEvents > 0}
+            onSave={handleSync}
+            size="small"
+          />
+          <form onSubmit={handleSearchSubmit} className="relative group w-full">
+            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input
+              placeholder="Search..."
+              className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
+              value={inputQuery}
+              onChange={(e) => setInputQuery(e.target.value)}
             />
-            <form onSubmit={handleSearchSubmit} className="relative group w-full">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-              <Input
-                placeholder="Search..."
-                className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
-                value={inputQuery}
-                onChange={(e) => setInputQuery(e.target.value)}
-              />
-              {inputQuery && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setInputQuery('');
-                    setSearchQuery('');
-                    setSearchParams({});
-                  }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full text-muted-foreground transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </form>
-          </div>
+            {inputQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInputQuery('');
+                  setSearchQuery('');
+                  setSearchParams({});
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded-full text-muted-foreground transition-colors"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </form>
         </div>
-      </header>
+      </PageHeader>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8 space-y-6">
         {!targetNoteId && !searchQuery && (

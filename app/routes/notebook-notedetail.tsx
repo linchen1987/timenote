@@ -1,11 +1,12 @@
 'use client';
 
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronLeft, Menu } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useOutletContext, useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
 import MarkdownEditor, { type MarkdownEditorRef } from '~/components/editor/markdown-editor';
+import { PageHeader } from '~/components/page-header';
 import { SyncActions } from '~/components/sync-actions';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
@@ -20,10 +21,6 @@ export const meta: Route.MetaFunction = ({ params }) => {
 
 export default function NoteDetailPage() {
   const { notebookToken, noteId } = useParams();
-  const { isDesktopSidebarOpen, toggleDesktopSidebar } = useOutletContext<{
-    isDesktopSidebarOpen: boolean;
-    toggleDesktopSidebar: () => void;
-  }>();
   const nId = noteId || '';
   const nbId = parseNotebookId(notebookToken || '');
 
@@ -91,32 +88,21 @@ export default function NoteDetailPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-muted/20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-8 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-1">
-            {!isDesktopSidebarOpen && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleDesktopSidebar}
-                className="hidden md:flex shrink-0 h-8 w-8 hover:bg-accent rounded-full"
-              >
-                <Menu className="w-5 h-5" />
-              </Button>
-            )}
-            <Button variant="ghost" size="icon" asChild className="rounded-full">
-              <Link to={`/s/${notebookToken}`} title="Back to Timeline">
-                <ChevronLeft className="w-5 h-5" />
-              </Link>
-            </Button>
-          </div>
-          <SyncActions
-            isSyncing={isSyncing}
-            showSaveButton={hasUnsavedChanges}
-            onSave={handleSaveLocal}
-          />
-        </div>
-      </header>
+      <PageHeader
+        leftActions={
+          <Button variant="ghost" size="icon" asChild className="rounded-full">
+            <Link to={`/s/${notebookToken}`} title="Back to Timeline">
+              <ChevronLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+        }
+      >
+        <SyncActions
+          isSyncing={isSyncing}
+          showSaveButton={hasUnsavedChanges}
+          onSave={handleSaveLocal}
+        />
+      </PageHeader>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-1 sm:pt-2 pb-4 sm:pb-8">
         <div className="min-h-[70vh]">
