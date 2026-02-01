@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { GripVertical } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
 import { NotebookSidebar } from '~/components/notebook-sidebar';
 import { Sheet, SheetContent } from '~/components/ui/sheet';
 import { usePWA } from '~/hooks/use-pwa';
+import { STORAGE_KEYS } from '~/lib/constants';
 import { parseNotebookId } from '~/lib/utils/token';
 
 export default function NotebookLayout() {
@@ -14,6 +16,8 @@ export default function NotebookLayout() {
   const nbId = parseNotebookId(notebookToken || '');
   const activeMenuItemId = searchParams.get('m') || undefined;
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(256);
+  const [isResizing, setIsResizing] = useState(false);
   const isPWA = usePWA();
 
   const handleSelectSearch = (query: string, menuItemId?: string) => {
@@ -31,17 +35,61 @@ export default function NotebookLayout() {
     setIsMobileOpen(false);
   };
 
+  useEffect(() => {
+    const savedWidth = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
+    if (savedWidth) {
+      setSidebarWidth(Number(savedWidth));
+    }
+  }, []);
+
+  const handleMouseDown = () => {
+    setIsResizing(true);
+  };
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = Math.max(200, Math.min(500, e.clientX));
+      setSidebarWidth(newWidth);
+      localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(newWidth));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       {/* Desktop Sidebar */}
       <div className="hidden md:flex h-full">
-        <NotebookSidebar
-          notebookId={nbId}
-          onSelectSearch={handleSelectSearch}
-          onSelectNote={handleSelectNote}
-          selectedItemId={activeMenuItemId}
-          isPWA={isPWA}
-        />
+        <div style={{ width: `${sidebarWidth}px` }}>
+          <NotebookSidebar
+            notebookId={nbId}
+            onSelectSearch={handleSelectSearch}
+            onSelectNote={handleSelectNote}
+            selectedItemId={activeMenuItemId}
+            isPWA={isPWA}
+          />
+        </div>
+        <button
+          type="button"
+          className="w-1 cursor-col-resize border-none p-0 bg-transparent hover:bg-transparent flex items-center justify-center relative group"
+          onMouseDown={handleMouseDown}
+          aria-label="Resize sidebar"
+          style={{ width: '8px' }}
+        >
+          <GripVertical className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-50 transition-opacity" />
+        </button>
       </div>
 
       {/* Mobile Sidebar (Drawer) */}

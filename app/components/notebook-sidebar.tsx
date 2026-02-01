@@ -352,7 +352,7 @@ export function NotebookSidebar({
   );
 
   return (
-    <aside className={cn('w-64 bg-sidebar border-r flex flex-col h-full shrink-0', className)}>
+    <aside className={cn('bg-sidebar border-r flex flex-col h-full shrink-0 w-full', className)}>
       <div className="p-3 flex justify-between items-center">
         {isPWA ? (
           <Button
