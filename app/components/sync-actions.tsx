@@ -25,7 +25,7 @@ export function SyncActions({
           title="Save to local (⌘+S)"
           className={size === 'default' ? 'rounded-full' : 'shrink-0 mr-2'}
         >
-          <Save className={size === 'default' ? 'w-5 h-5' : 'w-4 h-4'} />
+          <Save className={size === 'default' ? 'w-5 h-5 text-primary' : 'w-4 h-4 text-primary'} />
         </Button>
       )}
     </div>
