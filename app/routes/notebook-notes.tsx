@@ -100,8 +100,7 @@ export default function NotebookTimeline() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
 
-  const { isSyncing, sync, ensurePulled } = useSyncStore();
-  const [isSaving, setIsSaving] = useState(false);
+  const { isSyncing, syncPush, ensurePulled, syncPull } = useSyncStore();
   const hasSyncEvents = useLiveQuery(
     () => db.syncEvents.where('notebookId').equals(nbId).count(),
     [nbId],
@@ -222,7 +221,7 @@ export default function NotebookTimeline() {
       prev.map((n) => (n.id === id ? { ...n, content, updatedAt: Date.now() } : n)),
     );
     await NoteService.updateNoteWithTags(id, nbId, content);
-    sync(nbId);
+    syncPush(nbId);
   };
 
   const handleDelete = (id: string) => {
@@ -238,7 +237,7 @@ export default function NotebookTimeline() {
         setNoteToDelete(null);
         setIsDeleteDialogOpen(false);
         toast.success('Note deleted successfully');
-        sync(nbId);
+        syncPush(nbId);
       } catch (_error) {
         toast.error('Failed to delete note');
       }
@@ -246,30 +245,21 @@ export default function NotebookTimeline() {
   };
 
   const handleSync = async () => {
-    await sync(nbId, async () => {
+    await syncPush(nbId, { showToast: true }, async () => {
       const syncedNotes = await NoteService.getNotesByNotebook(nbId, limit);
       setNotes(syncedNotes);
     });
   };
 
   const handlePushOnly = async () => {
-    sync(nbId);
+    await syncPush(nbId, { showToast: true, skipPull: true });
   };
 
   const handlePull = async () => {
-    setIsSaving(true);
-    try {
-      await SyncService.pull(nbId);
+    await syncPull(nbId, async () => {
       const pulledNotes = await NoteService.getNotesByNotebook(nbId, limit);
       setNotes(pulledNotes);
-      toast.success('Pulled successfully');
-    } catch (e) {
-      const errorMessage = e instanceof Error ? e.message : 'Unknown error occurred';
-      console.error('Pull error:', e);
-      toast.error(`Pull failed: ${errorMessage}`);
-    } finally {
-      setIsSaving(false);
-    }
+    });
   };
 
   const handleSearchSubmit = (e?: React.FormEvent) => {
@@ -316,7 +306,7 @@ export default function NotebookTimeline() {
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
       toast.success('Note posted successfully');
-      sync(nbId);
+      syncPush(nbId);
     } catch (error) {
       console.error(error);
       toast.error('Failed to post note');
@@ -340,31 +330,33 @@ export default function NotebookTimeline() {
         }
       >
         <div className="flex items-center gap-1 w-full max-w-[320px] justify-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                disabled={isSaving}
-                className="shrink-0 text-muted-foreground hover:text-primary"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={handlePull}>
-                <CloudDownload className="w-4 h-4 mr-2" /> Pull
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handlePushOnly}>
-                <ArrowUpFromLine className="w-4 h-4 mr-2" /> Push
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {!isSyncing && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-primary"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handlePull}>
+                  <CloudDownload className="w-4 h-4 mr-2" /> Pull
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handlePushOnly}>
+                  <ArrowUpFromLine className="w-4 h-4 mr-2" /> Push
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           <SyncActions
             isSyncing={isSyncing}
             showSaveButton={!!hasSyncEvents && hasSyncEvents > 0}
             onSave={handleSync}
             size="small"
+            className={cn(isSyncing && 'mr-2')}
           />
           <form onSubmit={handleSearchSubmit} className="relative group w-full">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />

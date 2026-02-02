@@ -30,7 +30,7 @@ export default function NoteDetailPage() {
   const initialContentRef = useRef('');
   const [_isSaving, setIsSaving] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const { isSyncing, sync } = useSyncStore();
+  const { isSyncing, syncPush } = useSyncStore();
 
   useEffect(() => {
     if (note) {
@@ -61,14 +61,14 @@ export default function NoteDetailPage() {
       initialContentRef.current = content;
       setHasUnsavedChanges(false);
 
-      await sync(nbId);
+      await syncPush(nbId);
     } catch (e) {
       console.error('Save error:', e);
       toast.error('Failed to save note');
     } finally {
       setIsSaving(false);
     }
-  }, [nId, nbId, sync]);
+  }, [nId, nbId, syncPush]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

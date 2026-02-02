@@ -1,11 +1,13 @@
 import { Save } from 'lucide-react';
 import { Button } from '~/components/ui/button';
+import { cn } from '~/lib/utils';
 
 interface SyncActionsProps {
   isSyncing: boolean;
   showSaveButton?: boolean;
   onSave?: () => void;
   size?: 'default' | 'small';
+  className?: string;
 }
 
 export function SyncActions({
@@ -13,9 +15,10 @@ export function SyncActions({
   showSaveButton = true,
   onSave,
   size = 'default',
+  className,
 }: SyncActionsProps) {
   return (
-    <div className="flex items-center gap-2">
+    <div className={cn('flex items-center gap-2', className)}>
       {isSyncing && <span className="text-xs text-muted-foreground font-medium">Syncing...</span>}
       {showSaveButton && !isSyncing && (
         <Button
