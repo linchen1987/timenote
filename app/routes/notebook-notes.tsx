@@ -305,7 +305,6 @@ export default function NotebookTimeline() {
       setComposerContent('');
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
-      toast.success('Note posted successfully');
       syncPush(nbId);
     } catch (error) {
       console.error(error);
