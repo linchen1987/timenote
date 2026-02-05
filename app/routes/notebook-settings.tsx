@@ -14,6 +14,11 @@ import { STORAGE_KEYS } from '~/lib/constants';
 import { DataToolsService } from '~/lib/services/data-tools-service';
 import { WebDAVService } from '~/lib/services/webdav-service';
 import { parseNotebookId } from '~/lib/utils/token';
+import type { Route } from './+types/notebook-settings';
+
+export const meta: Route.MetaFunction = () => {
+  return [{ title: 'Settings - TimeNote' }];
+};
 
 export default function NotebookSettingsPage() {
   const { notebookToken } = useParams();

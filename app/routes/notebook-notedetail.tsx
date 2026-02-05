@@ -11,12 +11,11 @@ import { SyncActions } from '~/components/sync-actions';
 import { Button } from '~/components/ui/button';
 import { NoteService } from '~/lib/services/note-service';
 import { useSyncStore } from '~/lib/stores/sync-store';
-import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
 import type { Route } from './+types/notebook-notedetail';
 
-export const meta: Route.MetaFunction = ({ params }) => {
-  return getNotebookMeta('', params.notebookToken);
+export const meta: Route.MetaFunction = () => {
+  return [{ title: 'Note - TimeNote' }];
 };
 
 export default function NoteDetailPage() {

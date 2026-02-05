@@ -5,12 +5,11 @@ import { PageHeader } from '~/components/page-header';
 import { Button } from '~/components/ui/button';
 import { Card, CardContent } from '~/components/ui/card';
 import { NoteService } from '~/lib/services/note-service';
-import { getNotebookMeta } from '~/lib/utils/pwa';
 import { parseNotebookId } from '~/lib/utils/token';
 import type { Route } from './+types/tags';
 
-export const meta: Route.MetaFunction = ({ params }) => {
-  return getNotebookMeta('Tags', params.notebookToken);
+export const meta: Route.MetaFunction = () => {
+  return [{ title: 'Tags - TimeNote' }];
 };
 
 export default function TagsPage() {

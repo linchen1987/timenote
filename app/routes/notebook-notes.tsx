@@ -50,18 +50,11 @@ import { Label } from '~/components/ui/label';
 import { db } from '~/lib/db';
 import { MenuService } from '~/lib/services/menu-service';
 import { NoteService } from '~/lib/services/note-service';
-import { SyncService } from '~/lib/services/sync/service';
 import { useSyncStore } from '~/lib/stores/sync-store';
 import type { Note } from '~/lib/types';
 import { cn } from '~/lib/utils';
-import { getNotebookMeta } from '~/lib/utils/pwa';
 import { filterNotes } from '~/lib/utils/search';
 import { parseNotebookId } from '~/lib/utils/token';
-import type { Route } from './+types/notebook-notes';
-
-export const meta: Route.MetaFunction = ({ params }) => {
-  return getNotebookMeta('Time Note', params.notebookToken);
-};
 
 export default function NotebookTimeline() {
   const { notebookToken } = useParams();

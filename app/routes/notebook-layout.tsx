@@ -10,6 +10,11 @@ import { STORAGE_KEYS } from '~/lib/constants';
 import { useSidebarStore } from '~/lib/stores/sidebar-store';
 import { cn } from '~/lib/utils';
 import { parseNotebookId } from '~/lib/utils/token';
+import type { Route } from './+types/notebook-layout';
+
+export const meta: Route.MetaFunction = () => {
+  return [{ title: 'TimeNote' }];
+};
 
 export default function NotebookLayout() {
   const { notebookToken } = useParams();
@@ -22,6 +27,22 @@ export default function NotebookLayout() {
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [isResizing, setIsResizing] = useState(false);
   const isPWA = usePWA();
+
+  useEffect(() => {
+    if (notebookToken) {
+      let link = document.querySelector(`link[rel="manifest"]`) as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'manifest';
+        document.head.appendChild(link);
+      }
+      link.href = `/s/${notebookToken}/manifest.webmanifest`;
+
+      return () => {
+        link?.remove();
+      };
+    }
+  }, [notebookToken]);
 
   const handleSelectSearch = (query: string, menuItemId?: string) => {
     const params = new URLSearchParams();
