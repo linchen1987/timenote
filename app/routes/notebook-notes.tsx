@@ -353,7 +353,7 @@ export default function NotebookTimeline() {
           <form onSubmit={handleSearchSubmit} className="relative group w-full">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
-              placeholder="Search..."
+              placeholder="Search...."
               className="pl-9 h-9 bg-muted/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 transition-all rounded-full text-sm"
               value={inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}

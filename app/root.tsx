@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import {
   isRouteErrorResponse,
   Links,
@@ -12,6 +11,7 @@ import type { Route } from './+types/root';
 import './app.css';
 import { ThemeProvider, themeScript } from '~/components/theme-provider';
 import { Toaster } from '~/components/ui/sonner';
+import { useServiceWorkerUpdate } from '~/hooks/use-service-worker-update';
 
 export const links: Route.LinksFunction = () => [
   { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
@@ -28,14 +28,7 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  useEffect(() => {
-    // 注册 Service Worker 以支持离线缓存
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator && import.meta.env.PROD) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(console.error);
-      });
-    }
-  }, []);
+  useServiceWorkerUpdate();
 
   return (
     <html lang="en">

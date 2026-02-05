@@ -21,6 +21,10 @@ export default defineConfig({
       workbox: {
         // 排除动态 manifest 路由，防止名称被缓存后无法随笔记本重命名而更新
         navigateFallbackDenylist: [/^\/s\/.*\/manifest.webmanifest$/],
+        // 控制新的 service worker 是否立即激活
+        skipWaiting: false,
+        // 控制激活的 service worker 是否立即控制所有 clients
+        clientsClaim: true,
         // 预缓存所有构建产物
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // 运行时缓存策略：对图片使用缓存优先
