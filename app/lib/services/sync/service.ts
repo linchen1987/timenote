@@ -3,11 +3,15 @@ import { WebDAVService } from '~/lib/services/webdav-service';
 import { DataService } from '../data-service';
 import { type BackupData, SYNC_ROOT_PATH } from './types';
 
+let isInitialized = false;
+
 export const SyncService = {
   async init() {
+    if (isInitialized) return;
     if (!(await WebDAVService.exists(SYNC_ROOT_PATH))) {
       await WebDAVService.mkdir(SYNC_ROOT_PATH);
     }
+    isInitialized = true;
   },
 
   async getRemoteNotebooks() {
@@ -51,9 +55,7 @@ export const SyncService = {
   async syncNotebook(notebookId: string) {
     await SyncService.init();
     const notebookPath = `${SYNC_ROOT_PATH}/nb_${notebookId}`;
-    if (!(await WebDAVService.exists(notebookPath))) {
-      await WebDAVService.mkdir(notebookPath);
-    }
+    await WebDAVService.ensureDir(notebookPath);
 
     await SyncService.pull(notebookId);
     await SyncService.push(notebookId);
@@ -83,6 +85,10 @@ export const SyncService = {
   },
 
   async push(notebookId: string) {
+    await SyncService.init();
+    const notebookPath = `${SYNC_ROOT_PATH}/nb_${notebookId}`;
+    await WebDAVService.ensureDir(notebookPath);
+
     const data = await DataService.fetchBackupData(notebookId);
 
     const content = JSON.stringify(data);

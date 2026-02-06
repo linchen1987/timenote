@@ -17,6 +17,8 @@ const getConfig = (): WebDAVConfig | null => {
   };
 };
 
+const existingDirs = new Set<string>();
+
 const callApi = async <T = unknown>(method: string, path: string, args?: unknown): Promise<T> => {
   const config = getConfig();
   if (!config) throw new Error('WebDAV not configured');
@@ -47,38 +49,53 @@ export const WebDAVService = {
   },
 
   async read(path: string): Promise<string> {
-    return await callApi('read', path);
+    const result = await callApi<string>('read', path);
+    const dirPath = path.split('/').slice(0, -1).join('/') || '/';
+    existingDirs.add(dirPath);
+    return result;
   },
 
   async write(path: string, content: string) {
-    return await callApi('write', path, { content });
+    await callApi('write', path, { content });
+    const dirPath = path.split('/').slice(0, -1).join('/') || '/';
+    existingDirs.add(dirPath);
   },
 
   async delete(path: string) {
-    return await callApi('delete', path);
+    await callApi('delete', path);
+    existingDirs.delete(path);
   },
 
   async mkdir(path: string) {
-    return await callApi('mkdir', path);
+    await callApi('mkdir', path);
+    existingDirs.add(path);
   },
 
   async exists(path: string): Promise<boolean> {
+    if (existingDirs.has(path)) return true;
     try {
       await callApi('stat', path);
+      existingDirs.add(path);
       return true;
     } catch (_e) {
       return false;
     }
   },
 
-  async ensureDir(path: string) {
+  async ensureDir(path: string, force = false) {
     const parts = path.split('/').filter((p) => p);
     let current = '';
     for (const part of parts) {
       current += `/${part}`;
-      if (!(await this.exists(current))) {
-        await this.mkdir(current);
+      if (force || !existingDirs.has(current)) {
+        if (!(await this.exists(current))) {
+          await this.mkdir(current);
+        }
       }
     }
+  },
+
+  clearCache() {
+    existingDirs.clear();
   },
 };
