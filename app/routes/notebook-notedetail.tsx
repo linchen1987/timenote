@@ -116,10 +116,7 @@ export default function NoteDetailPage() {
           />
         </div>
 
-        <footer className="mt-8 pt-8 border-t border-muted/20 flex justify-between text-muted-foreground text-sm px-4 pb-12">
-          <div>
-            Note ID: <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{nId}</code>
-          </div>
+        <footer className="mt-8 pt-8 border-t border-muted/20 flex justify-end text-muted-foreground text-sm px-4 pb-12">
           <div>{note.content.length} characters</div>
         </footer>
       </div>
