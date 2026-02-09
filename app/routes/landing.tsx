@@ -93,17 +93,17 @@ export default function LandingPage() {
 
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/40 bg-background/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-                    <Link
-                      to="/"
-                      className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95"
-                    >
-                      <div className="w-7 h-7">
-                        <img src="/assets/logo.svg" alt="Time Note" className="w-full h-full drop-shadow-sm" />
-                      </div>
-                      <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 uppercase">
-                        Time Note
-                      </span>
-                    </Link>
+          <Link
+            to="/"
+            className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95"
+          >
+            <div className="w-7 h-7">
+              <img src="/logo.svg" alt="Time Note" className="w-full h-full drop-shadow-sm" />
+            </div>
+            <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 uppercase">
+              Time Note
+            </span>
+          </Link>
 
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2 mr-2 border-r border-border/40 pr-4 text-muted-foreground">
@@ -509,7 +509,7 @@ export default function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
             <div className="space-y-4">
               <Link to="/" className="flex items-center gap-3">
-                <img src="/assets/logo.svg" alt="Logo" className="w-7 h-7" />
+                <img src="/logo.svg" alt="Logo" className="w-7 h-7" />
                 <span className="text-lg font-black tracking-tighter uppercase">Time Note</span>
               </Link>
               <p className="text-sm font-bold text-muted-foreground/60 max-w-xs">

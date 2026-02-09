@@ -40,7 +40,14 @@ import {
   AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '~/components/ui/card';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -255,7 +262,7 @@ export default function NotebooksPage() {
             className="flex items-center gap-3 group transition-transform hover:scale-105 active:scale-95"
           >
             <div className="w-7 h-7">
-              <img src="/assets/logo.svg" alt="Time Note" className="w-full h-full drop-shadow-sm" />
+              <img src="/logo.svg" alt="Time Note" className="w-full h-full drop-shadow-sm" />
             </div>
             <span className="text-xl font-black tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-foreground via-foreground/80 to-foreground/60 uppercase">
               Time Note
@@ -603,7 +610,7 @@ export default function NotebooksPage() {
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-12">
             <div className="space-y-4">
               <Link to="/" className="flex items-center gap-3">
-                <img src="/assets/logo.svg" alt="Logo" className="w-7 h-7" />
+                <img src="/logo.svg" alt="Logo" className="w-7 h-7" />
                 <span className="text-lg font-black tracking-tighter uppercase">Time Note</span>
               </Link>
               <p className="text-sm font-bold text-muted-foreground/60 max-w-xs">
