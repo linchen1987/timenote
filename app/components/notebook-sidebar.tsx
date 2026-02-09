@@ -29,7 +29,7 @@ import {
   GripVertical,
   LayoutGrid,
   List,
-  Menu,
+  PanelLeft,
   Monitor,
   Moon,
   MoreVertical,
@@ -403,7 +403,7 @@ export function NotebookSidebar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  navigate('/');
+                  navigate('/s/list');
                   onSelectNotebook?.();
                 }}
               >
@@ -422,7 +422,7 @@ export function NotebookSidebar({
               onClick={onClose}
               className="h-8 w-8 text-muted-foreground shrink-0"
             >
-              <Menu className="w-5 h-5" />
+              <PanelLeft className="w-5 h-5" />
             </Button>
           )}
           <Button

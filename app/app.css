@@ -56,8 +56,22 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --primary-rgb: 235, 92, 32;
+
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-fade-in: fade-in 1s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
   @keyframes accordion-down {
     from {
@@ -79,16 +93,16 @@
 
 @layer base {
   :root {
-    --background: hsl(0 0% 100%);
+    --background: hsl(20 20% 98.5%);
     --foreground: hsl(240 10% 3.9%);
     --card: hsl(0 0% 100%);
     --card-foreground: hsl(240 10% 3.9%);
     --popover: hsl(0 0% 100%);
     --popover-foreground: hsl(240 10% 3.9%);
-    --primary: hsl(36 100% 57.5%);
+    --primary: hsl(18 84% 52%);
     --primary-foreground: hsl(0 0% 100%);
-    --secondary: hsl(36 30% 96%);
-    --secondary-foreground: hsl(36 80% 25%);
+    --secondary: hsl(18 30% 96%);
+    --secondary-foreground: hsl(18 80% 25%);
     --muted: hsl(240 5% 96%);
     --muted-foreground: hsl(240 4% 45%);
     --accent: hsl(240 5% 96%);
@@ -97,16 +111,16 @@
     --destructive-foreground: hsl(0 0% 98%);
     --border: hsl(240 6% 90%);
     --input: hsl(240 6% 90%);
-    --ring: hsl(36 100% 57.5%);
+    --ring: hsl(18 84% 52%);
     --radius: 0.6rem;
-    --sidebar-background: hsl(36 20% 98%);
-    --sidebar-foreground: hsl(36 20% 20%);
-    --sidebar-primary: hsl(36 100% 57.5%);
+    --sidebar-background: hsl(18 20% 98%);
+    --sidebar-foreground: hsl(18 20% 20%);
+    --sidebar-primary: hsl(18 84% 52%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(36 20% 94%);
-    --sidebar-accent-foreground: hsl(36 80% 25%);
-    --sidebar-border: hsl(36 15% 90%);
-    --sidebar-ring: hsl(36 100% 57.5%);
+    --sidebar-accent: hsl(18 20% 94%);
+    --sidebar-accent-foreground: hsl(18 80% 25%);
+    --sidebar-border: hsl(18 15% 90%);
+    --sidebar-ring: hsl(18 84% 52%);
   }
 
   .dark {
@@ -116,10 +130,10 @@
     --card-foreground: hsl(0 0% 90%);
     --popover: hsl(0 0% 13%);
     --popover-foreground: hsl(0 0% 90%);
-    --primary: hsl(36 100% 34.5%);
+    --primary: hsl(18 84% 45%);
     --primary-foreground: hsl(0 0% 100%);
-    --secondary: hsl(36 10% 16%);
-    --secondary-foreground: hsl(36 10% 98%);
+    --secondary: hsl(18 10% 16%);
+    --secondary-foreground: hsl(18 10% 98%);
     --muted: hsl(240 4% 16%);
     --muted-foreground: hsl(240 5% 65%);
     --accent: hsl(240 4% 16%);
@@ -128,15 +142,15 @@
     --destructive-foreground: hsl(0 0% 98%);
     --border: hsl(240 4% 16%);
     --input: hsl(240 4% 16%);
-    --ring: hsl(36 100% 34.5%);
+    --ring: hsl(18 84% 45%);
     --sidebar-background: hsl(0 0% 7%);
     --sidebar-foreground: hsl(0 0% 85%);
-    --sidebar-primary: hsl(36 100% 34.5%);
+    --sidebar-primary: hsl(18 84% 45%);
     --sidebar-primary-foreground: hsl(0 0% 100%);
     --sidebar-accent: hsl(0 0% 16%);
     --sidebar-accent-foreground: hsl(0 0% 98%);
     --sidebar-border: hsl(0 0% 18%);
-    --sidebar-ring: hsl(36 100% 34.5%);
+    --sidebar-ring: hsl(18 84% 45%);
   }
 }
 
@@ -146,5 +160,18 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  .bg-grid-white\/\[0\.02\] {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  }
+  
+  .dark .bg-grid-white\/\[0\.02\] {
+    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  }
+
+  /* For light mode, let's use a dark grid */
+  :root:not(.dark) .bg-grid-white\/\[0\.02\] {
+    background-image: radial-gradient(circle, rgba(0, 0, 0, 0.02) 1px, transparent 1px);
   }
 }

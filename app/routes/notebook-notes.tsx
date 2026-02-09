@@ -10,6 +10,7 @@ import {
   Plus,
   PlusSquare,
   Search as SearchIcon,
+  SendHorizontal,
   Trash2,
   X,
 } from 'lucide-react';
@@ -396,10 +397,10 @@ export default function NotebookTimeline() {
                   <Button
                     onClick={handleComposerSubmit}
                     disabled={!composerContent.trim()}
-                    className="rounded-full px-6 font-bold"
+                    className="rounded-full w-12"
                     size="sm"
                   >
-                    Post
+                    <SendHorizontal strokeWidth={3} className="w-4 h-4" />
                   </Button>
                 </div>
               </div>
@@ -510,9 +511,9 @@ export default function NotebookTimeline() {
                               setEditingId(null);
                             }
                           }}
-                          className="rounded-full"
+                          className="rounded-full w-12"
                         >
-                          Save Changes
+                          <SendHorizontal strokeWidth={3} className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>

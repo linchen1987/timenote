@@ -1,4 +1,4 @@
-import { Menu } from 'lucide-react';
+import { Menu, PanelLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Button } from '~/components/ui/button';
 import { useSidebarStore } from '~/lib/stores/sidebar-store';
@@ -38,7 +38,7 @@ export function PageHeader({ title, leftActions, children, className }: PageHead
               onClick={toggleDesktopSidebar}
               className="hidden md:flex shrink-0 h-8 w-8 hover:bg-accent"
             >
-              <Menu className="w-5 h-5" />
+              <PanelLeft className="w-5 h-5" />
             </Button>
           )}
           {leftActions}

@@ -1,8 +1,9 @@
 import { index, type RouteConfig, route } from '@react-router/dev/routes';
 
 export default [
-  index('routes/notebooks.tsx'),
+  index('routes/landing.tsx'),
   route('settings', 'routes/settings.tsx'),
+  route('s/list', 'routes/notebooks.tsx'),
 
   route('s/:notebookToken', 'routes/notebook-layout.tsx', [
     index('routes/notebook-notes.tsx'),
