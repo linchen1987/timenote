@@ -377,7 +377,7 @@ export default function NotebookTimeline() {
       </PageHeader>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8 space-y-6">
-        {!targetNoteId && !searchQuery && (
+        {!targetNoteId && (
           <Card className="border-none shadow-sm overflow-hidden bg-card">
             <CardContent className="p-0">
               <div className="p-4 focus-within:ring-0 transition-all">
