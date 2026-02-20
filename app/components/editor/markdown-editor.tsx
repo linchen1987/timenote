@@ -15,6 +15,28 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import { Markdown } from 'tiptap-markdown';
 import { createTagSuggestion } from '~/components/editor/suggestion';
 
+function removeTrailingSpaceFromLinks(editor: Editor) {
+  const { selection, tr } = editor.state;
+  const $head = selection.$head;
+
+  const linkMarkAtCursor = $head.marks().find((m) => m.type.name === 'link');
+  if (!linkMarkAtCursor) return;
+
+  const nodeBefore = $head.nodeBefore;
+  if (!nodeBefore || !nodeBefore.isText) return;
+
+  const text = nodeBefore.text || '';
+  const trailingMatch = text.match(/(\s+)$/);
+  if (!trailingMatch) return;
+
+  const pos = $head.pos - text.length;
+  const spaceStart = pos + text.length - trailingMatch[1].length;
+  const spaceEnd = pos + text.length;
+
+  tr.removeMark(spaceStart, spaceEnd, linkMarkAtCursor);
+  editor.view.dispatch(tr);
+}
+
 const SubmitHandler = Extension.create({
   name: 'submitHandler',
   addKeyboardShortcuts() {
@@ -266,6 +288,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         },
       },
       onUpdate: ({ editor }) => {
+        removeTrailingSpaceFromLinks(editor);
         const markdown = (
           editor.storage as unknown as Record<string, MarkdownStorage>
         ).markdown.getMarkdown();
