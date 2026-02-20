@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@bradenmacdonald/s3-lite-client':
+        specifier: jsr:^0.9.4
+        version: '@jsr/bradenmacdonald__s3-lite-client@0.9.4'
       '@dnd-kit/core':
         specifier: ^6.3.1
         version: 6.3.1(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -1333,6 +1336,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.9':
     resolution: {integrity: sha512-3Belt6tdc8bPgAtbcmdtNJlirVoTmEb5e2gC94PnkwEW9jI6CAHUeoG85tjWP5WquqfavoMtMwiG4P926ZKKuQ==}
+
+  '@jsr/bradenmacdonald__s3-lite-client@0.9.4':
+    resolution: {integrity: sha512-Uar/IGGcnhLKppxjCMSd6r8P5UO7FDPsUaqs0WcoJiV1qfKGPQjiH7IxMUbnVoa0k6bH8HkriOvZf6TWOUAcvQ==, tarball: https://npm.jsr.io/~/11/@jsr/bradenmacdonald__s3-lite-client/0.9.4.tgz}
 
   '@mjackson/node-fetch-server@0.2.0':
     resolution: {integrity: sha512-EMlH1e30yzmTpGLQjlFmaDAjyOeZhng1/XCd7DExR8PNAnG/G1tyruZxEoUe11ClnwGhGrtsdnyyUx1frSzjng==}
@@ -2808,6 +2814,7 @@ packages:
   glob@11.1.0:
     resolution: {integrity: sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw==}
     engines: {node: 20 || >=22}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   globalthis@1.0.4:
@@ -5193,6 +5200,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@jsr/bradenmacdonald__s3-lite-client@0.9.4': {}
 
   '@mjackson/node-fetch-server@0.2.0': {}
 

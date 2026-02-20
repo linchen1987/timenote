@@ -1,7 +1,7 @@
 import { toast } from 'sonner';
 import { create } from 'zustand';
+import { FsService } from '~/lib/services/fs-service';
 import { SyncService } from '~/lib/services/sync/service';
-import { WebDAVService } from '~/lib/services/webdav-service';
 
 interface SyncState {
   isSyncing: boolean;
@@ -26,7 +26,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     options = { showToast: false, skipPull: false },
     onSyncComplete?: () => Promise<void>,
   ) => {
-    if (!WebDAVService.isConfigured()) return;
+    if (!FsService.isConfigured()) return;
 
     const { isSyncing } = get();
     if (isSyncing) return;
@@ -63,7 +63,7 @@ export const useSyncStore = create<SyncState>((set, get) => ({
     }
   },
   syncPull: async (notebookId: string, onSyncComplete?: () => Promise<void>) => {
-    if (!WebDAVService.isConfigured()) return;
+    if (!FsService.isConfigured()) return;
 
     const { isSyncing } = get();
     if (isSyncing) return;

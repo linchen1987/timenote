@@ -21,24 +21,9 @@ type WriteRequest = BaseRequest & {
   args: { content: string };
 };
 
-type MkdirRequest = BaseRequest & {
-  method: 'mkdir';
-  args?: never;
-};
-
 type DeleteRequest = BaseRequest & {
-  method: 'delete' | 'rm' | 'unlink';
+  method: 'delete';
   args?: never;
-};
-
-type MoveRequest = BaseRequest & {
-  method: 'move' | 'rename';
-  args: { destination: string };
-};
-
-type CopyRequest = BaseRequest & {
-  method: 'copy';
-  args: { destination: string };
 };
 
 type StatRequest = BaseRequest & {
@@ -46,15 +31,18 @@ type StatRequest = BaseRequest & {
   args?: never;
 };
 
+type EnsureDirRequest = BaseRequest & {
+  method: 'ensureDir';
+  args?: never;
+};
+
 type FsApiRequest =
   | ListRequest
   | ReadRequest
   | WriteRequest
-  | MkdirRequest
   | DeleteRequest
-  | MoveRequest
-  | CopyRequest
-  | StatRequest;
+  | StatRequest
+  | EnsureDirRequest;
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
@@ -89,29 +77,16 @@ export async function action({ request }: ActionFunctionArgs) {
         await client.writeFile(path, (body as WriteRequest).args.content);
         result = { success: true };
         break;
-      case 'mkdir':
-        await client.mkdir(path);
-        result = { success: true };
-        break;
       case 'delete':
-      case 'rm':
-      case 'unlink':
         await client.unlink(path);
-        result = { success: true };
-        break;
-      case 'move':
-      case 'rename':
-        if (!(body as MoveRequest).args?.destination) throw new Error('Missing destination');
-        await client.rename(path, (body as MoveRequest).args.destination);
-        result = { success: true };
-        break;
-      case 'copy':
-        if (!(body as CopyRequest).args?.destination) throw new Error('Missing destination');
-        await client.copy(path, (body as CopyRequest).args.destination);
         result = { success: true };
         break;
       case 'stat':
         result = await client.stat(path);
+        break;
+      case 'ensureDir':
+        await client.ensureDir(path);
+        result = { success: true };
         break;
       default:
         throw new Error(`Unknown method: ${method}`);

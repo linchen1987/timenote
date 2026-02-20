@@ -1,9 +1,15 @@
 export const STORAGE_KEYS = {
   THEME: 'theme',
   NOTES: '@timenote/notes',
+  STORAGE_TYPE: '@timenote/storage_type',
   WEBDAV_URL: '@timenote/webdav_url',
   WEBDAV_USERNAME: '@timenote/webdav_username',
   WEBDAV_PASSWORD: '@timenote/webdav_password',
+  S3_BUCKET: '@timenote/s3_bucket',
+  S3_ENDPOINT: '@timenote/s3_endpoint',
+  S3_ACCESS_KEY_ID: '@timenote/s3_access_key_id',
+  S3_SECRET_ACCESS_KEY: '@timenote/s3_secret_access_key',
+  S3_REGION: '@timenote/s3_region',
   SIDEBAR_WIDTH: '@timenote/sidebar_width',
   DESKTOP_SIDEBAR_OPEN: '@timenote/desktop_sidebar_open',
 } as const;
