@@ -1,11 +1,14 @@
 import {
   closestCenter,
+  closestCorners,
   DndContext,
   type DragEndEvent,
+  type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
   KeyboardSensor,
   PointerSensor,
+  pointerWithin,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -108,18 +111,28 @@ export function NotebookSidebar({
     useLiveQuery(() => MenuService.getMenuItemsByNotebook(notebookId), [notebookId]) || [];
   const [items, setItems] = useState<MenuItem[]>([]);
   const itemsRef = useRef<MenuItem[]>([]);
+  const lastLiveItemsRef = useRef<string>('');
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeWidth, setActiveWidth] = useState<number | null>(null);
   const [isRepositioning, setIsRepositioning] = useState(false);
+  const [dropIndicator, setDropIndicator] = useState<{
+    id: string;
+    type: 'before' | 'after' | 'inside';
+  } | null>(null);
 
   useEffect(() => {
     if (liveMenuItems && !activeId && !isRepositioning) {
-      setItems((prev) => {
-        if (JSON.stringify(prev) === JSON.stringify(liveMenuItems)) {
-          return prev;
-        }
-        itemsRef.current = liveMenuItems;
-        return liveMenuItems;
-      });
+      const liveKey = JSON.stringify(liveMenuItems);
+      if (liveKey !== lastLiveItemsRef.current) {
+        lastLiveItemsRef.current = liveKey;
+        setItems((prev) => {
+          if (JSON.stringify(prev) === liveKey) {
+            return prev;
+          }
+          itemsRef.current = liveMenuItems;
+          return liveMenuItems;
+        });
+      }
     }
   }, [liveMenuItems, activeId, isRepositioning]);
 
@@ -166,84 +179,141 @@ export function NotebookSidebar({
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
+    setDropIndicator(null);
+    const element = document.querySelector(`[data-id="${event.active.id}"]`);
+    if (element) {
+      setActiveWidth(element.getBoundingClientRect().width * 0.9);
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over, pointerCoordinates } = event;
+    if (!over || !pointerCoordinates || active.id === over.id) {
+      setDropIndicator(null);
+      return;
+    }
+
+    const overElement = document.querySelector(`[data-id="${over.id}"]`);
+    if (!overElement) return;
+
+    const rect = overElement.getBoundingClientRect();
+    const relativeY = pointerCoordinates.y - rect.top;
+    const ratio = relativeY / rect.height;
+
+    let type: 'before' | 'after' | 'inside';
+    // Precise thresholds for better UX
+    if (ratio < 0.25) {
+      type = 'before';
+    } else if (ratio > 0.75) {
+      type = 'after';
+    } else {
+      type = 'inside';
+    }
+
+    setDropIndicator({
+      id: String(over.id),
+      type,
+    });
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
+    const currentIndicator = dropIndicator;
+
+    // Reset UI states immediately for responsiveness
     setActiveId(null);
+    setActiveWidth(null);
+    setDropIndicator(null);
 
     if (!over || active.id === over.id) return;
 
-    // Use itemsRef for the latest state
-    const currentItems = itemsRef.current.length > 0 ? itemsRef.current : items;
+    const activeItem = items.find((i) => i.id === active.id);
+    const overItem = items.find((i) => i.id === over.id);
 
-    const activeIndex = visibleItems.findIndex((i) => i.id === active.id);
-    const overIndex = visibleItems.findIndex((i) => i.id === over.id);
+    if (!activeItem || !overItem) return;
 
-    if (activeIndex === -1 || overIndex === -1) return;
-
-    const newVisibleItems = arrayMove(visibleItems, activeIndex, overIndex);
-
-    let newParentId: string | null = null;
-    if (overIndex > 0) {
-      const prevItem = newVisibleItems[overIndex - 1];
-      if (prevItem.hasChildren && expandedIds.has(prevItem.id)) {
-        // It's an expanded folder, so we become first child
-        newParentId = prevItem.id;
-      } else {
-        // Sibling
-        newParentId = prevItem.parentId;
+    // Recursive check to prevent cycles
+    const isDescendant = (parentId: string, childId: string): boolean => {
+      const children = itemsRef.current.filter((i) => i.parentId === parentId);
+      for (const child of children) {
+        if (child.id === childId) return true;
+        if (isDescendant(child.id, childId)) return true;
       }
-    } else {
-      // Top of list
-      newParentId = null;
+      return false;
+    };
+
+    if (isDescendant(activeItem.id, overItem.id)) {
+      toast.error('Cannot move an item into its own child');
+      return;
     }
-
-    const itemToMove = currentItems.find((i) => i.id === active.id);
-    if (!itemToMove) return;
-
-    const newFullList = currentItems.filter((i) => i.id !== active.id);
-
-    // Find index of prevItem in newFullList
-    const insertIndex = 0;
-    if (overIndex > 0) {
-      const prevItem = newVisibleItems[overIndex - 1];
-      // We can't check children directly on the flat item since it doesn't have the children array attached
-      // But we know if it hasChildren via the property
-      if (prevItem.hasChildren && expandedIds.has(prevItem.id)) {
-        // It's an expanded folder, so we become first child
-        newParentId = prevItem.id;
-      } else {
-        // Sibling
-        // If prevItem is a root/orphan, adopt its parentId (which is likely null or invalid)
-        // If we want to strictly adopt parentId, we can.
-        // But if it's an orphan, maybe we should fix it to null?
-        // Let's just copy parentId.
-        newParentId = prevItem.parentId;
-      }
-    } else {
-      // Top of list
-      newParentId = null;
-    }
-
-    newFullList.splice(insertIndex, 0, { ...itemToMove, parentId: newParentId });
-
-    // Update orders
-    const updates = newFullList.map((item, index) => ({
-      id: item.id,
-      order: index,
-      parentId: item.parentId,
-    }));
 
     setIsRepositioning(true);
-    itemsRef.current = newFullList;
-    setItems(newFullList);
+
+    const dropZone = currentIndicator?.id === String(over.id) ? currentIndicator.type : 'after';
+    let targetParentId: string | null;
+    let targetIndex: number;
+
+    if (dropZone === 'inside') {
+      targetParentId = overItem.id;
+      // When dropping inside, we put it at the beginning of the children list
+      targetIndex = 0;
+    } else {
+      targetParentId = overItem.parentId;
+      // Calculate target index relative to siblings
+      const siblings = itemsRef.current
+        .filter((i) => i.parentId === targetParentId && i.id !== activeItem.id)
+        .sort((a, b) => a.order - b.order);
+
+      const overIndex = siblings.findIndex((s) => s.id === overItem.id);
+      targetIndex = dropZone === 'before' ? overIndex : overIndex + 1;
+    }
+
+    // Comprehensive update logic
+    const allUpdates: { id: string; order: number; parentId: string | null }[] = [];
+
+    // 1. Process Target Level
+    const targetSiblings = itemsRef.current
+      .filter((i) => i.parentId === targetParentId && i.id !== activeItem.id)
+      .sort((a, b) => a.order - b.order);
+
+    targetSiblings.splice(targetIndex < 0 ? 0 : targetIndex, 0, {
+      ...activeItem,
+      parentId: targetParentId,
+    });
+
+    targetSiblings.forEach((item, index) => {
+      allUpdates.push({ id: item.id, order: index, parentId: targetParentId });
+    });
+
+    // 2. Process Source Level (if different)
+    if (activeItem.parentId !== targetParentId) {
+      const sourceSiblings = itemsRef.current
+        .filter((i) => i.parentId === activeItem.parentId && i.id !== activeItem.id)
+        .sort((a, b) => a.order - b.order);
+
+      sourceSiblings.forEach((item, index) => {
+        allUpdates.push({ id: item.id, order: index, parentId: activeItem.parentId });
+      });
+    }
+
+    // Optimistic UI Update
+    const newItems = items.map((item) => {
+      const update = allUpdates.find((u) => u.id === item.id);
+      return update ? { ...item, order: update.order, parentId: update.parentId } : item;
+    });
+
+    itemsRef.current = newItems;
+    setItems(newItems);
 
     try {
-      await MenuService.reorderMenuItems(updates);
-    } catch (_error) {
-      toast.error('Failed to reorder menu items');
+      await MenuService.reorderMenuItems(allUpdates);
+      // Extra stabilization time for the live query to update from IndexedDB
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    } catch (error) {
+      console.error('Reorder failed:', error);
+      toast.error('Failed to save new order');
       setItems(liveMenuItems);
+      itemsRef.current = liveMenuItems;
     } finally {
       setIsRepositioning(false);
     }
@@ -461,10 +531,15 @@ export function NotebookSidebar({
 
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={pointerWithin}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
-            onDragCancel={() => setActiveId(null)}
+            onDragCancel={() => {
+              setActiveId(null);
+              setActiveWidth(null);
+              setDropIndicator(null);
+            }}
           >
             <SortableContext
               items={visibleItems.map((n) => n.id)}
@@ -484,12 +559,16 @@ export function NotebookSidebar({
                   selectedItemId={selectedItemId}
                   expandedIds={expandedIds}
                   onToggleExpand={handleToggleExpand}
+                  dropIndicator={dropIndicator?.id === node.id ? dropIndicator.type : null}
                 />
               ))}
             </SortableContext>
-            <DragOverlay>
+            <DragOverlay dropAnimation={null}>
               {activeItem ? (
-                <div className="py-1.5 px-2 bg-sidebar-accent text-sidebar-accent-foreground rounded-md shadow-md opacity-90 flex items-center gap-2 w-full max-w-[200px]">
+                <div
+                  className="py-1.5 px-2 bg-sidebar-accent text-sidebar-accent-foreground rounded-md shadow-xl border border-primary/20 scale-[1.02] flex items-center gap-2 pointer-events-none"
+                  style={{ width: activeWidth ?? undefined }}
+                >
                   <div className="w-4 flex-shrink-0" />
                   {activeItem.type === 'search' ? (
                     <Search className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
@@ -687,6 +766,7 @@ function MenuItemComponent({
   selectedItemId,
   expandedIds,
   onToggleExpand,
+  dropIndicator,
 }: {
   node: MenuItem & { level: number; hasChildren: boolean };
   onSelectNote: (id: string, menuItemId?: string) => void;
@@ -699,6 +779,7 @@ function MenuItemComponent({
   selectedItemId?: string;
   expandedIds: Set<string>;
   onToggleExpand: (id: string) => void;
+  dropIndicator: 'before' | 'after' | 'inside' | null;
 }) {
   const isSelected = selectedItemId === node.id;
   const isExpanded = expandedIds.has(node.id);
@@ -715,17 +796,35 @@ function MenuItemComponent({
     paddingLeft: `${node.level * 0.5 + 0.5}rem`,
   };
 
+  const indicatorMarginLeft = `${node.level * 0.5 + 1.5}rem`;
+
   return (
     <div
       ref={setNodeRef}
+      data-id={node.id}
       style={style}
       className={cn(
-        'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden',
+        'group relative flex items-center gap-2 py-1.5 px-2 rounded-md transition-all cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden',
         isSelected
           ? 'bg-sidebar-accent text-sidebar-accent-foreground'
           : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
+        dropIndicator === 'inside' && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
       )}
     >
+      {/* Drop indicators */}
+      {dropIndicator === 'before' && (
+        <div
+          className="absolute top-0 right-2 h-0.5 bg-primary z-20 rounded-full"
+          style={{ left: indicatorMarginLeft }}
+        />
+      )}
+      {dropIndicator === 'after' && (
+        <div
+          className="absolute bottom-0 right-2 h-0.5 bg-primary z-20 rounded-full"
+          style={{ left: indicatorMarginLeft }}
+        />
+      )}
+
       <button
         type="button"
         className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden text-left cursor-pointer"
