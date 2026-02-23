@@ -52,6 +52,7 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogTitle,
 } from '~/components/ui/alert-dialog';
 import { Button } from '~/components/ui/button';
 import { Input } from '~/components/ui/input';
@@ -580,41 +581,48 @@ export function NotebookSidebar({
           <DialogHeader>
             <DialogTitle>{editingItem?.id ? 'Edit Menu Item' : 'Add Menu Item'}</DialogTitle>
           </DialogHeader>
-          {editingItem && (
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={editingItem.name}
-                  onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
-                  placeholder="Menu name"
-                />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSave();
+            }}
+          >
+            {editingItem && (
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={editingItem.name}
+                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                    placeholder="Menu name"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="target">Search Query</Label>
+                  <Input
+                    id="target"
+                    value={editingItem.target}
+                    onChange={(e) => setEditingItem({ ...editingItem, target: e.target.value })}
+                    placeholder="e.g. #tag1 keyword"
+                  />
+                </div>
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="target">Search Query</Label>
-                <Input
-                  id="target"
-                  value={editingItem.target}
-                  onChange={(e) => setEditingItem({ ...editingItem, target: e.target.value })}
-                  placeholder="e.g. #tag1 keyword"
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave}>Save</Button>
-          </DialogFooter>
+            )}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <DialogTitle>Are you absolutely sure?</DialogTitle>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the menu item and all its
               sub-menu items.
@@ -712,7 +720,7 @@ function MenuItemComponent({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors text-sm font-medium w-full max-w-full overflow-hidden',
+        'group flex items-center gap-2 py-1.5 px-2 rounded-md transition-colors cursor-pointer text-sm font-medium w-full max-w-full overflow-hidden',
         isSelected
           ? 'bg-sidebar-accent text-sidebar-accent-foreground'
           : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground',
@@ -720,7 +728,7 @@ function MenuItemComponent({
     >
       <button
         type="button"
-        className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden text-left"
+        className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden text-left cursor-pointer"
         onClick={() => {
           if (node.type === 'note') onSelectNote(node.target, node.id);
           else onSelectSearch(node.target, node.id);

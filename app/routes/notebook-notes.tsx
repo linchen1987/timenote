@@ -451,7 +451,7 @@ export default function NotebookTimeline() {
                         onClick={() => {
                           if (note.id) {
                             setMenuNoteId(note.id);
-                            setMenuName(`Menu for Note ${note.id.slice(0, 4)}`);
+                            setMenuName('');
                             setIsMenuDialogOpen(true);
                           }
                         }}
@@ -587,24 +587,31 @@ export default function NotebookTimeline() {
           <DialogHeader>
             <DialogTitle>Add Note to Menu</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="menu-name">Menu Name</Label>
-              <Input
-                id="menu-name"
-                value={menuName}
-                onChange={(e) => setMenuName(e.target.value)}
-                placeholder="Enter menu name"
-                autoFocus
-              />
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddToMenu();
+            }}
+          >
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="menu-name">Menu Name</Label>
+                <Input
+                  id="menu-name"
+                  value={menuName}
+                  onChange={(e) => setMenuName(e.target.value)}
+                  placeholder="Enter menu name"
+                  autoFocus
+                />
+              </div>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMenuDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleAddToMenu}>Create Menu Item</Button>
-          </DialogFooter>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsMenuDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create</Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 
