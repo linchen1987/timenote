@@ -34,6 +34,8 @@ export interface TreeMenuProps<T extends TreeMenuItemBase> {
   renderDragOverlay?: (item: T) => React.ReactNode;
   selectedItemId?: string;
   className?: string;
+  defaultExpandedDepth?: number;
+  initialExpandedIds?: string[];
 }
 
 const MIN_ORDER_DIFF = 1e-10;
@@ -162,6 +164,8 @@ export function TreeMenu<T extends TreeMenuItemBase>({
   renderDragOverlay,
   selectedItemId,
   className,
+  defaultExpandedDepth = 0,
+  initialExpandedIds,
 }: TreeMenuProps<T>) {
   const [items, setItems] = useState<T[]>(externalItems);
   const itemsRef = useRef<T[]>(externalItems);
@@ -174,7 +178,10 @@ export function TreeMenu<T extends TreeMenuItemBase>({
   } | null>(null);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
+    if (initialExpandedIds) return new Set(initialExpandedIds);
+    return new Set();
+  });
 
   // Sync with external items when not dragging
   useEffect(() => {
@@ -184,18 +191,35 @@ export function TreeMenu<T extends TreeMenuItemBase>({
     }
   }, [externalItems, activeId, isRepositioning]);
 
-  // Auto-expand parents on first load
+  // Apply defaultExpandedDepth on first load
   useEffect(() => {
-    if (items.length > 0) {
+    if (items.length > 0 && !initialExpandedIds) {
       setExpandedIds((prev) => {
         if (prev.size > 0) return prev;
-        const allFolderIds = items
+        if (defaultExpandedDepth <= 0) return new Set();
+
+        const itemIds = new Set(items.map((i) => i.id));
+        const result = new Set<string>();
+
+        const getDepth = (item: T): number => {
+          if (!item.parentId || !itemIds.has(item.parentId)) return 0;
+          const parent = items.find((i) => i.id === item.parentId);
+          return parent ? getDepth(parent) + 1 : 0;
+        };
+
+        items
           .filter((i) => items.some((child) => child.parentId === i.id))
-          .map((i) => i.id);
-        return new Set(allFolderIds);
+          .forEach((folder) => {
+            const depth = getDepth(folder);
+            if (depth < defaultExpandedDepth) {
+              result.add(folder.id);
+            }
+          });
+
+        return result;
       });
     }
-  }, [items]);
+  }, [items, defaultExpandedDepth, initialExpandedIds]);
 
   const visibleItems = useMemo(() => {
     return flattenTree(items, expandedIds);

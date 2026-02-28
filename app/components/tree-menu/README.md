@@ -65,12 +65,15 @@ function MyComponent() {
 
 ## Props
 
-| Prop | Type | Required | Description |
-|------|------|----------|-------------|
-| `items` | `T[]` | Yes | Array of tree items |
-| `onReorder` | `(updates) => Promise<void>` | Yes | Callback when items are reordered |
-| `renderItemContent` | `(item, isSelected) => ReactNode` | Yes | Render item main content |
-| `renderItemActions` | `(item, isSelected) => ReactNode` | No | Render item action buttons (shown on hover) |
-| `renderDragOverlay` | `(item) => ReactNode` | No | Custom drag preview |
-| `selectedItemId` | `string` | No | Currently selected item id |
-| `className` | `string` | No | Additional CSS classes |
+| Prop | Type | Required | Default | Description |
+|------|------|----------|---------|-------------|
+| `items` | `T[]` | Yes | - | Array of tree items |
+| `onReorder` | `(updates) => Promise<void>` | Yes | - | Callback when items are reordered |
+| `renderItemContent` | `(item, isSelected) => ReactNode` | Yes | - | Render item main content |
+| `renderItemActions` | `(item, isSelected) => ReactNode` | No | - | Render item action buttons (shown on hover) |
+| `renderDragOverlay` | `(item) => ReactNode` | No | - | Custom drag preview |
+| `selectedItemId` | `string` | No | - | Currently selected item id |
+| `className` | `string` | No | - | Additional CSS classes |
+| `defaultExpandedDepth` | `number` | No | `0` | Depth level to expand by default (0 = all collapsed, 1 = root expanded, etc.) |
+| `initialExpandedIds` | `string[]` | No | - | Initial expanded item ids (overrides `defaultExpandedDepth`) |
+
