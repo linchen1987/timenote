@@ -409,6 +409,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             __html: `
             .ProseMirror { outline: none; line-height: 1.6; }
             .ProseMirror h1 { font-size: 1.8rem; font-weight: 800; margin-top: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 0.2rem; }
+            .dark .ProseMirror h1 { border-color: #334155; }
             .ProseMirror h2 { font-size: 1.4rem; font-weight: 700; margin-top: 0.8rem; margin-bottom: 0.4rem; }
             .ProseMirror h3 { font-size: 1.2rem; font-weight: 600; margin-top: 0.6rem; margin-bottom: 0.3rem; }
             .ProseMirror p { margin-top: 0.3rem; margin-bottom: 0.3rem; }
@@ -428,10 +429,13 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             .ProseMirror table th { background-color: #f8fafc; font-weight: 600; }
             .dark .ProseMirror table, .dark .ProseMirror table th, .dark .ProseMirror table td { border-color: #334155; }
             .dark .ProseMirror table th { background-color: #1e293b; }
-            .ProseMirror pre { background: #0f172a; color: #e2e8f0; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; }
+            .ProseMirror pre { background: #f1f5f9; color: #1e293b; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; border: 1px solid #e2e8f0; }
+            .dark .ProseMirror pre { background: #0f172a; color: #e2e8f0; border: none; }
             .ProseMirror code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.9em; }
             .dark .ProseMirror code { background: #334155; }
+            .ProseMirror pre code { background: transparent; padding: 0; border-radius: 0; color: inherit; }
             .ProseMirror blockquote { border-left: 3px solid #e2e8f0; padding-left: 0.8rem; margin: 0.5rem 0; color: #64748b; }
+            .dark .ProseMirror blockquote { border-color: #334155; color: #94a3b8; }
             .ProseMirror hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75rem 0; }
             .dark .ProseMirror hr { border-color: #334155; }
             .ProseMirror p.is-editor-empty:first-child::before {
