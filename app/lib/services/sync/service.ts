@@ -57,6 +57,12 @@ export const SyncService = {
     await SyncService.push(notebookId);
   },
 
+  async restoreNotebook(notebookId: string) {
+    // Clear any local delete events for this notebook so it doesn't skip restoration
+    await db.syncEvents.where('notebookId').equals(notebookId).delete();
+    await SyncService.pull(notebookId);
+  },
+
   async pull(notebookId: string) {
     const dataPath = `${SYNC_ROOT_PATH}/nb_${notebookId}/data.json`;
     let remoteData: BackupData | null = null;

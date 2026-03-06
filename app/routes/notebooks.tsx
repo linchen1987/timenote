@@ -158,6 +158,20 @@ export default function NotebooksPage() {
     }
   };
 
+  const handleRestore = async (id: string) => {
+    setSyncingId(id);
+    try {
+      await SyncService.restoreNotebook(id);
+      toast.success('恢复成功');
+      loadRemote();
+    } catch (e) {
+      console.error(e);
+      toast.error('恢复失败');
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
   const handlePull = async (id: string) => {
     setSyncingId(id);
     try {
@@ -586,7 +600,7 @@ export default function NotebooksPage() {
                       <CardFooter className="p-8 pt-0">
                         <Button
                           className="w-full h-12 rounded-xl gap-2 font-bold bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                          onClick={() => handleSync(rnb.id)}
+                          onClick={() => handleRestore(rnb.id)}
                           disabled={syncingId === rnb.id}
                         >
                           {syncingId === rnb.id ? (
