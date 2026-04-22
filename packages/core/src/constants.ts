@@ -12,4 +12,5 @@ export const STORAGE_KEYS = {
   S3_REGION: '@timenote/s3_region',
   SIDEBAR_WIDTH: '@timenote/sidebar_width',
   DESKTOP_SIDEBAR_OPEN: '@timenote/desktop_sidebar_open',
+  LAST_NOTEBOOK_TOKEN: '@timenote/last_notebook_token',
 } as const;

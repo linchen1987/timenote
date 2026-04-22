@@ -218,13 +218,17 @@ class S3FsClient implements FsClient {
     const key = normalizePath(path);
 
     if (!key) {
-      return {
-        filename: '/',
-        basename: '',
-        lastmod: new Date().toISOString(),
-        size: 0,
-        type: 'directory',
-      };
+      const list = this.client.listObjects({ maxResults: 1 });
+      const first = await list.next();
+      if (first.done) {
+        return {
+          filename: '/',
+          basename: '',
+          lastmod: new Date().toISOString(),
+          size: 0,
+          type: 'directory',
+        };
+      }
     }
 
     try {

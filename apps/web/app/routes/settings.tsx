@@ -1,17 +1,6 @@
 import { STORAGE_KEYS, useLocalStorage } from '@timenote/core';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Input,
-  Label,
-  RadioGroup,
-  RadioGroupItem,
-} from '@timenote/ui';
-import { AlertCircle, ArrowLeft, Check, Eye, EyeOff } from 'lucide-react';
+import { Button, StorageConfigCard } from '@timenote/ui';
+import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -36,12 +25,11 @@ export default function SettingsPage() {
   );
   const [s3Region, setS3Region] = useLocalStorage(STORAGE_KEYS.S3_REGION, '');
 
-  const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
 
-  const handleStorageTypeChange = (type: StorageType) => {
+  const handleStorageTypeChange = (type: string) => {
     setStorageType(type);
-    FsService.setStorageType(type);
+    FsService.setStorageType(type as StorageType);
     setStatus('idle');
   };
 
@@ -75,157 +63,28 @@ export default function SettingsPage() {
           <h1 className="text-2xl font-bold">Settings</h1>
         </header>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Storage Configuration</CardTitle>
-            <CardDescription>
-              Configure your storage backend for data synchronization.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label className="block mb-4">Storage Type</Label>
-              <RadioGroup
-                value={storageType}
-                onValueChange={(v) => handleStorageTypeChange(v as StorageType)}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="webdav" id="webdav" />
-                  <Label htmlFor="webdav">WebDAV</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="s3" id="s3" />
-                  <Label htmlFor="s3">S3 Compatible</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {storageType === 'webdav' && (
-              <>
-                <div className="space-y-2">
-                  <Label>URL</Label>
-                  <Input
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Username</Label>
-                  <Input value={username} onChange={(e) => setUsername(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pr-10"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4 text-zinc-500" />
-                      ) : (
-                        <Eye className="w-4 h-4 text-zinc-500" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {storageType === 's3' && (
-              <>
-                <div className="space-y-2">
-                  <Label>Endpoint</Label>
-                  <Input
-                    value={s3Endpoint}
-                    onChange={(e) => setS3Endpoint(e.target.value)}
-                    placeholder="https://s3.example.com"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Leave empty for AWS S3, or enter custom endpoint for S3-compatible services.
-                  </p>
-                </div>
-                <div className="space-y-2">
-                  <Label>Region</Label>
-                  <Input
-                    value={s3Region}
-                    onChange={(e) => setS3Region(e.target.value)}
-                    placeholder="us-east-1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Bucket</Label>
-                  <Input
-                    value={s3Bucket}
-                    onChange={(e) => setS3Bucket(e.target.value)}
-                    placeholder="my-bucket"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Access Key ID</Label>
-                  <Input
-                    value={s3AccessKeyId}
-                    onChange={(e) => setS3AccessKeyId(e.target.value)}
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Secret Access Key</Label>
-                  <div className="relative">
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      value={s3SecretAccessKey}
-                      onChange={(e) => setS3SecretAccessKey(e.target.value)}
-                      className="pr-10"
-                      autoComplete="off"
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                      onClick={() => setShowPassword(!showPassword)}
-                    >
-                      {showPassword ? (
-                        <EyeOff className="w-4 h-4 text-zinc-500" />
-                      ) : (
-                        <Eye className="w-4 h-4 text-zinc-500" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="pt-2">
-              <Button onClick={handleTestConnection} disabled={status === 'testing'}>
-                {status === 'testing' ? 'Testing...' : 'Test Connection'}
-              </Button>
-            </div>
-
-            {status === 'success' && (
-              <div className="p-3 bg-green-100 text-green-700 rounded flex items-center gap-2 text-sm">
-                <Check className="w-4 h-4" /> Connected successfully
-              </div>
-            )}
-
-            {status === 'error' && (
-              <div className="p-3 bg-red-100 text-red-700 rounded flex items-center gap-2 text-sm">
-                <AlertCircle className="w-4 h-4" /> Connection failed
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <StorageConfigCard
+          storageType={storageType}
+          onStorageTypeChange={handleStorageTypeChange}
+          url={url}
+          onUrlChange={setUrl}
+          username={username}
+          onUsernameChange={setUsername}
+          password={password}
+          onPasswordChange={setPassword}
+          s3Bucket={s3Bucket}
+          onS3BucketChange={setS3Bucket}
+          s3Endpoint={s3Endpoint}
+          onS3EndpointChange={setS3Endpoint}
+          s3AccessKeyId={s3AccessKeyId}
+          onS3AccessKeyIdChange={setS3AccessKeyId}
+          s3SecretAccessKey={s3SecretAccessKey}
+          onS3SecretAccessKeyChange={setS3SecretAccessKey}
+          s3Region={s3Region}
+          onS3RegionChange={setS3Region}
+          connectionStatus={status}
+          onTestConnection={handleTestConnection}
+        />
       </div>
     </div>
   );

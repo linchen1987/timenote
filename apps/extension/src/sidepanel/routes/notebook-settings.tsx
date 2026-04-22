@@ -1,6 +1,4 @@
-'use client';
-
-import { DataToolsService, parseNotebookId, STORAGE_KEYS, useLocalStorage } from '@timenote/core';
+import { DataToolsService, parseNotebookId, STORAGE_KEYS } from '@timenote/core';
 import {
   Button,
   Card,
@@ -14,34 +12,33 @@ import {
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { FsService, type StorageType } from '~/lib/fs-service';
-import type { Route } from './+types/notebook-settings';
+import { FsService, type StorageType } from '../../lib/fs-service';
+import { useChromeStorage } from '../../lib/use-chrome-storage';
 
-export const meta: Route.MetaFunction = () => {
-  return [{ title: 'Settings - TimeNote' }];
-};
-
-export default function NotebookSettingsPage() {
+export function NotebookSettings() {
   const { notebookToken } = useParams();
   const nbId = parseNotebookId(notebookToken || '');
 
-  const [storageType, setStorageType] = useLocalStorage(
+  const [storageType, setStorageType] = useChromeStorage(
     STORAGE_KEYS.STORAGE_TYPE,
     'webdav' as StorageType,
   );
 
-  const [url, setUrl] = useLocalStorage(STORAGE_KEYS.WEBDAV_URL, 'https://dav.jianguoyun.com/dav/');
-  const [username, setUsername] = useLocalStorage(STORAGE_KEYS.WEBDAV_USERNAME, '');
-  const [password, setPassword] = useLocalStorage(STORAGE_KEYS.WEBDAV_PASSWORD, '');
+  const [url, setUrl] = useChromeStorage(
+    STORAGE_KEYS.WEBDAV_URL,
+    'https://dav.jianguoyun.com/dav/',
+  );
+  const [username, setUsername] = useChromeStorage(STORAGE_KEYS.WEBDAV_USERNAME, '');
+  const [password, setPassword] = useChromeStorage(STORAGE_KEYS.WEBDAV_PASSWORD, '');
 
-  const [s3Bucket, setS3Bucket] = useLocalStorage(STORAGE_KEYS.S3_BUCKET, '');
-  const [s3Endpoint, setS3Endpoint] = useLocalStorage(STORAGE_KEYS.S3_ENDPOINT, '');
-  const [s3AccessKeyId, setS3AccessKeyId] = useLocalStorage(STORAGE_KEYS.S3_ACCESS_KEY_ID, '');
-  const [s3SecretAccessKey, setS3SecretAccessKey] = useLocalStorage(
+  const [s3Bucket, setS3Bucket] = useChromeStorage(STORAGE_KEYS.S3_BUCKET, '');
+  const [s3Endpoint, setS3Endpoint] = useChromeStorage(STORAGE_KEYS.S3_ENDPOINT, '');
+  const [s3AccessKeyId, setS3AccessKeyId] = useChromeStorage(STORAGE_KEYS.S3_ACCESS_KEY_ID, '');
+  const [s3SecretAccessKey, setS3SecretAccessKey] = useChromeStorage(
     STORAGE_KEYS.S3_SECRET_ACCESS_KEY,
     '',
   );
-  const [s3Region, setS3Region] = useLocalStorage(STORAGE_KEYS.S3_REGION, '');
+  const [s3Region, setS3Region] = useChromeStorage(STORAGE_KEYS.S3_REGION, '');
 
   const [connectionStatus, setConnectionStatus] = useState<
     'idle' | 'testing' | 'success' | 'error'
@@ -165,9 +162,7 @@ export default function NotebookSettingsPage() {
               <div className="h-px bg-border" />
 
               <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link to={`/s/${notebookToken}`} prefetch="intent">
-                  Back to Notebook
-                </Link>
+                <Link to={`/s/${notebookToken}`}>Back to Notebook</Link>
               </Button>
             </CardContent>
           </Card>

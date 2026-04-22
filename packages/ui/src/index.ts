@@ -2,10 +2,19 @@ export {
   default as MarkdownEditor,
   type MarkdownEditorRef,
 } from './components/editor/markdown-editor';
+export {
+  NoteDetailView,
+  type NoteDetailViewProps,
+  type SyncStoreHook,
+} from './components/note-detail-view';
 export { NoteTagsView } from './components/note-tags-view';
+export { NotebookLayout, type NotebookLayoutProps } from './components/notebook-layout';
 export { NotebookSidebar } from './components/notebook-sidebar';
+export { NotebookTimeline, type NotebookTimelineProps } from './components/notebook-timeline';
 export { PageHeader } from './components/page-header';
+export { StorageConfigCard, type StorageConfigCardProps } from './components/storage-config-card';
 export { SyncActions } from './components/sync-actions';
+export { TagsView, type TagsViewProps } from './components/tags-view';
 export { type Theme, ThemeProvider, themeScript, useTheme } from './components/theme-provider';
 export { TreeMenu, type TreeMenuItemBase, type TreeMenuProps } from './components/tree-menu';
 export {

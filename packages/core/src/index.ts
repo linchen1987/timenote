@@ -10,6 +10,7 @@ export {
   TimenoteDatabase,
 } from './db';
 export { useLocalStorage } from './hooks/use-local-storage';
+export type { UseStorage } from './hooks/use-storage';
 export { DataService } from './services/data-service';
 export {
   type DataToolsProgress,
