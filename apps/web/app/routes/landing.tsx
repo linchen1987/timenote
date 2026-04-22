@@ -139,7 +139,7 @@ export default function LandingPage() {
               </Button>
             </div>
             <ThemeToggle />
-            <Link to="/s/list">
+            <Link to="/s/list" prefetch="intent">
               <Button className="rounded-full px-6 h-10 font-bold shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300">
                 开始使用
               </Button>
@@ -169,7 +169,7 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center pt-4 sm:pt-6 px-4 sm:px-0">
-              <Link to="/s/list">
+              <Link to="/s/list" prefetch="intent">
                 <Button
                   size="lg"
                   className="w-full sm:w-auto h-14 sm:h-16 rounded-2xl text-lg sm:text-xl px-8 sm:px-12 font-black gap-3 shadow-[0_20px_40px_-15px_rgba(var(--primary-rgb),0.3)] hover:scale-105 hover:shadow-[0_25px_50px_-12px_rgba(var(--primary-rgb),0.4)] transition-all duration-500"
@@ -491,7 +491,7 @@ export default function LandingPage() {
               Time Note 期待与你的灵感相遇
             </p>
             <div className="pt-4 px-4">
-              <Link to="/s/list">
+              <Link to="/s/list" prefetch="intent">
                 <Button
                   size="lg"
                   className="w-full sm:w-auto h-16 sm:h-20 rounded-2xl sm:rounded-[2rem] text-lg sm:text-2xl px-8 sm:px-16 font-black gap-4 shadow-2xl shadow-primary/20 hover:scale-105 hover:shadow-primary/40 transition-all duration-500"

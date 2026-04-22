@@ -299,7 +299,7 @@ export default function NotebookSettingsPage() {
               <div className="h-px bg-border" />
 
               <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link to={`/s/${notebookToken}`}>Back to Notebook</Link>
+                <Link to={`/s/${notebookToken}`} prefetch="intent">Back to Notebook</Link>
               </Button>
             </CardContent>
           </Card>

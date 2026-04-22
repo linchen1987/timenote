@@ -67,7 +67,7 @@ export default function SettingsPage() {
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
       <div className="max-w-2xl mx-auto space-y-6">
         <header className="flex items-center gap-4">
-          <Link to="/">
+          <Link to="/" prefetch="intent">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-4 h-4" />
             </Button>

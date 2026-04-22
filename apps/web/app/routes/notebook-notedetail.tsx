@@ -92,7 +92,7 @@ export default function NoteDetailPage() {
       <PageHeader
         leftActions={
           <Button variant="ghost" size="icon" asChild className="rounded-full">
-            <Link to={`/s/${notebookToken}`} title="Back to Timeline">
+            <Link to={`/s/${notebookToken}`} prefetch="intent" title="Back to Timeline">
               <ChevronLeft className="w-5 h-5" />
             </Link>
           </Button>

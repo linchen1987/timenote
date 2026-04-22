@@ -315,7 +315,7 @@ export default function NotebooksPage() {
               </Button>
             </div>
             <ThemeToggle />
-            <Link to="/settings">
+            <Link to="/settings" prefetch="intent">
               <Button
                 variant="ghost"
                 size="icon"
@@ -489,6 +489,7 @@ export default function NotebooksPage() {
                     <>
                       <Link
                         to={`/s/${createNotebookToken(nb.id, nb.name)}`}
+                        prefetch="intent"
                         className="block group/title"
                       >
                         <CardTitle className="text-3xl font-black tracking-tight group-hover/title:text-primary transition-colors leading-tight line-clamp-2">
@@ -525,7 +526,7 @@ export default function NotebooksPage() {
                         className={`w-4 h-4 ${syncingId === nb.id ? 'animate-spin' : ''}`}
                       />
                     </Button>
-                    <Link to={`/s/${createNotebookToken(nb.id, nb.name)}`}>
+                    <Link to={`/s/${createNotebookToken(nb.id, nb.name)}`} prefetch="intent">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -665,6 +666,7 @@ export default function NotebooksPage() {
             <div className="flex items-center gap-6">
               <Link
                 to="/playground"
+                prefetch="intent"
                 className="text-[10px] font-black tracking-widest text-muted-foreground/40 hover:text-primary transition-colors uppercase"
               >
                 Playground

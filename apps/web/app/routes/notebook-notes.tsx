@@ -423,6 +423,7 @@ export default function NotebookTimeline() {
                 <div className="flex items-center gap-4">
                   <Link
                     to={`/s/${notebookToken}/${note.id}`}
+                    prefetch="intent"
                     className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium hover:text-primary transition-colors cursor-pointer"
                     suppressHydrationWarning
                   >
@@ -443,7 +444,7 @@ export default function NotebookTimeline() {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <Link to={`/s/${notebookToken}/${note.id}`} className="cursor-pointer">
+                        <Link to={`/s/${notebookToken}/${note.id}`} prefetch="intent" className="cursor-pointer">
                           <Maximize2 className="w-4 h-4 mr-2" /> Full Screen
                         </Link>
                       </DropdownMenuItem>

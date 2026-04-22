@@ -60,7 +60,7 @@ export default function TagsPage() {
                 Tags will appear here once you add them to your notes using the # symbol.
               </p>
               <Button variant="outline" className="mt-6" asChild>
-                <Link to={`/s/${notebookToken}`}>Go to Timeline</Link>
+                <Link to={`/s/${notebookToken}`} prefetch="intent">Go to Timeline</Link>
               </Button>
             </div>
           )}
