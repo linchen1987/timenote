@@ -3,10 +3,6 @@
 node_modules/
 *.tsbuildinfo
 
-# React Router
-/.react-router/
-/build/
-
 # Cloudflare
 .mf
 .wrangler
@@ -14,7 +10,6 @@ node_modules/
 worker-configuration.d.ts
 
 .local
-/dist
 
 # Packages
 packages/*/dist/
