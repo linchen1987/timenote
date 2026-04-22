@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "TimeNote",
+  "version": "1.0.0",
+  "description": "轻量级笔记应用，支持 WebDAV/S3 云同步",
+
+  "permissions": ["storage", "sidePanel", "alarms", "downloads"],
+
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+
+  "action": {
+    "default_icon": {
+      "16": "public/icons/icon-16.png",
+      "32": "public/icons/icon-32.png",
+      "48": "public/icons/icon-48.png",
+      "128": "public/icons/icon-128.png"
+    }
+  },
+
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+
+  "icons": {
+    "16": "public/icons/icon-16.png",
+    "32": "public/icons/icon-32.png",
+    "48": "public/icons/icon-48.png",
+    "128": "public/icons/icon-128.png"
+  },
+
+  "commands": {
+    "_execute_action": {
+      "suggested_key": { "default": "Alt+T" },
+      "description": "打开 TimeNote"
+    }
+  }
+}

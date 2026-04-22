@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "include": ["src", "../../packages/core/src", "../../packages/ui/src"],
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "../..",
+    "baseUrl": ".",
+    "types": ["chrome"],
+    "paths": {
+      "@timenote/core": ["../../packages/core/src"],
+      "@timenote/core/*": ["../../packages/core/src/*"],
+      "@timenote/ui": ["../../packages/ui/src"],
+      "@timenote/ui/*": ["../../packages/ui/src/*"]
+    }
+  }
+}

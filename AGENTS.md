@@ -10,7 +10,7 @@
 - Routing https://reactrouter.com/start/framework/routing 
 
 ## Tech Stack
-- pnpm
+- pnpm (workspace monorepo)
 - react-router
 - tailwind css v4
 
@@ -19,32 +19,45 @@
 - **Git Operations**: 除非用户明确要求，否则绝对不要自动执行 git commit, git push 等操作。
 - comment 不要添加修改说明，只添加当前代码的解释。
 - localstorage 在统一文件中管理key. 除去通用key(比如 theme) 都需要使用相同的前缀
-- **Import & Quotes**: Always use double quotes `'` and `~/` alias for internal imports (relative to `app/`). Always include trailing semicolons `;`.
+- **Import & Quotes**: Always use single quotes `'` and trailing semicolons `;`.
+- **Package Imports**: Use `@timenote/core` for core logic, `@timenote/ui` for UI components
+- **Web-specific imports**: Use `~/` alias for web-specific code (relative to `apps/web/app/`)
 
-## Project Structure
-- `app/` - Main application code
-  - `routes/` - Route components (pages)
-    - `notebooks.tsx` - Notebook list (Home)
-    - `notebook-notes.tsx` - Note list in a notebook
-    - `notebook-notedetail.tsx` - Note editor/view
-    - `tags.tsx` - Tag management/list
-    - `manifest.tsx` - Web app manifest
-    - `api.fs.ts` - File system API endpoints
-    - `playground/` - Feature testing and demos
-      - `webdav.tsx` - WebDAV integration testing page
-  - `components/` - Reusable UI components
-    - `ui/` - Shadcn UI components
-    - `editor/` - Markdown editor components
-  - `services/` - External services (e.g., File System client)
-  - `hooks/` - Custom React hooks
-  - `lib/` - Logic, state, and utilities
-    - `db.ts` - Dexie database schema and instance
-    - `services/` - Core business logic services (Note, Menu, Import/Export)
-    - `utils/` - Shared utility functions
-    - `constants.ts` - Application constants
-  - `root.tsx` - Root layout and context providers
-  - `routes.ts` - React Router route configuration
-- `wrangler.jsonc` - Cloudflare configuration
+## Project Structure (Monorepo)
+- `packages/core/` - Shared core package (`@timenote/core`)
+  - `src/db.ts` - Dexie database schema and instance
+  - `src/types.ts` - TypeScript type definitions
+  - `src/constants.ts` - Application constants (localStorage keys)
+  - `src/utils/` - Utility functions (cn, token, search)
+  - `src/services/` - Business logic (Note, Menu, Data, Import, Export, Sync)
+  - `src/stores/` - Zustand stores (sidebar, sync)
+  - `src/hooks/` - Shared React hooks
+  - `src/fs/` - File system abstraction layer (FsTransport interface)
+- `packages/ui/` - Shared UI package (`@timenote/ui`)
+  - `src/components/ui/` - Shadcn UI components
+  - `src/components/editor/` - TipTap Markdown editor
+  - `src/components/tree-menu/` - Tree menu component
+  - `src/components/theme-provider.tsx` - Theme provider
+  - `src/styles/app.css` - Tailwind CSS styles
+- `apps/web/` - Web application (Cloudflare Workers SSR)
+  - `app/routes/` - Route components
+  - `app/lib/web-transport.ts` - Web FsTransport (fetch /api/fs)
+  - `app/lib/fs-service.ts` - Web FsService instance
+  - `app/lib/sync-service.ts` - Web SyncService instance
+  - `app/services/fs-client.ts` - Server-side WebDAV/S3 client
+- `apps/extension/` - Browser extension (Chrome Side Panel)
+  - `src/sidepanel/` - Side Panel React SPA
+  - `src/background/` - Background Service Worker
+  - `src/lib/extension-transport.ts` - Extension FsTransport (chrome.runtime.sendMessage)
+  - `src/lib/storage.ts` - Chrome storage adapter
 
 ## Business Logic
 - 不同的 notebook 中的数据是隔离的
+
+## Key Commands
+- `pnpm dev` - Start web dev server
+- `pnpm dev:ext` - Start extension dev build (watch mode)
+- `pnpm build` - Build web app
+- `pnpm build:ext` - Build extension
+- `pnpm lint` / `pnpm lint:fix` - Biome lint
+- `pnpm test` - Run tests

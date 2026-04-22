@@ -1,6 +1,6 @@
 .DS_Store
 .env
-/node_modules/
+node_modules/
 *.tsbuildinfo
 
 # React Router
@@ -15,3 +15,9 @@ worker-configuration.d.ts
 
 .local
 /dist
+
+# Packages
+packages/*/dist/
+apps/*/dist/
+apps/web/build/
+apps/web/.react-router/
