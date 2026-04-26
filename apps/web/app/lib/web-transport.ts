@@ -100,6 +100,10 @@ export const webTransport = {
     await callApi('ensureDir', path);
   },
 
+  async remove(path: string) {
+    await callApi('delete', path);
+  },
+
   isConfigured(): boolean {
     return getFsConnection() !== null;
   },

@@ -6,7 +6,7 @@ import MarkdownEditor, {
 } from '@timenote/ui/components/editor/markdown-editor';
 import { PageHeader } from '@timenote/ui/components/page-header';
 import { Button } from '@timenote/ui/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Cloud, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -21,6 +21,7 @@ export default function VaultNoteDetailPage() {
   const [body, setBody] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const initialContentRef = useRef('');
+  const isSyncing = useVaultStore((s) => s.isSyncing);
 
   useEffect(() => {
     if (!projectId || !nId) return;
@@ -99,14 +100,45 @@ export default function VaultNoteDetailPage() {
           </Button>
         }
       >
-        <Button
-          size="sm"
-          onClick={handleSave}
-          disabled={!hasUnsavedChanges}
-          className="rounded-full"
-        >
-          Save
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={async () => {
+              if (!projectId || isSyncing) return;
+              try {
+                const result = await useVaultStore.getState().sync(projectId);
+                if (result.pushed > 0 || result.pulled > 0) {
+                  toast.success(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
+                } else {
+                  toast.success('Already up to date');
+                }
+                if (result.errors.length > 0) {
+                  toast.error(`Sync errors: ${result.errors.join('; ')}`);
+                }
+              } catch (e) {
+                toast.error(`Sync failed: ${(e as Error).message}`);
+              }
+            }}
+            disabled={isSyncing}
+            title="Sync to cloud"
+            className="rounded-full"
+          >
+            {isSyncing ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              <Cloud className="w-4 h-4 text-muted-foreground" />
+            )}
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={!hasUnsavedChanges}
+            className="rounded-full"
+          >
+            Save
+          </Button>
+        </div>
       </PageHeader>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 pt-1 sm:pt-2 pb-4 sm:pb-8">

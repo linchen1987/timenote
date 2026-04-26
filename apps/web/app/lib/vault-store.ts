@@ -1,23 +1,32 @@
 import {
+  createPrefixedTransport,
   createVaultMenuService,
   createVaultNoteService,
   createVaultService,
+  createVaultSyncService,
+  type RemoteTransport,
   type RuntimeMenuItem,
+  type SyncResult,
   type VaultMenuService,
   type VaultMeta,
   type VaultNoteService,
   type VaultService,
+  type VaultSyncService,
 } from '@timenote/core/vault';
 import { nanoid } from 'nanoid';
 import { create } from 'zustand';
+import { webTransport } from './web-transport';
 
 interface VaultStore {
   vaultService: VaultService | null;
   noteService: VaultNoteService | null;
   menuService: VaultMenuService | null;
+  syncService: VaultSyncService | null;
   menuItems: RuntimeMenuItem[];
   vaults: VaultMeta[];
   activeProjectId: string | null;
+  isSyncing: boolean;
+  lastSyncTime: string | null;
 
   init: () => Promise<void>;
   listVaults: () => Promise<VaultMeta[]>;
@@ -50,22 +59,44 @@ interface VaultStore {
     projectId: string,
     updates: { id: string; order: number; parentId: string | null }[],
   ) => Promise<void>;
+
+  sync: (projectId: string) => Promise<SyncResult>;
+  pull: (projectId: string) => Promise<SyncResult>;
+  push: (projectId: string) => Promise<SyncResult>;
+}
+
+const remoteTransport: RemoteTransport = {
+  list: (path) => webTransport.list(path),
+  read: (path) => webTransport.read(path),
+  write: (path, content) => webTransport.write(path, content),
+  exists: (path) => webTransport.exists(path),
+  ensureDir: (path) => webTransport.ensureDir(path),
+  remove: (path) => webTransport.remove(path),
+  isConfigured: () => webTransport.isConfigured(),
+};
+
+function getRemoteForProject(projectId: string): RemoteTransport {
+  return createPrefixedTransport(`timenote/vaults/${projectId}`, remoteTransport);
 }
 
 export const useVaultStore = create<VaultStore>((set, get) => ({
   vaultService: null,
   noteService: null,
   menuService: null,
+  syncService: null,
   menuItems: [],
   vaults: [],
   activeProjectId: null,
+  isSyncing: false,
+  lastSyncTime: null,
 
   init: async () => {
     if (get().vaultService) return;
     const vaultService = await createVaultService();
     const noteService = createVaultNoteService(vaultService);
     const menuService = createVaultMenuService(vaultService);
-    set({ vaultService, noteService, menuService });
+    const syncService = createVaultSyncService(vaultService, noteService);
+    set({ vaultService, noteService, menuService, syncService });
   },
 
   listVaults: async () => {
@@ -98,6 +129,16 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     }
     set({ activeProjectId: projectId });
     await get().loadMenu(projectId);
+
+    const syncService = get().syncService;
+    if (syncService) {
+      try {
+        const status = await syncService.getSyncStatus(projectId);
+        set({ lastSyncTime: status.lastSyncTime });
+      } catch {
+        // ignore
+      }
+    }
   },
 
   deactivateVault: () => {
@@ -178,5 +219,61 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     });
     await get().menuService?.saveMenu(projectId, updated);
     set({ menuItems: updated });
+  },
+
+  sync: async (projectId: string) => {
+    if (!remoteTransport.isConfigured()) {
+      throw new Error('Storage not configured. Please configure S3 or WebDAV settings.');
+    }
+    set({ isSyncing: true });
+    try {
+      const syncService = get().syncService;
+      if (!syncService) throw new Error('SyncService not initialized');
+      const remote = getRemoteForProject(projectId);
+      const result = await syncService.sync(projectId, remote);
+      const status = await syncService.getSyncStatus(projectId);
+      set({ lastSyncTime: status.lastSyncTime });
+      await get().loadMenu(projectId);
+      return result;
+    } finally {
+      set({ isSyncing: false });
+    }
+  },
+
+  pull: async (projectId: string) => {
+    if (!remoteTransport.isConfigured()) {
+      throw new Error('Storage not configured');
+    }
+    set({ isSyncing: true });
+    try {
+      const syncService = get().syncService;
+      if (!syncService) throw new Error('SyncService not initialized');
+      const remote = getRemoteForProject(projectId);
+      const result = await syncService.pull(projectId, remote);
+      const status = await syncService.getSyncStatus(projectId);
+      set({ lastSyncTime: status.lastSyncTime });
+      await get().loadMenu(projectId);
+      return result;
+    } finally {
+      set({ isSyncing: false });
+    }
+  },
+
+  push: async (projectId: string) => {
+    if (!remoteTransport.isConfigured()) {
+      throw new Error('Storage not configured');
+    }
+    set({ isSyncing: true });
+    try {
+      const syncService = get().syncService;
+      if (!syncService) throw new Error('SyncService not initialized');
+      const remote = getRemoteForProject(projectId);
+      const result = await syncService.push(projectId, remote);
+      const status = await syncService.getSyncStatus(projectId);
+      set({ lastSyncTime: status.lastSyncTime });
+      return result;
+    } finally {
+      set({ isSyncing: false });
+    }
   },
 }));

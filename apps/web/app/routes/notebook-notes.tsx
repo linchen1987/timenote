@@ -31,6 +31,8 @@ import {
 } from '@timenote/ui/components/ui/dropdown-menu';
 import {
   Calendar,
+  Cloud,
+  Loader2,
   Maximize2,
   MoreVertical,
   PlusSquare,
@@ -64,6 +66,8 @@ export default function VaultTimelinePage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [vaultName, setVaultName] = useState('');
   const [ready, setReady] = useState(false);
+  const isSyncing = useVaultStore((s) => s.isSyncing);
+  const lastSyncTime = useVaultStore((s) => s.lastSyncTime);
 
   const composerRef = useRef<MarkdownEditorRef>(null);
   const editorRef = useRef<MarkdownEditorRef>(null);
@@ -210,6 +214,24 @@ export default function VaultTimelinePage() {
     }
   };
 
+  const handleSync = async () => {
+    if (!projectId || isSyncing) return;
+    try {
+      const result = await useVaultStore.getState().sync(projectId);
+      await loadNotes();
+      if (result.pushed > 0 || result.pulled > 0) {
+        toast.success(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
+      } else {
+        toast.success('Already up to date');
+      }
+      if (result.errors.length > 0) {
+        toast.error(`Sync errors: ${result.errors.join('; ')}`);
+      }
+    } catch (e) {
+      toast.error(`Sync failed: ${(e as Error).message}`);
+    }
+  };
+
   const loadBody = async (noteId: string): Promise<string> => {
     if (!projectId) return '';
     const svc = getNoteService();
@@ -228,7 +250,25 @@ export default function VaultTimelinePage() {
   return (
     <>
       <PageHeader title={searchQuery ? `Search: ${searchQuery}` : vaultName || 'Notes'}>
-        <div className="flex items-center gap-1 w-full justify-end" style={{ maxWidth: '320px' }}>
+        <div className="flex items-center gap-1 w-full justify-end" style={{ maxWidth: '360px' }}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSync}
+            disabled={isSyncing}
+            title={
+              lastSyncTime
+                ? `Last sync: ${new Date(lastSyncTime).toLocaleString()}`
+                : 'Sync to cloud'
+            }
+            className="shrink-0 rounded-full"
+          >
+            {isSyncing ? (
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+            ) : (
+              <Cloud className="w-4 h-4 text-muted-foreground" />
+            )}
+          </Button>
           <form onSubmit={handleSearchSubmit} className="relative group w-full">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input
@@ -445,7 +485,10 @@ function NoteCard({
           {note.tags.length > 0 && (
             <div className="flex gap-1">
               {note.tags.map((tag) => (
-                <span key={tag} className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                <span
+                  key={tag}
+                  className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full"
+                >
                   #{tag}
                 </span>
               ))}

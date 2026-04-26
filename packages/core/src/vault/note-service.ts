@@ -25,6 +25,7 @@ export interface VaultNoteService {
 
   activateVault(projectId: string): Promise<void>;
   deactivateVault(): void;
+  rebuildIndex(projectId: string): Promise<void>;
 
   listNotes(options?: { limit?: number; offset?: number }): Promise<NoteIndex[]>;
   searchNotes(query: string): Promise<NoteIndex[]>;
@@ -150,6 +151,13 @@ class VaultNoteServiceImpl implements VaultNoteService {
     this.indexService.clearIndex();
     this.searchProvider.clear();
     this.activeProjectId = null;
+  }
+
+  async rebuildIndex(projectId: string): Promise<void> {
+    this.indexService.clearIndex();
+    this.searchProvider.clear();
+    this.activeProjectId = null;
+    await this.activateVault(projectId);
   }
 
   async listNotes(options?: { limit?: number; offset?: number }): Promise<NoteIndex[]> {

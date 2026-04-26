@@ -7,6 +7,7 @@ export {
   parseNoteSafe,
   serializeNote,
 } from './frontmatter';
+export { computeContentHash } from './hash';
 export { createIndexService, type IndexService } from './index-service';
 export { createVaultMenuService, type VaultMenuService } from './menu-service';
 export {
@@ -40,6 +41,14 @@ export {
   type SearchResult,
   SimpleSearchProvider,
 } from './search-provider';
+export {
+  createPrefixedTransport,
+  createVaultSyncService,
+  type RemoteTransport,
+  type SyncResult,
+  type SyncStatus,
+  type VaultSyncService,
+} from './sync-service';
 export {
   type DeleteLog,
   DeleteLogSchema,
