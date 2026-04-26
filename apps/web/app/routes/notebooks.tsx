@@ -1,10 +1,6 @@
-import {
-  type BackupData,
-  createNotebookToken,
-  ExportService,
-  ImportService,
-  NoteService,
-} from '@timenote/core';
+'use client';
+
+import { createNotebookToken } from '@timenote/core';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,7 +13,6 @@ import {
   Button,
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -28,15 +23,8 @@ import {
   Input,
   useTheme,
 } from '@timenote/ui';
-import { useLiveQuery } from 'dexie-react-hooks';
 import {
   ArrowRight,
-  BookOpen,
-  Calendar,
-  Cloud,
-  CloudDownload,
-  Database,
-  Download,
   Edit2,
   Github,
   Globe,
@@ -47,25 +35,21 @@ import {
   MoreVertical,
   Notebook as NotebookIcon,
   Plus,
-  RefreshCw,
   Settings,
-  ShieldCheck,
-  Smartphone,
   Sun,
   Trash2,
-  Upload,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
-import { SyncService } from '~/lib/sync-service';
+import { useVaultStore, type VaultMeta } from '~/lib/vault-store';
 
 export const meta: MetaFunction = () => {
   return [{ title: '笔记本 - Time Note' }];
 };
 
 function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
 
   return (
     <DropdownMenu>
@@ -105,158 +89,61 @@ function ThemeToggle() {
 }
 
 export default function NotebooksPage() {
-  const notebooks = useLiveQuery(() => NoteService.getAllNotebooks());
+  const { listVaults, createVault, deleteVault } = useVaultStore();
+  const [vaults, setVaults] = useState<VaultMeta[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [notebookToDelete, setNotebookToDelete] = useState<string | null>(null);
+  const [vaultToDelete, setVaultToDelete] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  interface RemoteNotebook {
-    id: string;
-    name: string;
-    path: string;
-  }
-
-  const [remoteNotebooks, setRemoteNotebooks] = useState<RemoteNotebook[]>([]);
-  const [isLoadingRemote, setIsLoadingRemote] = useState(false);
-  const [syncingId, setSyncingId] = useState<string | null>(null);
-
-  const loadRemote = useCallback(async () => {
-    setIsLoadingRemote(true);
+  const refresh = useCallback(async () => {
     try {
-      const list = await SyncService.getRemoteNotebooks();
-      setRemoteNotebooks(list);
+      const list = await listVaults();
+      setVaults(list);
     } catch (e) {
-      console.error('Failed to load remote notebooks', e);
-    } finally {
-      setIsLoadingRemote(false);
+      toast.error(`Failed to load vaults: ${(e as Error).message}`);
     }
-  }, []);
+  }, [listVaults]);
 
   useEffect(() => {
-    loadRemote();
-  }, [loadRemote]);
-
-  const handleSync = async (id: string) => {
-    setSyncingId(id);
-    try {
-      await SyncService.syncNotebook(id);
-      toast.success('同步成功');
-      loadRemote();
-    } catch (e) {
-      console.error(e);
-      toast.error('同步失败');
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
-  const handleRestore = async (id: string) => {
-    setSyncingId(id);
-    try {
-      await SyncService.restoreNotebook(id);
-      toast.success('恢复成功');
-      loadRemote();
-    } catch (e) {
-      console.error(e);
-      toast.error('恢复失败');
-    } finally {
-      setSyncingId(null);
-    }
-  };
-
-  const handlePull = async (id: string) => {
-    setSyncingId(id);
-    try {
-      await SyncService.pull(id);
-      toast.success('拉取成功');
-      loadRemote();
-    } catch (e) {
-      console.error(e);
-      toast.error('拉取失败');
-    } finally {
-      setSyncingId(null);
-    }
-  };
+    refresh();
+  }, [refresh]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    await NoteService.createNotebook(newName);
-    setNewName('');
-    setIsCreating(false);
-    toast.success('笔记本创建成功');
-  };
-
-  const handleDelete = (id: string) => {
-    setNotebookToDelete(id);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (notebookToDelete) {
-      try {
-        await NoteService.deleteNotebook(notebookToDelete);
-        setNotebookToDelete(null);
-        setIsDeleteDialogOpen(false);
-        toast.success('笔记本已删除');
-      } catch (_error) {
-        toast.error('删除失败');
-      }
+    try {
+      await createVault(newName.trim());
+      toast.success('Vault created');
+      setNewName('');
+      setIsCreating(false);
+      await refresh();
+    } catch (e) {
+      toast.error(`Create failed: ${(e as Error).message}`);
     }
   };
 
-  const handleRename = async (id: string) => {
-    if (!editName.trim()) return;
-    await NoteService.updateNotebook(id, { name: editName });
-    setEditingId(null);
-    toast.success('重命名成功');
-  };
-
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleDelete = async () => {
+    if (!vaultToDelete) return;
     try {
-      const text = await file.text();
-      const data = JSON.parse(text) as BackupData;
-
-      toast.promise(ImportService.importData(data), {
-        loading: '正在导入数据...',
-        success: (stats) => {
-          const message = `导入完成：成功 ${stats.success} 条，跳过 ${stats.skipped} 条。`;
-          if (stats.errors.length > 0) {
-            return `${message} (包含一些警告)`;
-          }
-          return message;
-        },
-        error: '导入失败',
-      });
-
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (error) {
-      console.error('Import failed:', error);
-      toast.error('导入失败，请确保文件是有效的 JSON 格式。');
+      await deleteVault(vaultToDelete);
+      toast.success('Vault deleted');
+      setVaultToDelete(null);
+      setIsDeleteDialogOpen(false);
+      await refresh();
+    } catch (e) {
+      toast.error(`Delete failed: ${(e as Error).message}`);
     }
   };
 
   const copyEmail = () => {
-    const email = 'link.lin.1987@gmail.com';
-    navigator.clipboard.writeText(email);
+    navigator.clipboard.writeText('link.lin.1987@gmail.com');
     toast.success('邮箱已复制到剪切板');
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 relative overflow-x-hidden font-sans flex flex-col">
-      {/* Visual Background Elements */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-10%] left-[-5%] w-[45%] h-[45%] bg-primary/10 rounded-full blur-[120px] opacity-60 animate-pulse" />
         <div
@@ -330,7 +217,6 @@ export default function NotebooksPage() {
 
       <main className="relative z-10 pt-32 pb-20 px-6 flex-1">
         <div className="max-w-7xl mx-auto space-y-12">
-          {/* Header Section */}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 animate-fade-in">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black tracking-widest uppercase">
@@ -346,29 +232,6 @@ export default function NotebooksPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".json"
-                onChange={handleFileChange}
-              />
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-12 rounded-2xl gap-2 border-2 px-6 font-bold backdrop-blur-sm hover:bg-muted/50 transition-all"
-                onClick={handleImportClick}
-              >
-                <Upload className="w-4 h-4" /> 导入数据
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="h-12 rounded-2xl gap-2 border-2 px-6 font-bold backdrop-blur-sm hover:bg-muted/50 transition-all"
-                onClick={() => ExportService.exportData()}
-              >
-                <Download className="w-4 h-4" /> 导出备份
-              </Button>
               <Button
                 onClick={() => setIsCreating(true)}
                 size="lg"
@@ -409,11 +272,10 @@ export default function NotebooksPage() {
             </Card>
           )}
 
-          {/* Notebook Grid */}
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {notebooks?.map((nb) => (
+            {vaults.map((v) => (
               <Card
-                key={nb.id}
+                key={v.projectId}
                 className="group relative bg-card/40 backdrop-blur-md border border-border/50 hover:border-primary/50 transition-all duration-500 rounded-[2.5rem] overflow-hidden hover:shadow-[0_20px_50px_-12px_rgba(var(--primary-rgb),0.15)] flex flex-col h-full"
               >
                 <CardHeader className="p-8 pb-4 relative">
@@ -434,15 +296,9 @@ export default function NotebooksPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="rounded-2xl p-2 min-w-[160px]">
                         <DropdownMenuItem
-                          onClick={() => handlePull(nb.id)}
-                          className="rounded-xl gap-2 cursor-pointer"
-                        >
-                          <CloudDownload className="w-4 h-4" /> 从云端拉取
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
                           onClick={() => {
-                            setEditingId(nb.id);
-                            setEditName(nb.name);
+                            setEditingId(v.projectId);
+                            setEditName(v.name);
                           }}
                           className="rounded-xl gap-2 cursor-pointer"
                         >
@@ -450,7 +306,10 @@ export default function NotebooksPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive rounded-xl gap-2 cursor-pointer"
-                          onClick={() => handleDelete(nb.id)}
+                          onClick={() => {
+                            setVaultToDelete(v.projectId);
+                            setIsDeleteDialogOpen(true);
+                          }}
                         >
                           <Trash2 className="w-4 h-4" /> 删除
                         </DropdownMenuItem>
@@ -458,21 +317,16 @@ export default function NotebooksPage() {
                     </DropdownMenu>
                   </div>
 
-                  {editingId === nb.id ? (
+                  {editingId === v.projectId ? (
                     <div className="space-y-3">
                       <Input
                         autoFocus
                         value={editName}
                         onChange={(e) => setEditName(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleRename(nb.id)}
                         className="rounded-xl border-2"
                       />
                       <div className="flex gap-2 justify-end">
-                        <Button
-                          size="sm"
-                          onClick={() => handleRename(nb.id)}
-                          className="rounded-lg"
-                        >
+                        <Button size="sm" className="rounded-lg" disabled>
                           保存
                         </Button>
                         <Button
@@ -488,16 +342,16 @@ export default function NotebooksPage() {
                   ) : (
                     <>
                       <Link
-                        to={`/s/${createNotebookToken(nb.id, nb.name)}`}
+                        to={`/s/${createNotebookToken(v.projectId, v.name)}`}
                         prefetch="intent"
                         className="block group/title"
                       >
                         <CardTitle className="text-3xl font-black tracking-tight group-hover/title:text-primary transition-colors leading-tight line-clamp-2">
-                          {nb.name}
+                          {v.name}
                         </CardTitle>
                       </Link>
                       <p className="text-[10px] text-muted-foreground mt-4 font-black uppercase tracking-widest opacity-40">
-                        ID: {nb.id.slice(0, 8)}...
+                        ID: {v.projectId}
                       </p>
                     </>
                   )}
@@ -505,42 +359,21 @@ export default function NotebooksPage() {
 
                 <div className="flex-1" />
 
-                <CardFooter
-                  className="p-8 pt-0 flex justify-between items-center text-xs font-bold text-muted-foreground/60"
-                  suppressHydrationWarning
-                >
-                  <div className="flex items-center gap-2 bg-muted/30 px-3 py-1.5 rounded-full">
-                    <Calendar className="w-3.5 h-3.5 opacity-70" />
-                    <span>{new Date(nb.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
+                <CardFooter className="p-8 pt-0 flex justify-end items-center">
+                  <Link to={`/s/${createNotebookToken(v.projectId, v.name)}`} prefetch="intent">
                     <Button
                       variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 rounded-full hover:bg-primary/10 hover:text-primary transition-colors"
-                      onClick={() => handleSync(nb.id)}
-                      disabled={syncingId === nb.id}
-                      title="立即同步"
+                      size="sm"
+                      className="rounded-full font-black text-primary hover:bg-primary hover:text-primary-foreground transition-all gap-1 px-4"
                     >
-                      <RefreshCw
-                        className={`w-4 h-4 ${syncingId === nb.id ? 'animate-spin' : ''}`}
-                      />
+                      进入 <ArrowRight className="w-3.5 h-3.5" />
                     </Button>
-                    <Link to={`/s/${createNotebookToken(nb.id, nb.name)}`} prefetch="intent">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="rounded-full font-black text-primary hover:bg-primary hover:text-primary-foreground transition-all gap-1 px-4"
-                      >
-                        进入 <ArrowRight className="w-3.5 h-3.5" />
-                      </Button>
-                    </Link>
-                  </div>
+                  </Link>
                 </CardFooter>
               </Card>
             ))}
 
-            {notebooks?.length === 0 && !isCreating && remoteNotebooks.length === 0 && (
+            {vaults.length === 0 && !isCreating && (
               <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex flex-col items-center justify-center py-32 text-center bg-card/40 backdrop-blur-md rounded-[3rem] border-2 border-dashed border-border/60">
                 <div className="w-24 h-24 bg-primary/10 rounded-3xl flex items-center justify-center mb-8 text-primary/40">
                   <NotebookIcon className="w-12 h-12" />
@@ -561,60 +394,6 @@ export default function NotebooksPage() {
               </div>
             )}
           </div>
-
-          {/* Remote Notebooks Section */}
-          {remoteNotebooks.filter((rnb) => !notebooks?.some((nb) => nb.id === rnb.id)).length >
-            0 && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-              <div className="flex items-center gap-4 pt-8 border-t border-border/40">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500">
-                  <Cloud className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-3xl font-black tracking-tight uppercase">云端笔记本</h2>
-                  <p className="text-muted-foreground font-semibold">
-                    发现你在其他设备上存储的备份
-                  </p>
-                </div>
-                {isLoadingRemote && <RefreshCw className="w-5 h-5 animate-spin text-blue-500" />}
-              </div>
-
-              <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {remoteNotebooks
-                  .filter((rnb) => !notebooks?.some((nb) => nb.id === rnb.id))
-                  .map((rnb) => (
-                    <Card
-                      key={rnb.id}
-                      className="group bg-blue-500/5 backdrop-blur-md border border-blue-500/20 hover:border-blue-500/50 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col h-full"
-                    >
-                      <CardHeader className="p-8">
-                        <CardTitle className="text-2xl font-black tracking-tight line-clamp-2">
-                          {rnb.name}
-                        </CardTitle>
-                        <p className="text-[10px] text-blue-500/60 mt-4 font-black uppercase tracking-widest">
-                          ID: {rnb.id.slice(0, 8)}...
-                        </p>
-                      </CardHeader>
-                      <div className="flex-1" />
-                      <CardFooter className="p-8 pt-0">
-                        <Button
-                          className="w-full h-12 rounded-xl gap-2 font-bold bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-                          onClick={() => handleRestore(rnb.id)}
-                          disabled={syncingId === rnb.id}
-                        >
-                          {syncingId === rnb.id ? (
-                            <RefreshCw className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <CloudDownload className="w-4 h-4" />
-                          )}
-                          同步到本地
-                        </Button>
-                      </CardFooter>
-                    </Card>
-                  ))}
-              </div>
-            </div>
-          )}
         </div>
       </main>
 
@@ -686,13 +465,13 @@ export default function NotebooksPage() {
               确定要删除吗？
             </AlertDialogTitle>
             <AlertDialogDescription className="text-base font-medium">
-              此操作无法撤销。该笔记本及其所有笔记将从本地数据库中永久删除。
+              此操作无法撤销。该笔记本及其所有笔记将被永久删除。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-3">
             <AlertDialogCancel className="rounded-xl font-bold">取消</AlertDialogCancel>
             <AlertDialogAction
-              onClick={confirmDelete}
+              onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-xl font-bold"
             >
               确认删除

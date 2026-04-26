@@ -1,4 +1,4 @@
-import { cn, parseNotebookId, STORAGE_KEYS, useSidebarStore } from '@timenote/core';
+import { cn, noteIdToUrl, parseNotebookId, STORAGE_KEYS, useSidebarStore } from '@timenote/core';
 import { GripVertical } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -45,7 +45,7 @@ export function NotebookLayout({ isPWA, onSaveLastNotebook, extraEffects }: Note
   const handleSelectNote = (noteId: string, menuItemId?: string) => {
     const params = new URLSearchParams();
     if (menuItemId) params.set('m', menuItemId);
-    navigate(`/s/${notebookToken}/${noteId}?${params.toString()}`);
+    navigate(`/s/${notebookToken}/${noteIdToUrl(noteId)}?${params.toString()}`);
     setMobileSidebarOpen(false);
   };
 

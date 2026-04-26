@@ -6,6 +6,20 @@
 - **Prioritize Schema Documentation**: When debugging structural or validation errors, prioritize searching for the **latest** data schema, object model, or type definition documentation over high-level feature guides. Ensure documentation matches the installed library version.
 - **Ask for Help**: If specific documentation (like schema definitions) cannot be located, explicitly ask the user for assistance or links to relevant documentation to avoid wasting time on assumptions
 
+## SSR / Hydration Pitfalls
+- **Never return `null` from route components during SSR**: If a component returns `null` on server but content on client, hydration fails silently — effects never run, page stays blank. Return a loading placeholder instead.
+- **TipTap `immediatelyRender: true` breaks SSR**: The MarkdownEditor uses `immediatelyRender: true` which fails during SSR. Guard it behind client-only checks (e.g. `ready` state set after `useEffect`).
+- **Hydration mismatch at `<html>` level**: Theme class (`light`/`dark`) differs between server and client, causing React hydration error. Fix: add `suppressHydrationWarning` on `<html>` in root layout. Client-side navigation (`<Link>`) always works fine.
+- **OPFS/Vault services are browser-only**: Never call `navigator.storage.getDirectory()`, `VaultService`, or `VaultNoteService` during SSR. All vault init must happen inside `useEffect`.
+
+## Vault Architecture (0.2.0)
+- **OPFS is truth, IndexedDB is index**: Write OPFS first, then update index. Index can be fully rebuilt from OPFS.
+- **Single active vault**: `VaultNoteService.activateVault(projectId)` must complete before any query (listNotes, searchNotes, etc.). Combine activate + load in one useEffect to avoid race conditions.
+- **Transport caching**: `VaultService.listVaults()` caches OPFS transports. If you skip `listVaults()` before `getOpfsTransport()`, the transport won't be found. Always call `listVaults()` or `createVault()` first. In route components, call `activateVault()` (which internally calls `listVaults()`) before any note operations.
+- **Direct URL access requires self-contained init**: Each route page must independently call `init()` → `activateVault()` → load data. Never assume a parent route already initialized the store.
+- **`gray-matter` is NOT browser-compatible**: Uses Node.js `Buffer`. Use `js-yaml` + custom regex for frontmatter.
+- **`js-yaml` auto-converts ISO dates to Date objects**: Use `preprocessDates()` to convert back to ISO strings before Zod validation.
+
 ## React Router DOCS
 - Routing https://reactrouter.com/start/framework/routing 
 
@@ -33,6 +47,16 @@
   - `src/stores/` - Zustand stores (sidebar, sync)
   - `src/hooks/` - Shared React hooks
   - `src/fs/` - File system abstraction layer (FsTransport interface)
+  - `src/vault/` - Vault subsystem (0.2.0 new architecture)
+    - `types.ts` - Zod schemas (NoteIndex, Manifest, etc.)
+    - `note-id.ts` - ID generation (YYYYMMDD-HHmmss-SSSR format)
+    - `frontmatter.ts` - YAML frontmatter parse/serialize (js-yaml based)
+    - `search-provider.ts` - SimpleSearchProvider (memory full-text cache)
+    - `index-service.ts` - IndexedDB index via Dexie (TimenoteVaultIndex)
+    - `note-service.ts` - VaultNoteService (OPFS CRUD + index + search)
+    - `vault-service.ts` - Vault lifecycle (create/delete/list, meta files)
+    - `opfs-transport.ts` - OPFS FileSystemDirectoryHandle wrapper
+    - `menu-transform.ts` - Nested↔Flat menu conversion
 - `packages/ui/` - Shared UI package (`@timenote/ui`)
   - `src/components/ui/` - Shadcn UI components
   - `src/components/editor/` - TipTap Markdown editor
@@ -44,6 +68,7 @@
   - `app/lib/web-transport.ts` - Web FsTransport (fetch /api/fs)
   - `app/lib/fs-service.ts` - Web FsService instance
   - `app/lib/sync-service.ts` - Web SyncService instance
+  - `app/lib/vault-store.ts` - Zustand store for VaultService + VaultNoteService
   - `app/services/fs-client.ts` - Server-side WebDAV/S3 client
 - `apps/extension/` - Browser extension (Chrome Side Panel)
   - `src/sidepanel/` - Side Panel React SPA

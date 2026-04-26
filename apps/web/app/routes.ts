@@ -17,6 +17,7 @@ export default [
   route('playground', 'routes/playground/index.tsx'),
   route('playground/webdav', 'routes/playground/webdav.tsx'),
   route('playground/data-tools', 'routes/playground/data-tools.tsx'),
+  route('playground/opfs', 'routes/playground/opfs.tsx'),
 
   // API
   route('api/fs', 'routes/api.fs.ts'),

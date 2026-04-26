@@ -8,16 +8,20 @@
   "exports": {
     ".": "./src/index.ts",
     "./fs": "./src/fs/index.ts",
-    "./db": "./src/db.ts"
+    "./db": "./src/db.ts",
+    "./vault": "./src/vault/index.ts"
   },
   "dependencies": {
-    "dexie": "^4.2.1",
-    "nanoid": "^5.1.6",
-    "zustand": "^5.0.10",
     "clsx": "^2.1.1",
-    "tailwind-merge": "^3.4.0"
+    "dexie": "^4.2.1",
+    "js-yaml": "^4.1.1",
+    "nanoid": "^5.1.6",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
     "typescript": "^5.9.2"
   }
 }

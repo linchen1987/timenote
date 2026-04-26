@@ -59,3 +59,5 @@ export {
   parseNotebookId,
   parseNotebookName,
 } from './utils/token';
+
+export { noteIdFromUrl, noteIdToUrl } from './vault/note-id';

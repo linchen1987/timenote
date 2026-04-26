@@ -1,4 +1,4 @@
-import { ChevronRight, FlaskConical, Globe } from 'lucide-react';
+import { ChevronRight, FlaskConical, Globe, HardDrive } from 'lucide-react';
 import { Link } from 'react-router';
 import { Card, CardDescription, CardHeader, CardTitle } from '~/components/ui/card';
 
@@ -16,7 +16,12 @@ export default function PlaygroundIndex() {
       href: '/playground/data-tools',
       icon: <FlaskConical className="w-6 h-6 text-orange-500" />,
     },
-    // 未来可以在这里添加更多
+    {
+      title: 'OPFS Vault Explorer',
+      description: 'Create vaults, read/write notes, parse frontmatter in OPFS.',
+      href: '/playground/opfs',
+      icon: <HardDrive className="w-6 h-6 text-emerald-500" />,
+    },
   ];
 
   return (
