@@ -4,6 +4,7 @@ export default [
   index('routes/landing.tsx'),
   route('settings', 'routes/settings.tsx'),
   route('s/list', 'routes/notebooks.tsx'),
+  route('migration', 'routes/migration.tsx'),
 
   route('s/:notebookToken', 'routes/notebook-layout.tsx', [
     index('routes/notebook-notes.tsx'),

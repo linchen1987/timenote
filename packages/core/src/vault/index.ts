@@ -25,6 +25,13 @@ export {
   updateMenuNoteId,
 } from './menu-transform';
 export {
+  createMigrationService,
+  type LegacyNotebookInfo,
+  type MigrationProgress,
+  type MigrationResult,
+  type MigrationService,
+} from './migration-service';
+export {
   filenameFromNoteId,
   generateNoteId,
   generateProjectId,

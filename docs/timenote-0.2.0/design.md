@@ -551,10 +551,72 @@ apps/extension (接入 core 即可, 大量重复代码可消除)
 
 ### Phase 6: 迁移 (core + web) ← 可体验: 旧笔记本迁移到新架构
 
-23. 实现 `MigrationService` (Dexie → OPFS)
-24. 迁移 UI (检测提示、进度条、跳过选项)
+23. 实现 `MigrationService` (Dexie → ZIP，不直接写 OPFS)
+24. 迁移 UI (检测入口 + 独立迁移页面 + 清除旧数据功能)
 
-> 交付: 浏览器中可一键迁移旧笔记本到新架构，迁移后功能与新建 vault 一致
+> 交付: 浏览器中可将旧笔记本批量导出为 ZIP，通过导入功能成为新 vault
+
+#### Phase 6 设计方案
+
+**核心策略: Dexie → ZIP，不直接写 OPFS**
+
+迁移不直接写入 OPFS vault，而是将每个旧 notebook 导出为 ZIP 文件。用户可多次迁移、反复测试。ZIP 文件通过已有的 ImportService 导入为 vault。
+
+优势:
+- 迁移可重复执行，方便调试
+- 旧数据完全不修改、不删除
+- 复用已有的 ImportService，无需额外的 OPFS 写入逻辑
+
+**数据转换**:
+
+| 旧 (Dexie `TimenoteDB`) | 新 (ZIP → vault) |
+|---|---|
+| `notebooks.id` (nanoid) | `manifest.json` 的 `project_id` (保留原 ID) |
+| `notebooks.name` | `manifest.json` 的 `name` |
+| `notes.content` + `createdAt`/`updatedAt` | `/YYYY-MM/YYYYMMDD-HHmmss-SSSR.md` + YAML frontmatter |
+| `tags` + `noteTags` | frontmatter `tags` 字段 |
+| `menuItems` (flat) | `menu.json` (nested, oldId → newId 替换) |
+
+**ID 映射**: `nanoid(12)` → `YYYYMMDD-HHmmss-SSSR` (从 `createdAt` 生成)。迁移时内存中建立 `{ oldId → newId }` 映射，用于更新 menu.json 中的引用。
+
+#### Phase 6 UI 方案
+
+**页面结构**:
+
+1. **笔记本列表页** (`/s/list`) — 仅做入口:
+   - 顶部蓝色提示横幅 (Alert): "发现 X 个旧版笔记本"
+   - 一个按钮: "前往迁移" → `<Link to="/migration">`
+   - 横幅始终显示（只要旧数据存在），不写入 localStorage 标记
+
+2. **迁移页面** (`/migration`) — 独立路由，Phase 8 可直接删除:
+   - **迁移区域**: 列出所有旧 notebook（名称 + 笔记数量），点击"导出 ZIP"逐个下载
+   - **批量导出**: "全部导出" 按钮，逐个生成 ZIP 并下载
+   - **进度显示**: 当前 notebook 名称 + 进度条
+   - **清除旧数据区域**: "清除本地旧数据" 按钮 (red/destructive)
+     - 二次确认 Dialog: "确定要删除所有旧数据吗？此操作不可恢复。"
+     - 确认后清空 `TimenoteDB` 所有表 (`notebooks`, `notes`, `tags`, `noteTags`, `menuItems`, `syncEvents`)
+     - 清除后页面刷新，横幅消失
+
+**路由**: 新增 `/migration` (在 `apps/web/app/routes/migration.tsx`)
+
+**Store 扩展** (`vault-store.ts`):
+```
+legacyNotebooks: LegacyNotebookInfo[]  // { id, name, noteCount }
+legacyLoaded: boolean
+
+checkLegacy()         -> db.notebooks.count() > 0
+listLegacyNotebooks() -> 读取旧 notebook + noteCount
+migrateLegacy(id)     -> MigrationService.exportNotebook(id) → 触发下载
+migrateAllLegacy()    -> 逐个调用 migrateLegacy
+clearLegacyData()     -> db.delete() 清空 TimenoteDB
+```
+
+**MigrationService** (`packages/core/src/vault/migration-service.ts`):
+```
+needsMigration()           -> db.notebooks.count() > 0
+listNotebooks()            -> db.notebooks.toArray() + 统计 noteCount
+exportNotebook(id, onProgress?) -> 读取旧数据 → 构建 ZIP → 返回 Blob
+```
 
 ### Phase 7: Adapter 接入
 

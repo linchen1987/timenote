@@ -40,7 +40,10 @@ interface MigrationResult {
 }
 ```
 
-### 1.3 迁移步骤
+### 1.3 迁移步骤 (Dexie → ZIP)
+
+> 注意: 迁移不直接写入 OPFS，而是导出为 ZIP 文件。用户通过 ImportService 导入为 vault。
+> 好处: 可重复迁移、方便调试、旧数据完全不修改。
 
 1. **检测**: 检查 Dexie 中是否有数据 (`db.notebooks.count() > 0`)
 
@@ -50,20 +53,17 @@ interface MigrationResult {
    - menuItems → menu.json (扁平 → 嵌套转换)
    - tags/noteTags → 合入 frontmatter
 
-3. **写入**: 对每个 notebook:
-   a. 在 OPFS 创建 vault 目录结构
-   b. 写入 `manifest.json`
-   c. 写入 `menu.json`
-   d. 逐条写笔记文件:
+3. **生成 ZIP**: 对每个 notebook:
+   a. 构建 `manifest.json` (保留原 notebook ID 作为 project_id)
+   b. 构建 `menu.json` (嵌套结构, oldId → newId 替换)
+   c. 逐条生成笔记文件:
       - 从 `createdAt` 生成时间戳 ID，若冲突追加随机位
       - 构建 YAML frontmatter (含 tags)
-      - 写入 `/YYYY-MM/{noteId}.md`
-   e. 写入 `delete-log.json` (空)
-   f. 写入 `sync-ledger.json` (含所有笔记的 hash)
+      - 路径: `/YYYY-MM/{noteId}.md`
+   d. 构建 `delete-log.json` (空)
+   e. 用 JSZip 打包为 Blob → 触发浏览器下载
 
-4. **建索引**: 对最后一个激活的 vault 调用 `rebuildIndex()`
-
-5. **标记完成**: localStorage `@timenote/migration_completed`
+4. **导入**: 用户通过已有的 ImportService 导入 ZIP 为新 vault
 
 ### 1.4 ID 映射
 
@@ -91,8 +91,10 @@ function flatToNested(items: OldMenuItem[]): MenuItem[] {
 
 - 迁移在后台执行，不阻塞 UI (使用进度条)
 - 迁移失败不删除旧数据，可重试
-- 提供"跳过迁移"选项 (用于全新安装)
-- 旧 Dexie 数据迁移后保留，不自动删除
+- **不写入完成标记**: 不修改 localStorage，不标记旧数据，可反复迁移
+- **不修改旧数据**: 迁移只读取 Dexie，不做任何写入
+- 旧 Dexie 数据迁移后保留，通过迁移页面的"清除旧数据"按钮手动删除
+- 提供独立迁移页面 (`/migration`)，Phase 8 清理时可直接删除
 
 ### 1.7 Export 数据迁移 (Hold)
 

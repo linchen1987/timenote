@@ -1,4 +1,5 @@
 import {
+  createMigrationService,
   createPrefixedTransport,
   createVaultExportService,
   createVaultImportService,
@@ -7,6 +8,10 @@ import {
   createVaultService,
   createVaultSyncService,
   type ImportResult,
+  type LegacyNotebookInfo,
+  type MigrationProgress,
+  type MigrationResult,
+  type MigrationService,
   type RemoteTransport,
   type RuntimeMenuItem,
   type SyncResult,
@@ -29,11 +34,16 @@ interface VaultStore {
   syncService: VaultSyncService | null;
   exportService: VaultExportService | null;
   importService: VaultImportService | null;
+  migrationService: MigrationService | null;
   menuItems: RuntimeMenuItem[];
   vaults: VaultMeta[];
   activeProjectId: string | null;
   isSyncing: boolean;
   lastSyncTime: string | null;
+  needsMigration: boolean;
+  legacyNotebooks: LegacyNotebookInfo[];
+  migrationStatus: 'idle' | 'migrating' | 'done';
+  migrationProgress: MigrationProgress | null;
 
   init: () => Promise<void>;
   listVaults: () => Promise<VaultMeta[]>;
@@ -73,6 +83,11 @@ interface VaultStore {
 
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
+
+  checkMigration: () => Promise<boolean>;
+  listLegacyNotebooks: () => Promise<LegacyNotebookInfo[]>;
+  migrateLegacyNotebook: (notebookId: string) => Promise<MigrationResult>;
+  clearLegacyData: () => Promise<void>;
 }
 
 const remoteTransport: RemoteTransport = {
@@ -96,11 +111,16 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   syncService: null,
   exportService: null,
   importService: null,
+  migrationService: null,
   menuItems: [],
   vaults: [],
   activeProjectId: null,
   isSyncing: false,
   lastSyncTime: null,
+  needsMigration: false,
+  legacyNotebooks: [],
+  migrationStatus: 'idle',
+  migrationProgress: null,
 
   init: async () => {
     if (get().vaultService) return;
@@ -110,7 +130,16 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     const syncService = createVaultSyncService(vaultService, noteService);
     const exportService = createVaultExportService(vaultService);
     const importService = createVaultImportService(vaultService, noteService);
-    set({ vaultService, noteService, menuService, syncService, exportService, importService });
+    const migrationService = createMigrationService();
+    set({
+      vaultService,
+      noteService,
+      menuService,
+      syncService,
+      exportService,
+      importService,
+      migrationService,
+    });
   },
 
   listVaults: async () => {
@@ -172,7 +201,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     try {
       const items = await menuService.loadMenu(projectId);
       set({ menuItems: items });
-    } catch {
+    } catch (e) {
+      console.error('[loadMenu] failed:', e);
       set({ menuItems: [] });
     }
   },
@@ -303,5 +333,56 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     const result = await importService.importVault(file);
     await get().listVaults();
     return result;
+  },
+
+  checkMigration: async () => {
+    await get().init();
+    const svc = get().migrationService;
+    if (!svc) return false;
+    const needs = await svc.needsMigration();
+    set({ needsMigration: needs });
+    return needs;
+  },
+
+  listLegacyNotebooks: async () => {
+    await get().init();
+    const svc = get().migrationService;
+    if (!svc) return [];
+    const notebooks = await svc.listLegacyNotebooks();
+    set({ legacyNotebooks: notebooks });
+    return notebooks;
+  },
+
+  migrateLegacyNotebook: async (notebookId: string) => {
+    const svc = get().migrationService;
+    if (!svc) throw new Error('MigrationService not initialized');
+    set({ migrationStatus: 'migrating' });
+    try {
+      const result = await svc.exportNotebook(notebookId, (p) => {
+        set({ migrationProgress: p });
+      });
+
+      const url = URL.createObjectURL(result.zipBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${result.notebookName}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      set({ migrationStatus: 'done' });
+      return result;
+    } catch (e) {
+      set({ migrationStatus: 'idle' });
+      throw e;
+    }
+  },
+
+  clearLegacyData: async () => {
+    const svc = get().migrationService;
+    if (!svc) throw new Error('MigrationService not initialized');
+    await svc.clearLegacyData();
+    set({ needsMigration: false, legacyNotebooks: [] });
   },
 }));
