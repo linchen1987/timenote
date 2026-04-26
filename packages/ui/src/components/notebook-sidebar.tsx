@@ -1,6 +1,5 @@
-import type { MenuItem } from '@timenote/core';
-import { cn, createNotebookToken, MenuService, NoteService } from '@timenote/core';
-import { useLiveQuery } from 'dexie-react-hooks';
+import { cn, createNotebookToken } from '@timenote/core';
+import type { RuntimeMenuItem } from '@timenote/core/vault';
 import {
   ArrowDown,
   ArrowUp,
@@ -50,8 +49,28 @@ import { Label } from './ui/label';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
 
+export interface MenuActions {
+  reorder: (updates: { id: string; order: number; parentId: string | null }[]) => Promise<void>;
+  add: (item: {
+    parentId: string | null;
+    title: string;
+    type: 'note' | 'search';
+    search?: string;
+    note_id?: string;
+  }) => Promise<void>;
+  update: (
+    id: string,
+    updates: { title: string; type: 'note' | 'search'; search?: string },
+  ) => Promise<void>;
+  delete: (id: string) => Promise<void>;
+}
+
 interface NotebookSidebarProps {
   notebookId: string;
+  notebookName?: string;
+  notebooks?: { id: string; name: string }[];
+  menuItems: RuntimeMenuItem[];
+  menuActions: MenuActions;
   onSelectSearch: (query: string, menuItemId?: string) => void;
   onSelectNote: (noteId: string, menuItemId?: string) => void;
   onSelectNotebook?: () => void;
@@ -62,6 +81,10 @@ interface NotebookSidebarProps {
 
 export function NotebookSidebar({
   notebookId,
+  notebookName,
+  notebooks,
+  menuItems,
+  menuActions,
   onSelectSearch,
   onSelectNote,
   onSelectNotebook,
@@ -74,23 +97,18 @@ export function NotebookSidebar({
   const navigate = useNavigate();
   const location = useLocation();
   const { notebookToken } = useParams();
-  const notebooks = useLiveQuery(() => NoteService.getAllNotebooks()) || [];
-  const currentNotebook = notebooks.find((nb) => nb.id === notebookId);
 
   const isTagsPage = location.pathname.endsWith('/tags');
   const isAllNotesPage =
     !selectedItemId && !isTagsPage && location.pathname === `/s/${notebookToken}`;
 
-  const liveMenuItems =
-    useLiveQuery(() => MenuService.getMenuItemsByNotebook(notebookId), [notebookId]) || [];
-
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<{
     id?: string;
     parentId: string | null;
-    name: string;
+    title: string;
     type: 'note' | 'search';
-    target: string;
+    search: string;
   } | null>(null);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -99,49 +117,47 @@ export function NotebookSidebar({
   const handleReorder = async (
     updates: { id: string; order: number; parentId: string | null }[],
   ) => {
-    await MenuService.reorderMenuItems(updates);
+    await menuActions.reorder(updates);
   };
 
   const handleOpenAdd = (parentId: string | null = null) => {
     setEditingItem({
       parentId,
-      name: '',
+      title: '',
       type: 'search',
-      target: '',
+      search: '',
     });
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (item: MenuItem) => {
+  const handleOpenEdit = (item: RuntimeMenuItem) => {
     setEditingItem({
       id: item.id,
       parentId: item.parentId,
-      name: item.name,
+      title: item.title,
       type: item.type,
-      target: item.target,
+      search: item.search || '',
     });
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
-    if (!editingItem || !editingItem.name.trim()) return;
+    if (!editingItem || !editingItem.title.trim()) return;
 
     try {
       if (editingItem.id) {
-        await MenuService.updateMenuItem(editingItem.id, {
-          name: editingItem.name,
+        await menuActions.update(editingItem.id, {
+          title: editingItem.title,
           type: editingItem.type,
-          target: editingItem.target,
+          search: editingItem.search,
         });
         toast.success('Menu item updated');
       } else {
-        await MenuService.createMenuItem({
-          notebookId,
+        await menuActions.add({
           parentId: editingItem.parentId,
-          name: editingItem.name,
+          title: editingItem.title,
           type: editingItem.type,
-          target: editingItem.target,
-          order: liveMenuItems.length,
+          search: editingItem.search,
         });
         toast.success('Menu item created');
       }
@@ -160,7 +176,7 @@ export function NotebookSidebar({
   const confirmDelete = async () => {
     if (menuItemToDelete) {
       try {
-        await MenuService.deleteMenuItem(menuItemToDelete);
+        await menuActions.delete(menuItemToDelete);
         setMenuItemToDelete(null);
         setIsDeleteDialogOpen(false);
         toast.success('Menu item deleted');
@@ -170,24 +186,24 @@ export function NotebookSidebar({
     }
   };
 
-  const moveUp = async (item: MenuItem) => {
-    const siblings = liveMenuItems.filter((i) => i.parentId === item.parentId);
+  const moveUp = async (item: RuntimeMenuItem) => {
+    const siblings = menuItems.filter((i) => i.parentId === item.parentId);
     const index = siblings.findIndex((i) => i.id === item.id);
     if (index > 0) {
       const prev = siblings[index - 1];
-      await MenuService.reorderMenuItems([
+      await menuActions.reorder([
         { id: item.id, order: prev.order, parentId: item.parentId },
         { id: prev.id, order: item.order, parentId: item.parentId },
       ]);
     }
   };
 
-  const moveDown = async (item: MenuItem) => {
-    const siblings = liveMenuItems.filter((i) => i.parentId === item.parentId);
+  const moveDown = async (item: RuntimeMenuItem) => {
+    const siblings = menuItems.filter((i) => i.parentId === item.parentId);
     const index = siblings.findIndex((i) => i.id === item.id);
     if (index < siblings.length - 1) {
       const next = siblings[index + 1];
-      await MenuService.reorderMenuItems([
+      await menuActions.reorder([
         { id: item.id, order: next.order, parentId: item.parentId },
         { id: next.id, order: item.order, parentId: item.parentId },
       ]);
@@ -204,7 +220,7 @@ export function NotebookSidebar({
           >
             <Book className="w-4 h-4 text-primary shrink-0" />
             <span className="font-semibold truncate text-sidebar-foreground">
-              {currentNotebook?.name || 'Notebook'}
+              {notebookName || 'Notebook'}
             </span>
           </Button>
         ) : (
@@ -216,7 +232,7 @@ export function NotebookSidebar({
               >
                 <Book className="w-4 h-4 text-primary shrink-0" />
                 <span className="font-semibold truncate text-sidebar-foreground">
-                  {currentNotebook?.name || 'Notebook'}
+                  {notebookName || 'Notebook'}
                 </span>
                 <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
               </Button>
@@ -225,7 +241,7 @@ export function NotebookSidebar({
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                 Switch Notebook
               </div>
-              {notebooks.map((nb) => (
+              {notebooks?.map((nb) => (
                 <DropdownMenuItem
                   key={nb.id}
                   onClick={() => {
@@ -299,7 +315,7 @@ export function NotebookSidebar({
           </button>
 
           <TreeMenu
-            items={liveMenuItems}
+            items={menuItems}
             onReorder={handleReorder}
             selectedItemId={selectedItemId}
             renderDragOverlay={(node) => (
@@ -310,7 +326,7 @@ export function NotebookSidebar({
                 ) : (
                   <FileText className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />
                 )}
-                <span className="truncate font-medium text-sm">{node.name}</span>
+                <span className="truncate font-medium text-sm">{node.title}</span>
               </>
             )}
             renderItemContent={(node) => (
@@ -319,8 +335,8 @@ export function NotebookSidebar({
                 className="flex items-center gap-1 min-w-0 flex-1 overflow-hidden text-left cursor-pointer"
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (node.type === 'note') onSelectNote(node.target, node.id);
-                  else onSelectSearch(node.target, node.id);
+                  if (node.type === 'note') onSelectNote(node.note_id || '', node.id);
+                  else onSelectSearch(node.search || '', node.id);
                 }}
               >
                 {node.type === 'search' ? (
@@ -330,7 +346,7 @@ export function NotebookSidebar({
                 )}
 
                 <span className="truncate text-ellipsis overflow-hidden whitespace-nowrap ml-1">
-                  {node.name}
+                  {node.title}
                 </span>
               </button>
             )}
@@ -365,7 +381,7 @@ export function NotebookSidebar({
             )}
           />
 
-          {liveMenuItems.length === 0 && (
+          {menuItems.length === 0 && (
             <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
               <p className="text-xs text-muted-foreground mb-4">No menu items created yet</p>
               <Button variant="outline" size="sm" onClick={() => handleOpenAdd(null)}>
@@ -453,20 +469,20 @@ export function NotebookSidebar({
             {editingItem && (
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Name</Label>
+                  <Label htmlFor="title">Name</Label>
                   <Input
-                    id="name"
-                    value={editingItem.name}
-                    onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                    id="title"
+                    value={editingItem.title}
+                    onChange={(e) => setEditingItem({ ...editingItem, title: e.target.value })}
                     placeholder="Menu name"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="target">Search Query</Label>
+                  <Label htmlFor="search">Search Query</Label>
                   <Input
-                    id="target"
-                    value={editingItem.target}
-                    onChange={(e) => setEditingItem({ ...editingItem, target: e.target.value })}
+                    id="search"
+                    value={editingItem.search}
+                    onChange={(e) => setEditingItem({ ...editingItem, search: e.target.value })}
                     placeholder="e.g. #tag1 keyword"
                   />
                 </div>

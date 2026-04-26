@@ -8,6 +8,7 @@ export {
   serializeNote,
 } from './frontmatter';
 export { createIndexService, type IndexService } from './index-service';
+export { createVaultMenuService, type VaultMenuService } from './menu-service';
 export {
   flattenMenuItems,
   nestifyMenuItems,

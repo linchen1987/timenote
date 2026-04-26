@@ -2,6 +2,8 @@
 
 > 子文档: [索引与搜索](./design-index-search.md) | [同步](./design-sync.md) | [迁移与导入导出](./design-migration.md)
 
+> vault 规范: [vault 规范](./vault-design.md)
+
 ## 1. 概述
 
 ### 1.1 目标

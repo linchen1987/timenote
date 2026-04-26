@@ -1,4 +1,10 @@
-import { type ParsedNote, parseNote, parseNoteSafe, serializeNote } from './frontmatter';
+import {
+  normalizeTags,
+  type ParsedNote,
+  parseNote,
+  parseNoteSafe,
+  serializeNote,
+} from './frontmatter';
 import { createIndexService, type IndexService } from './index-service';
 import {
   generateNoteId,
@@ -43,11 +49,13 @@ class VaultNoteServiceImpl implements VaultNoteService {
   async createNote(projectId: string, content?: string): Promise<string> {
     const noteId = generateNoteId();
     const now = new Date().toISOString();
+    const body = content ?? '';
+    const extractedTags = extractTagsFromBody(body);
     const fm: NoteFrontmatter = {
       created_at: now,
       updated_at: now,
+      ...(extractedTags.length > 0 ? { tags: extractedTags } : {}),
     };
-    const body = content ?? '';
     const raw = serializeNote(fm, body);
 
     const transport = this.vaultService.getOpfsTransport(projectId);
@@ -79,9 +87,13 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
     const existing = parseNote(await transport.read(path));
     const now = new Date().toISOString();
+    const extractedTags = extractTagsFromBody(content);
+    const existingTags = normalizeTags(existing.frontmatter.tags);
+    const mergedTags = [...new Set([...existingTags, ...extractedTags])];
     const updatedFm: NoteFrontmatter = {
       ...existing.frontmatter,
       updated_at: now,
+      ...(mergedTags.length > 0 ? { tags: mergedTags } : {}),
     };
     const raw = serializeNote(updatedFm, content);
     await transport.write(path, raw);
@@ -227,4 +239,10 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
   }
 
   return { tags, textTerms };
+}
+
+function extractTagsFromBody(body: string): string[] {
+  const hashtagRegex = /#([\w\u4e00-\u9fa5]+)/g;
+  const matches = body.matchAll(hashtagRegex);
+  return Array.from(new Set(Array.from(matches).map((m) => m[1])));
 }

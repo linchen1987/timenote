@@ -1,17 +1,30 @@
 import { cn, noteIdToUrl, parseNotebookId, STORAGE_KEYS, useSidebarStore } from '@timenote/core';
+import type { RuntimeMenuItem } from '@timenote/core/vault';
 import { GripVertical } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
-import { NotebookSidebar } from './notebook-sidebar';
+import { type MenuActions, NotebookSidebar } from './notebook-sidebar';
 import { Sheet, SheetContent } from './ui/sheet';
 
 export interface NotebookLayoutProps {
   isPWA: boolean;
   onSaveLastNotebook?: (token: string) => void;
   extraEffects?: (notebookToken: string) => undefined | (() => void);
+  notebookName?: string;
+  notebooks?: { id: string; name: string }[];
+  menuItems?: RuntimeMenuItem[];
+  menuActions?: MenuActions;
 }
 
-export function NotebookLayout({ isPWA, onSaveLastNotebook, extraEffects }: NotebookLayoutProps) {
+export function NotebookLayout({
+  isPWA,
+  onSaveLastNotebook,
+  extraEffects,
+  notebookName,
+  notebooks,
+  menuItems,
+  menuActions,
+}: NotebookLayoutProps) {
   const { notebookToken } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -82,6 +95,23 @@ export function NotebookLayout({ isPWA, onSaveLastNotebook, extraEffects }: Note
     };
   }, [isResizing]);
 
+  const sidebarProps = {
+    notebookId: nbId,
+    notebookName,
+    notebooks,
+    menuItems: menuItems ?? [],
+    menuActions: menuActions ?? {
+      reorder: async () => {},
+      add: async () => {},
+      update: async () => {},
+      delete: async () => {},
+    },
+    onSelectSearch: handleSelectSearch,
+    onSelectNote: handleSelectNote,
+    selectedItemId: activeMenuItemId,
+    isPWA,
+  };
+
   return (
     <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <div
@@ -92,14 +122,7 @@ export function NotebookLayout({ isPWA, onSaveLastNotebook, extraEffects }: Note
         style={{ width: isDesktopSidebarOpen ? `${sidebarWidth + 8}px` : '0px' }}
       >
         <div style={{ width: `${sidebarWidth}px` }}>
-          <NotebookSidebar
-            notebookId={nbId}
-            onSelectSearch={handleSelectSearch}
-            onSelectNote={handleSelectNote}
-            selectedItemId={activeMenuItemId}
-            isPWA={isPWA}
-            onClose={() => setDesktopSidebarOpen(false)}
-          />
+          <NotebookSidebar {...sidebarProps} onClose={() => setDesktopSidebarOpen(false)} />
         </div>
         <button
           type="button"
@@ -115,12 +138,8 @@ export function NotebookLayout({ isPWA, onSaveLastNotebook, extraEffects }: Note
       <Sheet open={isMobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
         <SheetContent side="left" className="p-0 w-72 border-none">
           <NotebookSidebar
-            notebookId={nbId}
-            onSelectSearch={handleSelectSearch}
-            onSelectNote={handleSelectNote}
+            {...sidebarProps}
             onSelectNotebook={() => setMobileSidebarOpen(false)}
-            selectedItemId={activeMenuItemId}
-            isPWA={isPWA}
             className="w-full border-none"
           />
         </SheetContent>

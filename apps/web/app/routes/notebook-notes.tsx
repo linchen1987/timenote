@@ -1,7 +1,7 @@
 'use client';
 
 import { type NoteIndex, noteIdToUrl, parseNotebookId } from '@timenote/core';
-import { Button, Card, CardContent, Input } from '@timenote/ui';
+import { Button, Card, CardContent, Input, Label } from '@timenote/ui';
 import MarkdownEditor, {
   type MarkdownEditorRef,
 } from '@timenote/ui/components/editor/markdown-editor';
@@ -17,6 +17,13 @@ import {
   AlertDialogTitle,
 } from '@timenote/ui/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@timenote/ui/components/ui/dialog';
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -24,7 +31,9 @@ import {
 } from '@timenote/ui/components/ui/dropdown-menu';
 import {
   Calendar,
+  Maximize2,
   MoreVertical,
+  PlusSquare,
   Search as SearchIcon,
   SendHorizontal,
   Trash2,
@@ -38,7 +47,7 @@ import { useVaultStore } from '~/lib/vault-store';
 export default function VaultTimelinePage() {
   const { notebookToken } = useParams();
   const projectId = parseNotebookId(notebookToken || '');
-  const { activateVault, getNoteService } = useVaultStore();
+  const { getNoteService } = useVaultStore();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get('q') || '';
@@ -49,6 +58,9 @@ export default function VaultTimelinePage() {
   const [composerContent, setComposerContent] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
+  const [isMenuDialogOpen, setIsMenuDialogOpen] = useState(false);
+  const [menuNoteId, setMenuNoteId] = useState<string | null>(null);
+  const [menuName, setMenuName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [vaultName, setVaultName] = useState('');
   const [ready, setReady] = useState(false);
@@ -103,11 +115,37 @@ export default function VaultTimelinePage() {
     setInputQuery(query);
   }, [searchParams]);
 
+  const syncTagsToMenu = async (content: string) => {
+    if (!projectId) return;
+    const hashtagRegex = /#([\w\u4e00-\u9fa5]+)/g;
+    const matches = content.matchAll(hashtagRegex);
+    const tagNames = Array.from(new Set(Array.from(matches).map((m) => m[1])));
+    if (tagNames.length === 0) return;
+
+    const currentItems = useVaultStore.getState().menuItems;
+    const existingSearches = new Set(
+      currentItems.filter((i) => i.type === 'search').map((i) => i.search),
+    );
+
+    const store = useVaultStore.getState();
+    for (const tag of tagNames) {
+      if (!existingSearches.has(`#${tag}`)) {
+        await store.addMenuItem(projectId, {
+          parentId: null,
+          title: tag,
+          type: 'search',
+          search: `#${tag}`,
+        });
+      }
+    }
+  };
+
   const handleComposerSubmit = async () => {
     if (!composerContent.trim() || !projectId) return;
     try {
       const svc = getNoteService();
       await svc.createNote(projectId, composerContent);
+      await syncTagsToMenu(composerContent);
       setComposerContent('');
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
@@ -122,6 +160,7 @@ export default function VaultTimelinePage() {
     try {
       const svc = getNoteService();
       await svc.updateNote(projectId, noteId, content);
+      await syncTagsToMenu(content);
       setEditingId(null);
       await loadNotes();
     } catch (e) {
@@ -140,6 +179,24 @@ export default function VaultTimelinePage() {
       await loadNotes();
     } catch (e) {
       toast.error(`Failed to delete note: ${(e as Error).message}`);
+    }
+  };
+
+  const handleAddToMenu = async () => {
+    if (!menuNoteId || !menuName.trim() || !projectId) return;
+    try {
+      await useVaultStore.getState().addMenuItem(projectId, {
+        parentId: null,
+        title: menuName,
+        type: 'note',
+        note_id: menuNoteId,
+      });
+      setIsMenuDialogOpen(false);
+      setMenuNoteId(null);
+      setMenuName('');
+      toast.success('Added to menu');
+    } catch (e) {
+      toast.error(`Failed to add to menu: ${(e as Error).message}`);
     }
   };
 
@@ -241,6 +298,11 @@ export default function VaultTimelinePage() {
                 setNoteToDelete(id);
                 setIsDeleteDialogOpen(true);
               }}
+              onAddToMenu={(id) => {
+                setMenuNoteId(id);
+                setMenuName('');
+                setIsMenuDialogOpen(true);
+              }}
             />
           ))}
 
@@ -292,6 +354,39 @@ export default function VaultTimelinePage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isMenuDialogOpen} onOpenChange={setIsMenuDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Note to Menu</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleAddToMenu();
+            }}
+          >
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="menu-name">Menu Name</Label>
+                <Input
+                  id="menu-name"
+                  value={menuName}
+                  onChange={(e) => setMenuName(e.target.value)}
+                  placeholder="Enter menu name"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsMenuDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -305,6 +400,7 @@ function NoteCard({
   onLoadBody,
   onUpdate,
   onDelete,
+  onAddToMenu,
 }: {
   note: NoteIndex;
   notebookToken: string;
@@ -314,6 +410,7 @@ function NoteCard({
   onLoadBody: (id: string) => Promise<string>;
   onUpdate: (id: string, content: string) => Promise<void>;
   onDelete: (id: string) => void;
+  onAddToMenu: (id: string) => void;
 }) {
   const [body, setBody] = useState<string | null>(null);
   const isEditing = editingId === note.id;
@@ -348,7 +445,7 @@ function NoteCard({
           {note.tags.length > 0 && (
             <div className="flex gap-1">
               {note.tags.map((tag) => (
-                <span key={tag} className="text-xs bg-secondary px-1.5 py-0.5 rounded">
+                <span key={tag} className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                   #{tag}
                 </span>
               ))}
@@ -363,6 +460,14 @@ function NoteCard({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem asChild>
+                <Link to={`/s/${notebookToken}/${noteIdToUrl(note.id)}`} className="cursor-pointer">
+                  <Maximize2 className="w-4 h-4 mr-2" /> Full Screen
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onAddToMenu(note.id)}>
+                <PlusSquare className="w-4 h-4 mr-2" /> Add to menu
+              </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => onDelete(note.id)}
