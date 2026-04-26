@@ -1,4 +1,8 @@
 export {
+  createVaultExportService,
+  type VaultExportService,
+} from './export-service';
+export {
   normalizeAliases,
   normalizeTags,
   normalizeTitle,
@@ -8,6 +12,11 @@ export {
   serializeNote,
 } from './frontmatter';
 export { computeContentHash } from './hash';
+export {
+  createVaultImportService,
+  type ImportResult,
+  type VaultImportService,
+} from './import-service';
 export { createIndexService, type IndexService } from './index-service';
 export { createVaultMenuService, type VaultMenuService } from './menu-service';
 export {

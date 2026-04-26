@@ -25,6 +25,7 @@ import {
 } from '@timenote/ui';
 import {
   ArrowRight,
+  Download,
   Edit2,
   Github,
   Globe,
@@ -38,8 +39,9 @@ import {
   Settings,
   Sun,
   Trash2,
+  Upload,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
 import { toast } from 'sonner';
 import { useVaultStore, type VaultMeta } from '~/lib/vault-store';
@@ -89,7 +91,7 @@ function ThemeToggle() {
 }
 
 export default function NotebooksPage() {
-  const { listVaults, createVault, deleteVault } = useVaultStore();
+  const { listVaults, createVault, deleteVault, exportVault, importVault } = useVaultStore();
   const [vaults, setVaults] = useState<VaultMeta[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
@@ -97,6 +99,9 @@ export default function NotebooksPage() {
   const [editName, setEditName] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [vaultToDelete, setVaultToDelete] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -134,6 +139,37 @@ export default function NotebooksPage() {
       await refresh();
     } catch (e) {
       toast.error(`Delete failed: ${(e as Error).message}`);
+    }
+  };
+
+  const handleExport = async (projectId: string) => {
+    setIsExporting(projectId);
+    try {
+      await exportVault(projectId);
+      toast.success('Vault exported');
+    } catch (e) {
+      toast.error(`Export failed: ${(e as Error).message}`);
+    } finally {
+      setIsExporting(null);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    try {
+      const result = await importVault(file);
+      toast.success(`Imported "${result.vaultName}" with ${result.notesCount} notes`);
+      if (result.errors.length > 0) {
+        toast.warning(`${result.errors.length} files skipped during import`);
+      }
+      await refresh();
+    } catch (e) {
+      toast.error(`Import failed: ${(e as Error).message}`);
+    } finally {
+      setIsImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
     }
   };
 
@@ -232,6 +268,22 @@ export default function NotebooksPage() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".zip"
+                className="hidden"
+                onChange={handleImport}
+              />
+              <Button
+                onClick={() => importInputRef.current?.click()}
+                size="lg"
+                variant="outline"
+                disabled={isImporting}
+                className="h-12 rounded-2xl gap-2 px-8 font-black"
+              >
+                <Upload className="w-5 h-5" /> {isImporting ? '导入中...' : '导入笔记本'}
+              </Button>
               <Button
                 onClick={() => setIsCreating(true)}
                 size="lg"
@@ -303,6 +355,13 @@ export default function NotebooksPage() {
                           className="rounded-xl gap-2 cursor-pointer"
                         >
                           <Edit2 className="w-4 h-4" /> 重命名
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="rounded-xl gap-2 cursor-pointer"
+                          onClick={() => handleExport(v.projectId)}
+                          disabled={isExporting === v.projectId}
+                        >
+                          <Download className="w-4 h-4" /> 导出
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           className="text-destructive focus:text-destructive rounded-xl gap-2 cursor-pointer"

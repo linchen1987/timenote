@@ -1,12 +1,17 @@
 import {
   createPrefixedTransport,
+  createVaultExportService,
+  createVaultImportService,
   createVaultMenuService,
   createVaultNoteService,
   createVaultService,
   createVaultSyncService,
+  type ImportResult,
   type RemoteTransport,
   type RuntimeMenuItem,
   type SyncResult,
+  type VaultExportService,
+  type VaultImportService,
   type VaultMenuService,
   type VaultMeta,
   type VaultNoteService,
@@ -22,6 +27,8 @@ interface VaultStore {
   noteService: VaultNoteService | null;
   menuService: VaultMenuService | null;
   syncService: VaultSyncService | null;
+  exportService: VaultExportService | null;
+  importService: VaultImportService | null;
   menuItems: RuntimeMenuItem[];
   vaults: VaultMeta[];
   activeProjectId: string | null;
@@ -63,6 +70,9 @@ interface VaultStore {
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
   push: (projectId: string) => Promise<SyncResult>;
+
+  exportVault: (projectId: string) => Promise<void>;
+  importVault: (file: File) => Promise<ImportResult>;
 }
 
 const remoteTransport: RemoteTransport = {
@@ -84,6 +94,8 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   noteService: null,
   menuService: null,
   syncService: null,
+  exportService: null,
+  importService: null,
   menuItems: [],
   vaults: [],
   activeProjectId: null,
@@ -96,7 +108,9 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     const noteService = createVaultNoteService(vaultService);
     const menuService = createVaultMenuService(vaultService);
     const syncService = createVaultSyncService(vaultService, noteService);
-    set({ vaultService, noteService, menuService, syncService });
+    const exportService = createVaultExportService(vaultService);
+    const importService = createVaultImportService(vaultService, noteService);
+    set({ vaultService, noteService, menuService, syncService, exportService, importService });
   },
 
   listVaults: async () => {
@@ -275,5 +289,19 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     } finally {
       set({ isSyncing: false });
     }
+  },
+
+  exportVault: async (projectId: string) => {
+    const exportService = get().exportService;
+    if (!exportService) throw new Error('ExportService not initialized');
+    await exportService.downloadVault(projectId);
+  },
+
+  importVault: async (file: File) => {
+    const importService = get().importService;
+    if (!importService) throw new Error('ImportService not initialized');
+    const result = await importService.importVault(file);
+    await get().listVaults();
+    return result;
   },
 }));
