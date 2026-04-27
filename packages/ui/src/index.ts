@@ -14,7 +14,7 @@ export { NotebookTimeline, type NotebookTimelineProps } from './components/noteb
 export { PageHeader } from './components/page-header';
 export { StorageConfigCard, type StorageConfigCardProps } from './components/storage-config-card';
 export { SyncActions } from './components/sync-actions';
-export { TagsView, type TagsViewProps } from './components/tags-view';
+export { TagsView, type TagsViewProps, type TagWithCount } from './components/tags-view';
 export { type Theme, ThemeProvider, themeScript, useTheme } from './components/theme-provider';
 export { TreeMenu, type TreeMenuItemBase, type TreeMenuProps } from './components/tree-menu';
 export {

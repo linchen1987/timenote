@@ -579,7 +579,7 @@ apps/extension (接入 core 即可, 大量重复代码可消除)
 
 **ID 映射**: `nanoid(12)` → `YYYYMMDD-HHmmss-SSSR` (从 `createdAt` 生成)。迁移时内存中建立 `{ oldId → newId }` 映射，用于更新 menu.json 中的引用。
 
-#### Phase 6 UI 方案
+#### Phase 6 UI 方案 (Done)
 
 **页面结构**:
 
@@ -618,12 +618,12 @@ listNotebooks()            -> db.notebooks.toArray() + 统计 noteCount
 exportNotebook(id, onProgress?) -> 读取旧数据 → 构建 ZIP → 返回 Blob
 ```
 
-### Phase 7: Adapter 接入
+### Phase 7: Adapter 接入 (Hold)
 
 25. `WebDavTransport` (实现 `FsTransport`)，验证 WebDAV 同步
 26. Extension 端适配 (复用 core Service，消除 background fs-handler 重复代码)
 
-### Phase 8: 清理
+### Phase 8: 清理 (Hold)
 
 27. 移除旧 Dexie schema (保留迁移检测)
 28. 移除旧 Service 代码

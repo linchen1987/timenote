@@ -2,13 +2,23 @@ import Dexie, { type Table } from 'dexie';
 import { normalizeAliases, normalizeTags, normalizeTitle, parseNoteSafe } from './frontmatter';
 import type { NoteIndex } from './types';
 
+interface NoteBody {
+  id: string;
+  body: string;
+}
+
 class VaultIndexDB extends Dexie {
   notes!: Table<NoteIndex>;
+  bodies!: Table<NoteBody>;
 
   constructor() {
     super('TimenoteVaultIndex');
     this.version(1).stores({
       notes: 'id, title, updated_at, created_at, *tags',
+    });
+    this.version(2).stores({
+      notes: 'id, title, updated_at, created_at, *tags',
+      bodies: 'id',
     });
   }
 }
@@ -21,6 +31,8 @@ export interface IndexService {
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
   getIndex(noteId: string): Promise<NoteIndex | undefined>;
+  getAllNoteIds(): Promise<Set<string>>;
+  getAllBodies(): Promise<Map<string, string>>;
 }
 
 export function createIndexService(): IndexService {
@@ -45,14 +57,17 @@ class IndexServiceImpl implements IndexService {
     };
 
     await this.db.notes.put(index);
+    await this.db.bodies.put({ id: noteId, body: parsed.body });
   }
 
   async removeNoteIndex(noteId: string): Promise<void> {
     await this.db.notes.delete(noteId);
+    await this.db.bodies.delete(noteId);
   }
 
   async clearIndex(): Promise<void> {
     await this.db.notes.clear();
+    await this.db.bodies.clear();
   }
 
   async getTimeline(limit = 50, offset = 0): Promise<NoteIndex[]> {
@@ -78,5 +93,15 @@ class IndexServiceImpl implements IndexService {
 
   async getIndex(noteId: string): Promise<NoteIndex | undefined> {
     return this.db.notes.get(noteId);
+  }
+
+  async getAllNoteIds(): Promise<Set<string>> {
+    const all = await this.db.notes.toArray();
+    return new Set(all.map((n) => n.id));
+  }
+
+  async getAllBodies(): Promise<Map<string, string>> {
+    const all = await this.db.bodies.toArray();
+    return new Map(all.map((b) => [b.id, b.body]));
   }
 }

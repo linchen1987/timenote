@@ -121,11 +121,20 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async activateVault(projectId: string): Promise<void> {
-    await this.indexService.clearIndex();
-    this.searchProvider.clear();
+    const existingIds = await this.indexService.getAllNoteIds();
+
+    if (existingIds.size > 0) {
+      const bodies = await this.indexService.getAllBodies();
+      for (const [id, body] of bodies) {
+        this.searchProvider.add(id, body);
+      }
+    }
 
     const transport = this.vaultService.getOpfsTransport(projectId);
     const volumes = await transport.list('');
+
+    const opfsNoteIds = new Set<string>();
+    const notesToProcess: Array<{ noteId: string; path: string }> = [];
 
     for (const vol of volumes) {
       if (vol.type !== 'directory' || !isValidVolumeName(vol.basename)) continue;
@@ -134,14 +143,33 @@ class VaultNoteServiceImpl implements VaultNoteService {
         if (item.type === 'file' && isValidNoteFilename(item.basename)) {
           const noteId = noteIdFromFilename(item.basename);
           if (!noteId) continue;
+          opfsNoteIds.add(noteId);
 
-          const raw = await transport.read(`${vol.basename}/${item.basename}`);
-          await this.indexService.indexNote(noteId, raw);
-
-          const parsed = parseNoteSafe(raw);
-          if (parsed) this.searchProvider.add(noteId, parsed.body);
+          if (!existingIds.has(noteId)) {
+            notesToProcess.push({ noteId, path: `${vol.basename}/${item.basename}` });
+          }
         }
       }
+    }
+
+    for (const id of existingIds) {
+      if (!opfsNoteIds.has(id)) {
+        await this.indexService.removeNoteIndex(id);
+        this.searchProvider.remove(id);
+      }
+    }
+
+    const CONCURRENCY = 8;
+    for (let i = 0; i < notesToProcess.length; i += CONCURRENCY) {
+      const batch = notesToProcess.slice(i, i + CONCURRENCY);
+      await Promise.all(
+        batch.map(async ({ noteId, path }) => {
+          const raw = await transport.read(path);
+          await this.indexService.indexNote(noteId, raw);
+          const parsed = parseNoteSafe(raw);
+          if (parsed) this.searchProvider.add(noteId, parsed.body);
+        }),
+      );
     }
 
     this.activeProjectId = projectId;

@@ -91,11 +91,9 @@ export default function VaultTimelinePage() {
       try {
         await useVaultStore.getState().init();
         await useVaultStore.getState().activateVault(projectId);
-        const { createVaultService: cvs } = await import('@timenote/core/vault');
-        const vaultService = await cvs();
-        const manifest = await vaultService.readManifest(projectId);
+        const v = useVaultStore.getState().vaults.find((v) => v.projectId === projectId);
         if (cancelled) return;
-        setVaultName(manifest.name);
+        setVaultName(v?.name ?? '');
         setReady(true);
         const svc = useVaultStore.getState().getNoteService();
         const list = searchQuery

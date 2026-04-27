@@ -77,6 +77,8 @@ interface VaultStore {
     updates: { id: string; order: number; parentId: string | null }[],
   ) => Promise<void>;
 
+  getTagsWithCounts: () => Promise<{ name: string; count: number }[]>;
+
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
   push: (projectId: string) => Promise<SyncResult>;
@@ -263,6 +265,19 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
     });
     await get().menuService?.saveMenu(projectId, updated);
     set({ menuItems: updated });
+  },
+
+  getTagsWithCounts: async () => {
+    const svc = get().noteService;
+    if (!svc) return [];
+    const allTags = await svc.getAllTags();
+    const result: { name: string; count: number }[] = [];
+    for (const tag of allTags) {
+      const notes = await svc.getNotesByTag(tag);
+      result.push({ name: tag, count: notes.length });
+    }
+    result.sort((a, b) => b.count - a.count);
+    return result;
   },
 
   sync: async (projectId: string) => {
