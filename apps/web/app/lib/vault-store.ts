@@ -270,14 +270,7 @@ export const useVaultStore = create<VaultStore>((set, get) => ({
   getTagsWithCounts: async () => {
     const svc = get().noteService;
     if (!svc) return [];
-    const allTags = await svc.getAllTags();
-    const result: { name: string; count: number }[] = [];
-    for (const tag of allTags) {
-      const notes = await svc.getNotesByTag(tag);
-      result.push({ name: tag, count: notes.length });
-    }
-    result.sort((a, b) => b.count - a.count);
-    return result;
+    return svc.getTagsWithCounts();
   },
 
   sync: async (projectId: string) => {

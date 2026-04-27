@@ -30,6 +30,7 @@ export interface IndexService {
   getTimeline(limit?: number, offset?: number): Promise<NoteIndex[]>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
+  getTagsWithCounts(): Promise<{ name: string; count: number }[]>;
   getIndex(noteId: string): Promise<NoteIndex | undefined>;
   getAllNoteIds(): Promise<Set<string>>;
   getAllBodies(): Promise<Map<string, string>>;
@@ -81,14 +82,20 @@ class IndexServiceImpl implements IndexService {
   }
 
   async getAllTags(): Promise<string[]> {
+    return (await this.getTagsWithCounts()).map((t) => t.name);
+  }
+
+  async getTagsWithCounts(): Promise<{ name: string; count: number }[]> {
     const all = await this.db.notes.toArray();
-    const tagSet = new Set<string>();
+    const countMap = new Map<string, number>();
     for (const note of all) {
       for (const tag of note.tags) {
-        tagSet.add(tag);
+        countMap.set(tag, (countMap.get(tag) || 0) + 1);
       }
     }
-    return [...tagSet].sort();
+    return [...countMap.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count);
   }
 
   async getIndex(noteId: string): Promise<NoteIndex | undefined> {

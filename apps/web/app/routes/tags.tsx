@@ -22,10 +22,10 @@ export default function TagsPage() {
         await useVaultStore.getState().init();
         await useVaultStore.getState().activateVault(projectId);
         if (cancelled) return;
-        setReady(true);
         const result = await useVaultStore.getState().getTagsWithCounts();
         if (cancelled) return;
         setTags(result);
+        setReady(true);
       } catch (e) {
         console.error('Failed to activate vault:', e);
       }

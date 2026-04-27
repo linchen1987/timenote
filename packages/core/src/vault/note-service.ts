@@ -31,6 +31,7 @@ export interface VaultNoteService {
   searchNotes(query: string): Promise<NoteIndex[]>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
+  getTagsWithCounts(): Promise<{ name: string; count: number }[]>;
   getNoteIndex(noteId: string): Promise<NoteIndex | undefined>;
 }
 
@@ -242,6 +243,11 @@ class VaultNoteServiceImpl implements VaultNoteService {
   async getAllTags(): Promise<string[]> {
     this.ensureActive();
     return this.indexService.getAllTags();
+  }
+
+  async getTagsWithCounts(): Promise<{ name: string; count: number }[]> {
+    this.ensureActive();
+    return this.indexService.getTagsWithCounts();
   }
 
   async getNoteIndex(noteId: string): Promise<NoteIndex | undefined> {
