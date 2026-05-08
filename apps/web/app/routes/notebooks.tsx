@@ -43,6 +43,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { Link, type MetaFunction } from 'react-router';
+import { CONTACT_EMAIL } from '@timenote/core';
 import { useVaultStore } from '~/lib/vault-store';
 
 export const meta: MetaFunction = () => {
@@ -416,7 +417,9 @@ export default function NotebooksPage() {
             <div className="flex flex-wrap gap-8 items-center">
               <button
                 type="button"
-                onClick={copyEmail}
+                onClick={() => {
+                  navigator.clipboard.writeText(CONTACT_EMAIL);
+                }}
                 className="flex items-center gap-2 text-sm font-black text-muted-foreground hover:text-foreground transition-colors uppercase tracking-widest"
               >
                 <Mail className="w-4 h-4 text-primary" /> Email

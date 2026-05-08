@@ -36,6 +36,7 @@
 - **Import & Quotes**: Always use single quotes `'` and trailing semicolons `;`.
 - **Package Imports**: Use `@timenote/core` for core logic, `@timenote/ui` for UI components
 - **Web-specific imports**: Use `~/` alias for web-specific code (relative to `apps/web/app/`)
+- **Readability & Maintainability**: No inline magic values. Extract meaningful names for constants, keep config/logic/UI separated.
 
 ## Project Structure (Monorepo)
 - `packages/core/` - Shared core package (`@timenote/core`)

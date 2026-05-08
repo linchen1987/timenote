@@ -1,5 +1,7 @@
 export const NOTE_LIST_PAGE_SIZE = 20;
 
+export const CONTACT_EMAIL = 'link.lin.1987@gmail.com';
+
 export const STORAGE_KEYS = {
   THEME: 'theme',
   NOTES: '@timenote/notes',
