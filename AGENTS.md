@@ -12,7 +12,7 @@
 - **Hydration mismatch at `<html>` level**: Theme class (`light`/`dark`) differs between server and client, causing React hydration error. Fix: add `suppressHydrationWarning` on `<html>` in root layout. Client-side navigation (`<Link>`) always works fine.
 - **OPFS/Vault services are browser-only**: Never call `navigator.storage.getDirectory()`, `VaultService`, or `VaultNoteService` during SSR. All vault init must happen inside `useEffect`.
 
-## Vault Architecture (0.2.0)
+## Vault Architecture (2.0.0)
 - **OPFS is truth, IndexedDB is index**: Write OPFS first, then update index. Index can be fully rebuilt from OPFS.
 - **Single active vault**: `VaultNoteService.activateVault(projectId)` must complete before any query (listNotes, searchNotes, etc.). Combine activate + load in one useEffect to avoid race conditions.
 - **Transport caching**: `VaultService.listVaults()` caches OPFS transports. If you skip `listVaults()` before `getOpfsTransport()`, the transport won't be found. Always call `listVaults()` or `createVault()` first. In route components, call `activateVault()` (which internally calls `listVaults()`) before any note operations.
@@ -47,7 +47,7 @@
   - `src/stores/` - Zustand stores (sidebar, sync)
   - `src/hooks/` - Shared React hooks
   - `src/fs/` - File system abstraction layer (FsTransport interface)
-  - `src/vault/` - Vault subsystem (0.2.0 new architecture)
+  - `src/vault/` - Vault subsystem (2.0.0 new architecture)
     - `types.ts` - Zod schemas (NoteIndex, Manifest, etc.)
     - `note-id.ts` - ID generation (YYYYMMDD-HHmmss-SSSR format)
     - `frontmatter.ts` - YAML frontmatter parse/serialize (js-yaml based)

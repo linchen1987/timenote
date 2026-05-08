@@ -1,4 +1,4 @@
-# Timenote 0.2.0 重构设计文档
+# Timenote 2.0.0 重构设计文档
 
 > 子文档: [索引与搜索](./design-index-search.md) | [同步](./design-sync.md) | [迁移与导入导出](./design-migration.md)
 
@@ -12,7 +12,7 @@
 
 ### 1.2 核心变更
 
-| 维度 | 0.1.x (当前) | 0.2.0 (目标) |
+| 维度 | 0.1.x (当前) | 2.0.0 (目标) |
 |---|---|---|
 | 存储 | Dexie (IndexedDB) | OPFS (文件系统) + IndexedDB (索引) |
 | 数据格式 | Dexie tables | Markdown + YAML frontmatter + JSON |
@@ -618,9 +618,9 @@ listNotebooks()            -> db.notebooks.toArray() + 统计 noteCount
 exportNotebook(id, onProgress?) -> 读取旧数据 → 构建 ZIP → 返回 Blob
 ```
 
-### Phase 7: Adapter 接入 (Hold)
+### Phase 7: Adapter 接入
 
-25. `WebDavTransport` (实现 `FsTransport`)，验证 WebDAV 同步
+25. `WebDavTransport` (实现 `FsTransport`)，验证 WebDAV 同步 (Done)
 26. Extension 端适配 (复用 core Service，消除 background fs-handler 重复代码)
 
 ### Phase 8: 清理 (Hold)

@@ -1,4 +1,6 @@
 import type { FsTransport } from '../../fs/types';
+// TODO: WebDAV rate limiting — add delay between transfers and abort on consecutive errors
+// when uploading many files. S3 handles burst well but WebDAV servers (e.g. Koofr) throttle.
 import { computeContentHash } from '../spec/hash';
 import { type NoteId, parseNoteSafe } from '../spec/note';
 import { isValidNoteFilename, isValidVolumeName, volumeNameFromNoteId } from '../spec/note-id';
