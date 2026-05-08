@@ -1,3 +1,5 @@
+export const NOTE_LIST_PAGE_SIZE = 20;
+
 export const STORAGE_KEYS = {
   THEME: 'theme',
   NOTES: '@timenote/notes',

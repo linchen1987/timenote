@@ -6,7 +6,7 @@ import {
   parseNote,
   parseNoteSafe,
   serializeNote,
-} from './frontmatter';
+} from './note';
 
 describe('parseNote', () => {
   it('parses note with full frontmatter', () => {

@@ -1,6 +1,23 @@
 import Dexie, { type Table } from 'dexie';
-import { normalizeAliases, normalizeTags, normalizeTitle, parseNoteSafe } from './frontmatter';
-import type { NoteIndex } from './types';
+import { z } from 'zod';
+import {
+  NoteIdSchema,
+  normalizeAliases,
+  normalizeTags,
+  normalizeTitle,
+  parseNoteSafe,
+} from '../spec/note';
+
+export const NoteIndexSchema = z.object({
+  id: NoteIdSchema,
+  title: z.string(),
+  tags: z.array(z.string()),
+  aliases: z.array(z.string()),
+  created_at: z.number(),
+  updated_at: z.number(),
+});
+
+export type NoteIndex = z.infer<typeof NoteIndexSchema>;
 
 interface NoteBody {
   id: string;
@@ -34,6 +51,8 @@ export interface IndexService {
   getIndex(noteId: string): Promise<NoteIndex | undefined>;
   getAllNoteIds(): Promise<Set<string>>;
   getAllBodies(): Promise<Map<string, string>>;
+  getBody(noteId: string): Promise<string | undefined>;
+  getBodies(noteIds: string[]): Promise<Map<string, string>>;
 }
 
 export function createIndexService(): IndexService {
@@ -110,5 +129,15 @@ class IndexServiceImpl implements IndexService {
   async getAllBodies(): Promise<Map<string, string>> {
     const all = await this.db.bodies.toArray();
     return new Map(all.map((b) => [b.id, b.body]));
+  }
+
+  async getBody(noteId: string): Promise<string | undefined> {
+    const row = await this.db.bodies.get(noteId);
+    return row?.body;
+  }
+
+  async getBodies(noteIds: string[]): Promise<Map<string, string>> {
+    const rows = await this.db.bodies.where('id').anyOf(noteIds).toArray();
+    return new Map(rows.map((b) => [b.id, b.body]));
   }
 }

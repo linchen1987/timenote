@@ -1,6 +1,6 @@
 'use client';
 
-import { type NoteIndex, noteIdToUrl, parseNotebookId } from '@timenote/core';
+import { NOTE_LIST_PAGE_SIZE, type NoteIndex, noteIdToUrl, parseNotebookId } from '@timenote/core';
 import { Button, Card, CardContent, Input, Label } from '@timenote/ui';
 import MarkdownEditor, {
   type MarkdownEditorRef,
@@ -57,6 +57,7 @@ export default function VaultTimelinePage() {
   const [searchQuery, setSearchQuery] = useState(q);
 
   const [notes, setNotes] = useState<NoteIndex[]>([]);
+  const [bodiesMap, setBodiesMap] = useState<Map<string, string>>(new Map());
   const [composerContent, setComposerContent] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
@@ -77,12 +78,21 @@ export default function VaultTimelinePage() {
       const svc = useVaultStore.getState().getNoteService();
       const list = searchQuery
         ? await svc.searchNotes(searchQuery)
-        : await svc.listNotes({ limit: 100 });
+        : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE });
       setNotes(list);
+      if (projectId && list.length > 0) {
+        const bodies = await svc.getBodies(
+          projectId,
+          list.map((n) => n.id),
+        );
+        setBodiesMap(bodies);
+      } else {
+        setBodiesMap(new Map());
+      }
     } catch (e) {
       toast.error(`Failed to load notes: ${(e as Error).message}`);
     }
-  }, [searchQuery]);
+  }, [searchQuery, projectId]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -98,9 +108,17 @@ export default function VaultTimelinePage() {
         const svc = useVaultStore.getState().getNoteService();
         const list = searchQuery
           ? await svc.searchNotes(searchQuery)
-          : await svc.listNotes({ limit: 100 });
+          : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE });
         if (cancelled) return;
         setNotes(list);
+        if (projectId && list.length > 0) {
+          const bodies = await svc.getBodies(
+            projectId,
+            list.map((n) => n.id),
+          );
+          if (cancelled) return;
+          setBodiesMap(bodies);
+        }
       } catch (e) {
         if (!cancelled) toast.error(`Failed to activate vault: ${(e as Error).message}`);
       }
@@ -230,13 +248,6 @@ export default function VaultTimelinePage() {
     }
   };
 
-  const loadBody = async (noteId: string): Promise<string> => {
-    if (!projectId) return '';
-    const svc = getNoteService();
-    const note = await svc.getNote(projectId, noteId);
-    return note?.body ?? '';
-  };
-
   if (!ready) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -330,7 +341,7 @@ export default function VaultTimelinePage() {
               editingId={editingId}
               setEditingId={setEditingId}
               editorRef={editorRef}
-              onLoadBody={loadBody}
+              initialBody={bodiesMap.get(note.id) ?? null}
               onUpdate={handleUpdate}
               onDelete={(id) => {
                 setNoteToDelete(id);
@@ -435,7 +446,7 @@ function NoteCard({
   editingId,
   setEditingId,
   editorRef,
-  onLoadBody,
+  initialBody,
   onUpdate,
   onDelete,
   onAddToMenu,
@@ -445,25 +456,17 @@ function NoteCard({
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   editorRef: React.RefObject<MarkdownEditorRef | null>;
-  onLoadBody: (id: string) => Promise<string>;
+  initialBody: string | null;
   onUpdate: (id: string, content: string) => Promise<void>;
   onDelete: (id: string) => void;
   onAddToMenu: (id: string) => void;
 }) {
-  const [body, setBody] = useState<string | null>(null);
+  const [body, setBody] = useState<string | null>(initialBody);
   const isEditing = editingId === note.id;
 
   useEffect(() => {
-    if (!isEditing && body === null) {
-      onLoadBody(note.id).then(setBody);
-    }
-  }, [note.id, isEditing, body, onLoadBody]);
-
-  useEffect(() => {
-    if (isEditing && body === null) {
-      onLoadBody(note.id).then(setBody);
-    }
-  }, [isEditing, body, note.id, onLoadBody]);
+    setBody(initialBody);
+  }, [initialBody]);
 
   return (
     <Card className="group overflow-hidden transition-all duration-300 border-muted/60 hover:shadow-md hover:border-muted-foreground/20">

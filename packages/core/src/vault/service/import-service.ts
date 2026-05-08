@@ -1,19 +1,8 @@
 import JSZip from 'jszip';
-import { isValidNoteFilename, isValidVolumeName } from './note-id';
+import { ManifestSchema } from '../spec/manifest';
+import { classifyEntry, MAX_ZIP_SIZE, META_DIR, metaPath } from '../spec/vault-layout';
 import type { VaultNoteService } from './note-service';
-import { ManifestSchema } from './types';
 import type { VaultService } from './vault-service';
-
-const TIMENOTE_DIR = '.timenote';
-const MANIFEST_FILE = 'manifest.json';
-const MENU_FILE = 'menu.json';
-const DELETE_LOG_FILE = 'delete-log.json';
-const VALID_META_FILES = new Set([
-  `${TIMENOTE_DIR}/${MANIFEST_FILE}`,
-  `${TIMENOTE_DIR}/${MENU_FILE}`,
-  `${TIMENOTE_DIR}/${DELETE_LOG_FILE}`,
-]);
-const MAX_ZIP_SIZE = 100 * 1024 * 1024;
 
 export interface ImportResult {
   projectId: string;
@@ -49,7 +38,7 @@ class VaultImportServiceImpl implements VaultImportService {
     const zip = await JSZip.loadAsync(file);
     const errors: string[] = [];
 
-    const manifestData = zip.file(`${TIMENOTE_DIR}/${MANIFEST_FILE}`);
+    const manifestData = zip.file(metaPath('manifest'));
     if (!manifestData) {
       throw new Error('Invalid vault ZIP: missing .timenote/manifest.json');
     }
@@ -71,7 +60,7 @@ class VaultImportServiceImpl implements VaultImportService {
     }
 
     const newProjectId = await this.vaultService.createVault(manifest.name);
-    const transport = this.vaultService.getOpfsTransport(newProjectId);
+    const transport = this.vaultService.getTransport(newProjectId);
 
     let notesCount = 0;
     const zipEntries: string[] = [];
@@ -90,23 +79,26 @@ class VaultImportServiceImpl implements VaultImportService {
       const zipEntry = zip.file(relativePath);
       if (!zipEntry) continue;
 
-      if (VALID_META_FILES.has(relativePath)) {
-        if (relativePath === `${TIMENOTE_DIR}/${MANIFEST_FILE}`) continue;
+      const entryClass = classifyEntry(relativePath);
+
+      if (entryClass === 'manifest') continue;
+
+      if (entryClass === 'meta') {
         const content = await zipEntry.async('string');
         await transport.write(relativePath, content);
         continue;
       }
 
-      const parts = relativePath.split('/');
-      if (parts.length === 2 && isValidVolumeName(parts[0]) && isValidNoteFilename(parts[1])) {
+      if (entryClass === 'note') {
         const content = await zipEntry.async('string');
+        const parts = relativePath.split('/');
         await transport.ensureDir(parts[0]);
         await transport.write(relativePath, content);
         notesCount++;
         continue;
       }
 
-      if (!relativePath.startsWith(TIMENOTE_DIR)) {
+      if (!relativePath.startsWith(META_DIR)) {
         errors.push(`Skipped unrecognized file: ${relativePath}`);
       }
     }

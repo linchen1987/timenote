@@ -1,4 +1,4 @@
-import type { FsStat, FsTransport } from '../fs/types';
+import type { FsStat, FsTransport } from '../../fs/types';
 
 export interface OpfsTransport extends FsTransport {
   readBinary(path: string): Promise<ArrayBuffer>;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SimpleSearchProvider } from './search-provider';
+import { SimpleSearchProvider } from './provider/search-provider';
 
 describe('SimpleSearchProvider', () => {
   it('adds and searches content', () => {

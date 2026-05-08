@@ -1,4 +1,4 @@
-export { STORAGE_KEYS } from './constants';
+export { NOTE_LIST_PAGE_SIZE, STORAGE_KEYS } from './constants';
 export {
   ALL_TABLES,
   type AppTableName,
@@ -60,4 +60,4 @@ export {
   parseNotebookName,
 } from './utils/token';
 
-export { noteIdFromUrl, noteIdToUrl } from './vault/note-id';
+export { noteIdFromUrl, noteIdToUrl } from './vault/spec/note-id';

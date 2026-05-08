@@ -1,9 +1,15 @@
 import JSZip from 'jszip';
-import { db } from '../db';
-import type { MenuItem as OldMenuItem, Note as OldNote, Notebook as OldNotebook } from '../types';
-import { filenameFromNoteId, generateNoteId, volumeNameFromNoteId } from './note-id';
-import { serializeNote, type NoteFrontmatter } from './frontmatter';
-import type { Manifest, MenuData, MenuItem } from './types';
+import { db } from '../../db';
+import type {
+  MenuItem as OldMenuItem,
+  Note as OldNote,
+  Notebook as OldNotebook,
+} from '../../types';
+import type { Manifest } from '../spec/manifest';
+import type { MenuData, MenuItem } from '../spec/menu';
+import { type NoteFrontmatter, serializeNote } from '../spec/note';
+import { filenameFromNoteId, generateNoteId, volumeNameFromNoteId } from '../spec/note-id';
+import { metaPath } from '../spec/vault-layout';
 
 export interface LegacyNotebookInfo {
   id: string;
@@ -108,13 +114,13 @@ class MigrationServiceImpl implements MigrationService {
     const zip = new JSZip();
 
     const manifest = this.buildManifest(notebook);
-    zip.file('.timenote/manifest.json', JSON.stringify(manifest, null, 2));
+    zip.file(metaPath('manifest'), JSON.stringify(manifest, null, 2));
 
     const menuData = this.buildMenuData(menuItems, idMapping);
-    zip.file('.timenote/menu.json', JSON.stringify(menuData, null, 2));
+    zip.file(metaPath('menu'), JSON.stringify(menuData, null, 2));
 
     const deleteLog = { version: 1, records: {} };
-    zip.file('.timenote/delete-log.json', JSON.stringify(deleteLog, null, 2));
+    zip.file(metaPath('deleteLog'), JSON.stringify(deleteLog, null, 2));
 
     onProgress?.({
       phase: 'writing',
@@ -182,7 +188,7 @@ class MigrationServiceImpl implements MigrationService {
   }
 
   private buildManifest(notebook: OldNotebook): Manifest {
-    const now = new Date().toISOString();
+    const _now = new Date().toISOString();
     return {
       project_id: notebook.id,
       name: notebook.name,

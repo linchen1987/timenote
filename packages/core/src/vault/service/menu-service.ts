@@ -1,5 +1,5 @@
+import type { RuntimeMenuItem } from '../spec/menu';
 import { flattenMenuItems, nestifyMenuItems } from './menu-transform';
-import type { RuntimeMenuItem } from './types';
 import type { VaultService } from './vault-service';
 
 export interface VaultMenuService {

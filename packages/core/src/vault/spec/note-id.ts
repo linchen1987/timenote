@@ -1,4 +1,4 @@
-import { type NoteId, NoteIdSchema, type VolumeName, VolumeNameSchema } from './types';
+import { type NoteId, NoteIdSchema, type VolumeName, VolumeNameSchema } from './note';
 
 const VOLUME_RE = /^[0-9]{4}-[0-9]{2}$/;
 const NOTE_FILENAME_RE = /^[0-9]{8}-[0-9]{6}-[0-9]{4}\.[a-zA-Z0-9]+$/;

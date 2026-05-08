@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { MenuItem, RuntimeMenuItem } from '../spec/menu';
 import { flattenMenuItems, nestifyMenuItems, updateMenuNoteId } from './menu-transform';
-import type { MenuItem, RuntimeMenuItem } from './types';
 
 describe('flattenMenuItems', () => {
   it('flattens simple flat menu', () => {

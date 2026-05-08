@@ -1,14 +1,11 @@
-import type { FsTransport } from '../fs/types';
-import { parseNoteSafe } from './frontmatter';
-import { computeContentHash } from './hash';
-import {
-  isValidNoteFilename,
-  isValidVolumeName,
-  type NoteId,
-  volumeNameFromNoteId,
-} from './note-id';
+import type { FsTransport } from '../../fs/types';
+import { computeContentHash } from '../spec/hash';
+import { type NoteId, parseNoteSafe } from '../spec/note';
+import { isValidNoteFilename, isValidVolumeName, volumeNameFromNoteId } from '../spec/note-id';
+import { type SyncEntity, type SyncLedger, SyncLedgerSchema } from '../spec/sync-ledger';
+import { META_DIR, metaPath, SYNCABLE_META_FILES, syncLedgerPath } from '../spec/vault-layout';
 import type { VaultNoteService } from './note-service';
-import { type SyncEntity, type SyncLedger, SyncLedgerSchema } from './types';
+import { compareEntities, mergeEntities } from './sync-algorithm';
 import type { VaultService } from './vault-service';
 
 export interface RemoteTransport extends FsTransport {
@@ -34,8 +31,6 @@ export interface VaultSyncService {
   getSyncStatus(projectId: string): Promise<SyncStatus>;
   buildLocalLedger(projectId: string): Promise<SyncLedger>;
 }
-
-const META_KEYS = ['manifest.json', 'menu.json', 'delete-log.json'];
 
 export function createVaultSyncService(
   vaultService: VaultService,
@@ -72,7 +67,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
   }
 
   async buildLocalLedger(projectId: string): Promise<SyncLedger> {
-    const local = this.vaultService.getOpfsTransport(projectId);
+    const local = this.vaultService.getTransport(projectId);
     const entities: Record<string, SyncEntity> = {};
     const metaFiles: Record<string, SyncEntity> = {};
 
@@ -95,9 +90,9 @@ class VaultSyncServiceImpl implements VaultSyncService {
       }
     }
 
-    for (const mf of META_KEYS) {
+    for (const mf of SYNCABLE_META_FILES) {
       try {
-        const content = await local.read(`.timenote/${mf}`);
+        const content = await local.read(metaPath(mf as 'manifest' | 'menu' | 'deleteLog'));
         metaFiles[mf] = { h: await computeContentHash(content), u: new Date().toISOString() };
       } catch {
         // skip missing meta files
@@ -139,7 +134,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
     let remoteLedger: SyncLedger;
     try {
-      const content = await remote.read('.timenote/sync-ledger.json');
+      const content = await remote.read(syncLedgerPath());
       remoteLedger = SyncLedgerSchema.parse(JSON.parse(content));
     } catch {
       remoteLedger = {
@@ -150,20 +145,12 @@ class VaultSyncServiceImpl implements VaultSyncService {
       };
     }
 
-    const notePlan = this.compareEntities(
-      localLedger.entities,
-      remoteLedger.entities,
-      direction,
-      result,
-    );
-    const metaPlan = this.compareEntities(
-      localLedger.meta_files,
-      remoteLedger.meta_files,
-      direction,
-      result,
-    );
+    const notePlan = compareEntities(localLedger.entities, remoteLedger.entities, direction);
+    result.conflicts += notePlan.conflicts;
+    const metaPlan = compareEntities(localLedger.meta_files, remoteLedger.meta_files, direction);
+    result.conflicts += metaPlan.conflicts;
 
-    const local = this.vaultService.getOpfsTransport(projectId);
+    const local = this.vaultService.getTransport(projectId);
 
     if (direction !== 'push') {
       for (const key of notePlan.toPull) {
@@ -177,8 +164,9 @@ class VaultSyncServiceImpl implements VaultSyncService {
       }
       for (const mf of metaPlan.toPull) {
         try {
-          const content = await remote.read(`.timenote/${mf}`);
-          await local.write(`.timenote/${mf}`, content);
+          const mp = metaPath(mf as 'manifest' | 'menu' | 'deleteLog');
+          const content = await remote.read(mp);
+          await local.write(mp, content);
           result.pulled++;
         } catch (e) {
           result.errors.push(`Pull meta ${mf}: ${(e as Error).message}`);
@@ -206,9 +194,10 @@ class VaultSyncServiceImpl implements VaultSyncService {
       }
       for (const mf of metaPlan.toPush) {
         try {
-          const content = await local.read(`.timenote/${mf}`);
-          await remote.ensureDir('.timenote');
-          await remote.write(`.timenote/${mf}`, content);
+          const mp = metaPath(mf as 'manifest' | 'menu' | 'deleteLog');
+          const content = await local.read(mp);
+          await remote.ensureDir(META_DIR);
+          await remote.write(mp, content);
           result.pushed++;
         } catch (e) {
           result.errors.push(`Push meta ${mf}: ${(e as Error).message}`);
@@ -224,16 +213,8 @@ class VaultSyncServiceImpl implements VaultSyncService {
       }
     }
 
-    const mergedEntities = this.mergeEntities(
-      localLedger.entities,
-      remoteLedger.entities,
-      notePlan,
-    );
-    const mergedMeta = this.mergeEntities(
-      localLedger.meta_files,
-      remoteLedger.meta_files,
-      metaPlan,
-    );
+    const mergedEntities = mergeEntities(localLedger.entities, remoteLedger.entities, notePlan);
+    const mergedMeta = mergeEntities(localLedger.meta_files, remoteLedger.meta_files, metaPlan);
 
     const mergedLedger: SyncLedger = {
       version: 1,
@@ -244,8 +225,8 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
     await this.vaultService.writeSyncLedger(projectId, mergedLedger);
     try {
-      await remote.ensureDir('.timenote');
-      await remote.write('.timenote/sync-ledger.json', JSON.stringify(mergedLedger, null, 2));
+      await remote.ensureDir(META_DIR);
+      await remote.write(syncLedgerPath(), JSON.stringify(mergedLedger, null, 2));
     } catch (e) {
       result.errors.push(`Write remote ledger: ${(e as Error).message}`);
     }
@@ -255,102 +236,6 @@ class VaultSyncServiceImpl implements VaultSyncService {
     }
 
     return result;
-  }
-
-  private compareEntities(
-    localMap: Record<string, SyncEntity>,
-    remoteMap: Record<string, SyncEntity>,
-    direction: 'both' | 'pull' | 'push',
-    result: SyncResult,
-  ) {
-    const toPull: string[] = [];
-    const toPush: string[] = [];
-    const toDeleteRemote: string[] = [];
-    const toDeleteLocal: string[] = [];
-
-    const allKeys = new Set([...Object.keys(localMap), ...Object.keys(remoteMap)]);
-
-    for (const key of allKeys) {
-      const local = localMap[key];
-      const remote = remoteMap[key];
-
-      const localAlive = local && !('d' in local);
-      const localTomb = local && 'd' in local;
-      const remoteAlive = remote && !('d' in remote);
-      const remoteTomb = remote && 'd' in remote;
-
-      if (!remote) {
-        if (localTomb) {
-          if (direction !== 'pull') toDeleteRemote.push(key);
-        } else if (direction !== 'pull') {
-          toPush.push(key);
-        }
-      } else if (!local) {
-        if (remoteTomb) {
-          if (direction !== 'push') toDeleteLocal.push(key);
-        } else if (direction !== 'push') {
-          toPull.push(key);
-        }
-      } else if (localAlive && remoteAlive) {
-        if (local.h !== remote.h) {
-          result.conflicts++;
-          if (local.u > remote.u) {
-            if (direction !== 'pull') toPush.push(key);
-          } else if (direction !== 'push') {
-            toPull.push(key);
-          }
-        }
-      } else if (localAlive && remoteTomb) {
-        result.conflicts++;
-        if (local.u > remote.u) {
-          if (direction !== 'pull') toPush.push(key);
-        } else if (direction !== 'push') {
-          toDeleteLocal.push(key);
-        }
-      } else if (localTomb && remoteAlive) {
-        result.conflicts++;
-        if (local.u > remote.u) {
-          if (direction !== 'pull') toDeleteRemote.push(key);
-        } else if (direction !== 'push') {
-          toPull.push(key);
-        }
-      }
-    }
-
-    return { toPull, toPush, toDeleteRemote, toDeleteLocal };
-  }
-
-  private mergeEntities(
-    localMap: Record<string, SyncEntity>,
-    remoteMap: Record<string, SyncEntity>,
-    plan: { toPull: string[]; toPush: string[]; toDeleteLocal: string[]; toDeleteRemote: string[] },
-  ): Record<string, SyncEntity> {
-    const merged: Record<string, SyncEntity> = {};
-    const allKeys = new Set([...Object.keys(localMap), ...Object.keys(remoteMap)]);
-
-    const pulledSet = new Set(plan.toPull);
-    const pushedSet = new Set(plan.toPush);
-    const delLocalSet = new Set(plan.toDeleteLocal);
-    const delRemoteSet = new Set(plan.toDeleteRemote);
-
-    for (const key of allKeys) {
-      const local = localMap[key];
-      const remote = remoteMap[key];
-
-      if (pulledSet.has(key) || delLocalSet.has(key)) {
-        if (remote) merged[key] = remote;
-        else if (local) merged[key] = local;
-      } else if (pushedSet.has(key) || delRemoteSet.has(key)) {
-        if (local) merged[key] = local;
-        else if (remote) merged[key] = remote;
-      } else if (local) {
-        merged[key] = local;
-      } else if (remote) {
-        merged[key] = remote;
-      }
-    }
-
-    return merged;
   }
 }
 

@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import type { MenuItem, RuntimeMenuItem } from './types';
+import type { MenuItem, RuntimeMenuItem } from '../spec/menu';
 
 export function flattenMenuItems(
   items: MenuItem[],

@@ -3,7 +3,7 @@ import JSZip from 'jszip';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { db } from '../db';
 import type { MenuItem, Note, Notebook, NoteTag, Tag } from '../types';
-import { createMigrationService, type MigrationProgress } from './migration-service';
+import { createMigrationService, type MigrationProgress } from './service/migration-service';
 
 function createNotebook(overrides: Partial<Notebook> = {}): Notebook {
   const now = Date.now();
@@ -160,13 +160,13 @@ describe('MigrationService', () => {
       const result = await service.exportNotebook(nb.id);
       const zip = await JSZip.loadAsync(result.zipBuffer);
 
-      let noteContent = '';
+      let _noteContent = '';
       zip.forEach((path, file) => {
-        if (/\.md$/.test(path)) noteContent = file.name;
+        if (/\.md$/.test(path)) _noteContent = file.name;
       });
 
       const noteFile = Object.values(zip.files).find((f) => f.name.endsWith('.md') && !f.dir);
-      const content = await noteFile!.async('string');
+      const content = await noteFile?.async('string');
       expect(content).toContain('架构');
       expect(content).toContain('Web');
       expect(content).toContain('Tagged note');
@@ -276,7 +276,7 @@ describe('MigrationService', () => {
       const zip = await JSZip.loadAsync(result.zipBuffer);
 
       const noteFile = Object.values(zip.files).find((f) => f.name.endsWith('.md') && !f.dir);
-      const filename = noteFile!.name.split('/').pop()!;
+      const filename = noteFile?.name.split('/').pop()!;
       expect(filename).toMatch(/^\d{8}-\d{6}-\d{4}\.md$/);
     });
   });

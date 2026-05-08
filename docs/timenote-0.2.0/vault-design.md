@@ -112,7 +112,7 @@
     },
     
     // 墓碑节点, 从 delete-log.json 生成
-    // 30天过期自动删除, 不紧急(do NOT implement)
+    // 30天过期自动删除, 不必须(do NOT implement)
     "20260425-112010-1234": {
       "d": true, // deleted: true 标记为墓碑
       "u": "2026-04-25T14:30:00Z" // 删除动作发生的时间

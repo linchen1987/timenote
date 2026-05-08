@@ -1,8 +1,6 @@
 import JSZip from 'jszip';
-import type { VaultService } from './vault-service';
-
-const SYNC_LEDGER_FILE = 'sync-ledger.json';
-const TIMENOTE_DIR = '.timenote';
+import { syncLedgerPath } from '../spec/vault-layout';
+import type { VaultService, VaultTransport } from './vault-service';
 
 export interface VaultExportService {
   exportVault(projectId: string): Promise<Blob>;
@@ -17,7 +15,7 @@ class VaultExportServiceImpl implements VaultExportService {
   constructor(private vaultService: VaultService) {}
 
   async exportVault(projectId: string): Promise<Blob> {
-    const transport = this.vaultService.getOpfsTransport(projectId);
+    const transport = this.vaultService.getTransport(projectId);
     const zip = new JSZip();
 
     await this.addDirectoryToZip(zip, transport, '');
@@ -44,7 +42,7 @@ class VaultExportServiceImpl implements VaultExportService {
 
   private async addDirectoryToZip(
     zip: JSZip,
-    transport: ReturnType<VaultService['getOpfsTransport']>,
+    transport: VaultTransport,
     dirPath: string,
   ): Promise<void> {
     const entries = await transport.list(dirPath);
@@ -63,7 +61,7 @@ class VaultExportServiceImpl implements VaultExportService {
   }
 
   private shouldSkip(filePath: string): boolean {
-    if (filePath === `${TIMENOTE_DIR}/${SYNC_LEDGER_FILE}`) return true;
+    if (filePath === syncLedgerPath()) return true;
     return false;
   }
 }

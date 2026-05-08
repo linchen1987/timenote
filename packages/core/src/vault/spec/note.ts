@@ -1,5 +1,79 @@
 import { dump, load } from 'js-yaml';
-import { type NoteFrontmatter, NoteFrontmatterSchema } from './types';
+import { z } from 'zod';
+import { IsoDateString } from './manifest';
+
+/**
+ * # Note File — YAML Frontmatter + Markdown Body
+ *
+ * Path: {YYYY-MM}/{YYYYMMDD-HHmmss-SSSR}.md
+ * Core: yes (physical file = single source of truth)
+ *
+ * Volume pattern:  ^[0-9]{4}-[0-9]{2}$                        (e.g. "2026-04")
+ * Note ID pattern: ^[0-9]{8}-[0-9]{6}-[0-9]{4}$               (e.g. "20260425-121000-0457")
+ * Filename pattern: ^[0-9]{8}-[0-9]{6}-[0-9]{4}\\.[a-zA-Z0-9]+$ (e.g. "20260425-121000-0457.md")
+ *
+ * @example
+ * ---
+ * created_at: "2026-04-25T13:00:00Z"
+ * updated_at: "2026-04-25T12:10:00Z"
+ * _sync_u: "2026-04-25T12:10:00Z"
+ * tags: [tag1, tag2]
+ * title: "Note Title"
+ * aliases: ["alias"]
+ * type: markdown
+ * ---
+ * Note body here
+ */
+
+// ─── ID & Filename Schemas ──────────────────────────────────
+
+export const NoteIdSchema = z
+  .string()
+  .regex(/^[0-9]{8}-[0-9]{6}-[0-9]{4}$/, 'Note ID must match YYYYMMDD-HHmmss-SSSR format');
+
+export type NoteId = z.infer<typeof NoteIdSchema>;
+
+export const VolumeNameSchema = z
+  .string()
+  .regex(/^[0-9]{4}-[0-9]{2}$/, 'Volume name must match YYYY-MM format');
+
+export type VolumeName = z.infer<typeof VolumeNameSchema>;
+
+export const NoteFilenameSchema = z
+  .string()
+  .regex(
+    /^[0-9]{8}-[0-9]{6}-[0-9]{4}\.[a-zA-Z0-9]+$/,
+    'Note filename must match YYYYMMDD-HHmmss-SSSR.ext',
+  );
+
+// ─── Frontmatter Schema ─────────────────────────────────────
+
+export const NoteFrontmatterSchema = z
+  .object({
+    created_at: IsoDateString,
+    updated_at: IsoDateString,
+    _sync_u: IsoDateString.optional(),
+    tags: z.union([z.string(), z.array(z.string())]).optional(),
+    title: z.union([z.string(), z.array(z.string())]).optional(),
+    aliases: z.union([z.string(), z.array(z.string())]).optional(),
+    alias: z.union([z.string(), z.array(z.string())]).optional(),
+    type: z.string().optional(),
+    deleted: z.boolean().optional(),
+  })
+  .passthrough();
+
+export type NoteFrontmatter = z.infer<typeof NoteFrontmatterSchema>;
+
+export const NOTE_EXAMPLE: NoteFrontmatter = {
+  created_at: '2026-04-25T13:00:00Z',
+  updated_at: '2026-04-25T12:10:00Z',
+  tags: ['tag1', 'tag2'],
+  title: 'Note Title',
+  aliases: ['alias'],
+  type: 'markdown',
+};
+
+// ─── Parse & Serialize ──────────────────────────────────────
 
 export interface ParsedNote {
   frontmatter: NoteFrontmatter;
@@ -37,6 +111,8 @@ export function serializeNote(frontmatter: NoteFrontmatter, body: string): strin
   return `---\n${yaml}---\n${body}`;
 }
 
+// ─── Normalize Helpers ──────────────────────────────────────
+
 export function normalizeTags(tags?: string | string[]): string[] {
   if (!tags) return [];
   if (Array.isArray(tags)) return tags;
@@ -66,6 +142,8 @@ function normalizeArray(value?: string | string[]): string[] {
   if (Array.isArray(value)) return value.filter(Boolean);
   return [value];
 }
+
+// ─── Internal Helpers ───────────────────────────────────────
 
 function preprocessDates(data: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};

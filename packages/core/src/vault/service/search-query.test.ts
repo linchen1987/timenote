@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSearchQuery } from './service/search-query';
+import { extractTagsFromBody, parseSearchQuery } from './search-query';
 
 describe('parseSearchQuery', () => {
   it('parses tag-only query', () => {
@@ -48,5 +48,32 @@ describe('parseSearchQuery', () => {
     const result = parseSearchQuery('search-term');
     expect(result.tags).toEqual([]);
     expect(result.textTerms).toEqual(['search-term']);
+  });
+});
+
+describe('extractTagsFromBody', () => {
+  it('extracts hashtags from body', () => {
+    const tags = extractTagsFromBody('This is #architecture and #Web');
+    expect(tags).toEqual(['architecture', 'Web']);
+  });
+
+  it('deduplicates tags', () => {
+    const tags = extractTagsFromBody('#test and #test again');
+    expect(tags).toEqual(['test']);
+  });
+
+  it('extracts Chinese tags', () => {
+    const tags = extractTagsFromBody('这是#架构设计的笔记');
+    expect(tags).toEqual(['架构设计的笔记']);
+  });
+
+  it('returns empty array for no tags', () => {
+    const tags = extractTagsFromBody('no tags here');
+    expect(tags).toEqual([]);
+  });
+
+  it('returns empty array for empty string', () => {
+    const tags = extractTagsFromBody('');
+    expect(tags).toEqual([]);
   });
 });

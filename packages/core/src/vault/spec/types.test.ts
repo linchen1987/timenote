@@ -1,15 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DeleteLogSchema,
-  ManifestSchema,
-  MenuDataSchema,
-  NoteFilenameSchema,
-  NoteFrontmatterSchema,
-  NoteIdSchema,
-  SyncEntitySchema,
-  SyncLedgerSchema,
-  VolumeNameSchema,
-} from './types';
+import { DeleteLogSchema } from './delete-log';
+import { ManifestSchema } from './manifest';
+import { MenuDataSchema } from './menu';
+import { NoteFilenameSchema, NoteFrontmatterSchema, NoteIdSchema, VolumeNameSchema } from './note';
+import { SyncEntitySchema, SyncLedgerSchema } from './sync-ledger';
 
 describe('NoteIdSchema', () => {
   it('accepts valid note IDs', () => {

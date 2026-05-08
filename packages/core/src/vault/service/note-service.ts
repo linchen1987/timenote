@@ -1,25 +1,24 @@
+import type { NoteIndex } from '../provider/index-service';
+import { createIndexService, type IndexService } from '../provider/index-service';
+import { type SearchProvider, SimpleSearchProvider } from '../provider/search-provider';
 import {
+  type NoteFrontmatter,
   normalizeTags,
   type ParsedNote,
   parseNote,
   parseNoteSafe,
   serializeNote,
-} from './frontmatter';
-import { createIndexService, type IndexService } from './index-service';
-import {
-  generateNoteId,
-  isValidNoteFilename,
-  isValidVolumeName,
-  noteIdFromFilename,
-  notePath,
-} from './note-id';
-import { type SearchProvider, SimpleSearchProvider } from './search-provider';
-import type { NoteFrontmatter, NoteIndex } from './types';
+} from '../spec/note';
+import { generateNoteId, noteIdFromFilename } from '../spec/note-id';
+import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layout';
+import { extractTagsFromBody, parseSearchQuery } from './search-query';
 import type { VaultService } from './vault-service';
 
 export interface VaultNoteService {
   createNote(projectId: string, content?: string): Promise<string>;
   getNote(projectId: string, noteId: string): Promise<ParsedNote | null>;
+  getBody(projectId: string, noteId: string): Promise<string>;
+  getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>>;
   updateNote(projectId: string, noteId: string, content: string): Promise<void>;
   deleteNote(projectId: string, noteId: string): Promise<void>;
 
@@ -60,8 +59,8 @@ class VaultNoteServiceImpl implements VaultNoteService {
     };
     const raw = serializeNote(fm, body);
 
-    const transport = this.vaultService.getOpfsTransport(projectId);
-    await transport.write(notePath(noteId), raw);
+    const transport = this.vaultService.getTransport(projectId);
+    await transport.write(noteFilePath(noteId), raw);
 
     if (this.activeProjectId === projectId) {
       await this.indexService.indexNote(noteId, raw);
@@ -72,8 +71,8 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async getNote(projectId: string, noteId: string): Promise<ParsedNote | null> {
-    const transport = this.vaultService.getOpfsTransport(projectId);
-    const path = notePath(noteId);
+    const transport = this.vaultService.getTransport(projectId);
+    const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) return null;
 
@@ -81,9 +80,40 @@ class VaultNoteServiceImpl implements VaultNoteService {
     return parseNote(raw);
   }
 
+  async getBody(projectId: string, noteId: string): Promise<string> {
+    const cached = await this.indexService.getBody(noteId);
+    if (cached !== undefined) return cached;
+
+    const transport = this.vaultService.getTransport(projectId);
+    const path = noteFilePath(noteId);
+    const exists = await transport.exists(path);
+    if (!exists) return '';
+
+    const raw = await transport.read(path);
+    const parsed = parseNoteSafe(raw);
+    return parsed?.body ?? '';
+  }
+
+  async getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>> {
+    const cached = await this.indexService.getBodies(noteIds);
+    if (cached.size === noteIds.length) return cached;
+
+    const missing = noteIds.filter((id) => !cached.has(id));
+    const transport = this.vaultService.getTransport(projectId);
+    for (const id of missing) {
+      const path = noteFilePath(id);
+      const exists = await transport.exists(path);
+      if (!exists) continue;
+      const raw = await transport.read(path);
+      const parsed = parseNoteSafe(raw);
+      if (parsed) cached.set(id, parsed.body);
+    }
+    return cached;
+  }
+
   async updateNote(projectId: string, noteId: string, content: string): Promise<void> {
-    const transport = this.vaultService.getOpfsTransport(projectId);
-    const path = notePath(noteId);
+    const transport = this.vaultService.getTransport(projectId);
+    const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) throw new Error(`Note not found: ${noteId}`);
 
@@ -107,8 +137,8 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async deleteNote(projectId: string, noteId: string): Promise<void> {
-    const transport = this.vaultService.getOpfsTransport(projectId);
-    const path = notePath(noteId);
+    const transport = this.vaultService.getTransport(projectId);
+    const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) return;
 
@@ -131,17 +161,17 @@ class VaultNoteServiceImpl implements VaultNoteService {
       }
     }
 
-    const transport = this.vaultService.getOpfsTransport(projectId);
+    const transport = this.vaultService.getTransport(projectId);
     const volumes = await transport.list('');
 
     const opfsNoteIds = new Set<string>();
     const notesToProcess: Array<{ noteId: string; path: string }> = [];
 
     for (const vol of volumes) {
-      if (vol.type !== 'directory' || !isValidVolumeName(vol.basename)) continue;
+      if (!isVolumeEntry(vol)) continue;
       const items = await transport.list(vol.basename);
       for (const item of items) {
-        if (item.type === 'file' && isValidNoteFilename(item.basename)) {
+        if (isNoteFileEntry(item)) {
           const noteId = noteIdFromFilename(item.basename);
           if (!noteId) continue;
           opfsNoteIds.add(noteId);
@@ -262,29 +292,4 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 }
 
-interface ParsedSearchQuery {
-  tags: string[];
-  textTerms: string[];
-}
-
-export function parseSearchQuery(query: string): ParsedSearchQuery {
-  const tags: string[] = [];
-  const textTerms: string[] = [];
-  const parts = query.trim().split(/\s+/).filter(Boolean);
-
-  for (const part of parts) {
-    if (part.startsWith('#') && part.length > 1) {
-      tags.push(part.slice(1));
-    } else if (part !== '#') {
-      textTerms.push(part);
-    }
-  }
-
-  return { tags, textTerms };
-}
-
-function extractTagsFromBody(body: string): string[] {
-  const hashtagRegex = /#([\w\u4e00-\u9fa5]+)/g;
-  const matches = body.matchAll(hashtagRegex);
-  return Array.from(new Set(Array.from(matches).map((m) => m[1])));
-}
+export { parseSearchQuery };
