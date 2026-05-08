@@ -27,6 +27,7 @@ interface FsClient {
   readdir(path: string): Promise<FsStat[]>;
   readFile(path: string): Promise<ArrayBuffer>;
   writeFile(path: string, content: string | ArrayBuffer): Promise<void>;
+  unlink(path: string): Promise<void>;
   stat(path: string): Promise<FsStat>;
   ensureDir(path: string): Promise<void>;
 }
@@ -81,6 +82,10 @@ class WebDavFsClient implements FsClient {
   }
 
   async writeFile(path: string, content: string | ArrayBuffer): Promise<void> {
+    const parentDir = path.split('/').slice(0, -1).join('/');
+    if (parentDir) {
+      await this.ensureDir(parentDir);
+    }
     await this.client.putFileContents(path, content);
   }
 
@@ -108,6 +113,10 @@ class WebDavFsClient implements FsClient {
         await this.client.createDirectory(current);
       }
     }
+  }
+
+  async unlink(path: string): Promise<void> {
+    await this.client.deleteFile(path);
   }
 }
 
@@ -245,6 +254,11 @@ class S3FsClient implements FsClient {
   }
 
   async ensureDir(_path: string): Promise<void> {}
+
+  async unlink(path: string): Promise<void> {
+    const key = normalizePath(path);
+    await this.client.deleteObject(key);
+  }
 }
 
 async function getConnection(): Promise<FsConnection | null> {
@@ -327,6 +341,10 @@ async function handleFsMessage(message: FsMessage): Promise<MessageResponse> {
       }
       case 'fs:ensureDir': {
         await client.ensureDir(message.path);
+        return { success: true, data: null };
+      }
+      case 'fs:delete': {
+        await client.unlink(message.path);
         return { success: true, data: null };
       }
       case 'fs:stat': {

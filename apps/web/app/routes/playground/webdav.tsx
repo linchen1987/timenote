@@ -95,7 +95,7 @@ export default function WebDAVPlayground() {
       const newPath = currentPath.endsWith('/')
         ? `${currentPath}${name}`
         : `${currentPath}/${name}`;
-      await callApi('mkdir', newPath);
+      await callApi('ensureDir', newPath);
       handleList();
     } catch (_e) {}
   };

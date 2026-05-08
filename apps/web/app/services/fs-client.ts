@@ -92,6 +92,10 @@ class WebDavFsClient implements FsClient {
   }
 
   async writeFile(path: string, content: string | ArrayBuffer): Promise<void> {
+    const parentDir = path.split('/').slice(0, -1).join('/');
+    if (parentDir) {
+      await this.ensureDir(parentDir);
+    }
     await this.client.putFileContents(path, content);
   }
 

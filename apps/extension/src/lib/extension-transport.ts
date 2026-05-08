@@ -1,4 +1,5 @@
-import type { FsStat, FsTransport } from '@timenote/core/fs';
+import type { FsStat } from '@timenote/core/fs';
+import type { RemoteTransport } from '@timenote/core/vault';
 import type { FsMessage, MessageResponse } from './message-types';
 
 async function sendMessage<T>(message: FsMessage): Promise<T> {
@@ -9,7 +10,7 @@ async function sendMessage<T>(message: FsMessage): Promise<T> {
   return response.data as T;
 }
 
-export const extensionTransport: FsTransport = {
+export const extensionTransport: RemoteTransport = {
   async list(path: string): Promise<FsStat[]> {
     return sendMessage<FsStat[]>({ type: 'fs:list', path });
   },
@@ -20,6 +21,10 @@ export const extensionTransport: FsTransport = {
 
   async write(path: string, content: string): Promise<void> {
     await sendMessage<null>({ type: 'fs:write', path, content });
+  },
+
+  async remove(path: string): Promise<void> {
+    await sendMessage<null>({ type: 'fs:delete', path });
   },
 
   async exists(path: string): Promise<boolean> {

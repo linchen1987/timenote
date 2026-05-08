@@ -2,6 +2,7 @@ export type FsMessage =
   | { type: 'fs:list'; path: string }
   | { type: 'fs:read'; path: string }
   | { type: 'fs:write'; path: string; content: string }
+  | { type: 'fs:delete'; path: string }
   | { type: 'fs:exists'; path: string }
   | { type: 'fs:ensureDir'; path: string }
   | { type: 'fs:stat'; path: string }
