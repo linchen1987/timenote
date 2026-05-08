@@ -1,4 +1,4 @@
-export { NOTE_LIST_PAGE_SIZE, STORAGE_KEYS } from './constants';
+export { CONTACT_EMAIL, NOTE_LIST_PAGE_SIZE, STORAGE_KEYS } from './constants';
 export {
   ALL_TABLES,
   type AppTableName,
