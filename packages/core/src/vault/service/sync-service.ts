@@ -5,7 +5,7 @@ import { computeContentHash } from '../spec/hash';
 import { type NoteId, parseNoteSafe } from '../spec/note';
 import { isValidNoteFilename, isValidVolumeName, volumeNameFromNoteId } from '../spec/note-id';
 import { type SyncEntity, type SyncLedger, SyncLedgerSchema } from '../spec/sync-ledger';
-import { META_DIR, metaPath, SYNCABLE_META_FILES, syncLedgerPath } from '../spec/vault-layout';
+import { META_DIR, SYNCABLE_META_FILES, syncLedgerPath } from '../spec/vault-layout';
 import type { VaultNoteService } from './note-service';
 import { compareEntities, mergeEntities } from './sync-algorithm';
 import type { VaultService } from './vault-service';
@@ -94,7 +94,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
     for (const mf of SYNCABLE_META_FILES) {
       try {
-        const content = await local.read(metaPath(mf as 'manifest' | 'menu' | 'deleteLog'));
+        const content = await local.read(`${META_DIR}/${mf}`);
         metaFiles[mf] = { h: await computeContentHash(content), u: new Date().toISOString() };
       } catch {
         // skip missing meta files
@@ -166,7 +166,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
       }
       for (const mf of metaPlan.toPull) {
         try {
-          const mp = metaPath(mf as 'manifest' | 'menu' | 'deleteLog');
+          const mp = `${META_DIR}/${mf}`;
           const content = await remote.read(mp);
           await local.write(mp, content);
           result.pulled++;
@@ -196,7 +196,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
       }
       for (const mf of metaPlan.toPush) {
         try {
-          const mp = metaPath(mf as 'manifest' | 'menu' | 'deleteLog');
+          const mp = `${META_DIR}/${mf}`;
           const content = await local.read(mp);
           await remote.ensureDir(META_DIR);
           await remote.write(mp, content);
