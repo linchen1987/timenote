@@ -31,10 +31,10 @@ export {
   type MigrationResult,
   type MigrationService,
 } from './migration-service';
+export { generateProjectId } from './project-id';
 export {
   filenameFromNoteId,
   generateNoteId,
-  generateProjectId,
   isNoteIdUrl,
   isValidNoteFilename,
   isValidNoteId,

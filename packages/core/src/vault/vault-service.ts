@@ -1,4 +1,4 @@
-import { generateProjectId } from './note-id';
+import { generateProjectId } from './project-id';
 import { createOpfsTransport, type OpfsTransport } from './opfs-transport';
 import {
   type DeleteLog,

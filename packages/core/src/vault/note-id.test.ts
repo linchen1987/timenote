@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   filenameFromNoteId,
   generateNoteId,
-  generateProjectId,
   isValidNoteFilename,
   isValidNoteId,
   isValidVolumeName,
@@ -128,23 +127,6 @@ describe('isValidVolumeName', () => {
     expect(isValidVolumeName('2026-4')).toBe(false);
     expect(isValidVolumeName('26-04')).toBe(false);
     expect(isValidVolumeName('2026/04')).toBe(false);
-  });
-});
-
-describe('generateProjectId', () => {
-  it('generates alphanumeric ID without - or _', () => {
-    const id = generateProjectId();
-    expect(id).toMatch(/^[A-Za-z0-9]{11}$/);
-    expect(id).not.toContain('-');
-    expect(id).not.toContain('_');
-  });
-
-  it('generates unique IDs', () => {
-    const ids = new Set<string>();
-    for (let i = 0; i < 100; i++) {
-      ids.add(generateProjectId());
-    }
-    expect(ids.size).toBe(100);
   });
 });
 

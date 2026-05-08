@@ -1,4 +1,3 @@
-import { customAlphabet, nanoid } from 'nanoid';
 import { type NoteId, NoteIdSchema, type VolumeName, VolumeNameSchema } from './types';
 
 const VOLUME_RE = /^[0-9]{4}-[0-9]{2}$/;
@@ -55,13 +54,6 @@ export function isValidNoteFilename(filename: string): boolean {
 
 export function isValidVolumeName(name: string): name is VolumeName {
   return VOLUME_RE.test(name) && VolumeNameSchema.safeParse(name).success;
-}
-
-const ALPHANUMERIC = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-const nanoidAlphanum = customAlphabet(ALPHANUMERIC, 11);
-
-export function generateProjectId(): string {
-  return nanoidAlphanum();
 }
 
 export function noteIdToUrl(noteId: string): string {
