@@ -1,6 +1,9 @@
-#timenote vault 规范
+# Timenote Vault 规范
 
-核心设计哲学
+> 代码即文档。各文件格式的 Zod Schema 和 Example 定义在 `packages/core/src/vault/spec/` 下，
+> 本文档仅描述设计决策和总览，不重复 Schema 细节。
+
+## 核心设计哲学
 
 - timenote 是给个人使用的笔记应用，基于个人笔记考虑极简主义与性能平衡。
 - 兼容文件系统
@@ -8,167 +11,99 @@
 - 万物皆 markdown: 不直接处理图片或附件, 所有笔记均为 markdown 格式
 - 结构化/白名单准入： 引擎仅识别符合正则规范的文件和路径，其余文件视为透明。
 
-## project/vault 结构
+## 目录结构
 
 ```
-/my-vault-root
-  ├── .timenote
-  │   ├── manifest.json
-  │   ├── menu.json
-  │   ├── delete-log.json  
-  │   ├── sync-ledger.json
-  │   ├── /cache # (hold, do NOT implement)
-  │   ├── settings.json # optional (hold, do NOT implement)
-  ├── 2026-04/
-  │   ├── 20260425-121000-1110.md
-  │   ├── 20260425-130000-2228.jpg
-  │   └── YYYYMMDD-HHmmss-SSSR.ext
-  └── 2026-05/
+/vault-root
+  ├── .timenote/                        ← META_DIR
+  │   ├── manifest.json                 ← core, syncable
+  │   ├── menu.json                     ← core, syncable
+  │   ├── delete-log.json               ← core, syncable
+  │   └── sync-ledger.json              ← non-core, not syncable
+  ├── {YYYY-MM}/                        ← Volume: ^[0-9]{4}-[0-9]{2}$
+  │   └── {YYYYMMDD-HHmmss-SSSR}.md    ← Note: ^[0-9]{8}-[0-9]{6}-[0-9]{4}\.[a-zA-Z0-9]+$
+  └── ...
 ```
 
-### 核心数据 (物理文件即真理 Single Source of Truth)
+> 常量定义和路径工具: [`spec/vault-layout.ts`](../../packages/core/src/vault/spec/vault-layout.ts)
 
-- `/2026-04/20260425-112010-0457.md` (不可修改)
-  - `2026-04` : `^[0-9]{4}-[0-9]{2}$`
-  - `20260425-112010-0457.md` : `^[0-9]{8}-[0-9]{6}-[0-9]{4}\.[a-zA-Z0-9]+$`
-- `/2026-04/20260425-112010-0457.png` 附件使用统一规范
+## Core vs Non-Core
 
-- /manifest.json
+| 文件 | Core | Syncable | Schema 定义 |
+|------|------|----------|-------------|
+| `{volume}/{noteId}.md` | Yes | Yes (content) | [`spec/note.ts`](../../packages/core/src/vault/spec/note.ts) |
+| `manifest.json` | Yes | Yes | [`spec/manifest.ts`](../../packages/core/src/vault/spec/manifest.ts) |
+| `menu.json` | Yes | Yes | [`spec/menu.ts`](../../packages/core/src/vault/spec/menu.ts) |
+| `delete-log.json` | Yes | Yes | [`spec/delete-log.ts`](../../packages/core/src/vault/spec/delete-log.ts) |
+| `sync-ledger.json` | No (可重建) | No (各端独立写入) | [`spec/sync-ledger.ts`](../../packages/core/src/vault/spec/sync-ledger.ts) |
 
-```
-{
-  "project_id": "Bm1ic75uaq",          // 项目唯一标识，任意 URL-safe 字符串
-  "name": "My Notes",
-  "version": "1.0.0",              // Timenote 协议版本
-  "created_at": "2026-04-25T...",
-  "updated_at": "2026-04-25T...",
-  "config": { // optional (do not implement)
-    "volume_format": "YYYY-MM",    // optional 物理目录约定 (do not implement)
-  },
-  "extensions": {   // optional (do not implement)
-    "enabled_plugins": []          // 预留给未来插件系统
-  }
-}
-```
+## 各文件设计要点
 
-- /menu.json
+### manifest.json
 
-```
-// 支持 10000 节点
-// 支持 1000 层级（取决于 javascript 调用栈)
-// 支持 拖拽. 存储用嵌套, 运行时可用扁平结构
-{
-  "version": 1,
-  "items": [
-    {
-      "title": "🔨 工作项目",
-      "type": "note";
-      "note_id": "20260425121000-8A2F"
-      "children": [
-        {
-          "type": "note",
-          "title": "Timenote 架构图",
-          "note_id": "20260425121000-8A2F"
-        },
-      ]
-    },
-    {
-      "title": "💡 近期想法",
-      "type": "search",
-      "search": "xxx"
-    }
-  ]
-}
-```
+- 项目唯一身份标识
+- `config` / `extensions` 字段预留但暂不实现
+- Schema: [`spec/manifest.ts`](../../packages/core/src/vault/spec/manifest.ts) — `ManifestSchema`
 
-- /delete-log.json
+### menu.json
 
-```
-{
-  "version": 1,
-  "records": {
-    "20260425-112010-1234": "2026-04-26T10:00:00Z",
-    "20260420-080000-5678": "2026-04-26T11:30:00Z"
-  }
-}
-```
+- 嵌套结构存储，运行时可用扁平结构
+- 支持 10000 节点、1000 层级、拖拽
+- Schema: [`spec/menu.ts`](../../packages/core/src/vault/spec/menu.ts) — `MenuDataSchema`
+- 嵌套↔扁平转换: [`service/menu-transform.ts`](../../packages/core/src/vault/service/menu-transform.ts)
 
-### 非核心数据
+### delete-log.json
 
-- /sync-ledger.json 用于多端 sync 笔记
-  - 估算: 100k note, 150B per note, 15M. gzip 压缩后 1.5M. 本地写入几十ms, 解析几十 ms
-  - 1天写100条笔记，能支撑30年。
-  - 不是核心数据，**可通过核心数据重建**
+- 记录笔记删除时间戳
+- sync 生成墓碑条目 (tombstone) 的来源
+- Schema: [`spec/delete-log.ts`](../../packages/core/src/vault/spec/delete-log.ts) — `DeleteLogSchema`
 
-```
-{
-  "version": 1,
-  "last_sync_time": "2026-04-25T13:00:00Z",
-  "entities": {
-    // 正常存活的文件（只有最基础的同步与防冲突字段）
-    "20260425-112010-1234": {
-      "h": "e10adc3949ba59abbe56e057f20f883e", // 内容 Hash (用于判断内容是否改变)
-      "u": "2026-04-25T12:10:00Z" // 修改时间 (用于冲突仲裁，本地优先还是云端优先)
-    },
-    
-    // 墓碑节点, 从 delete-log.json 生成
-    // 30天过期自动删除, 不必须(do NOT implement)
-    "20260425-112010-1234": {
-      "d": true, // deleted: true 标记为墓碑
-      "u": "2026-04-25T14:30:00Z" // 删除动作发生的时间
-    }
-  }
-  // 系统管理层：.timenote 下的配置文件
-  "meta_files": {
-    "manifest.json": { "h": "hash_1...", "u": "2026-04-20T...Z" },
-    "menu.json": { "h": "hash_2...", "u": "2026-04-26T...Z" },
-  }
-}
-```
+### sync-ledger.json
 
----
+- **entity key = 文件相对路径** (如 `"2026-04/20260425-112010-0457.md"`)
+- 估算: 100k note × 150B = 15MB, gzip 后 ~1.5MB
+- 1天写100条笔记，能支撑30年
+- 不是核心数据，可通过核心数据重建
+- Schema: [`spec/sync-ledger.ts`](../../packages/core/src/vault/spec/sync-ledger.ts) — `SyncLedgerSchema`
 
 ### 笔记文件 .md
 
-内在元数据 YAML
+- 物理文件 = Single Source of Truth
+- Note ID 格式: `YYYYMMDD-HHmmss-SSSR` (4位随机数字后缀)
+- Frontmatter 为 YAML，支持以下字段:
 
-```
----
+| 字段 | Required | 说明 |
+|------|----------|------|
+| `created_at` | Yes | ISO 8601 |
+| `updated_at` | Yes | ISO 8601 |
+| `_sync_u` | No | 覆盖 updatedAt |
+| `tags` | No | `string \| string[]` |
+| `title` / `titles` | No | `string \| string[]`，normalize 合并两者 |
+| `aliases` / `alias` | No | 兼容 Obsidian |
+| `type` / `types` | No | 默认 `markdown`，normalize 合并两者 |
+| `deleted` | No | `boolean` |
+| `[custom]` | No | passthrough |
 
-created_at: "2026-04-25T13:00:00Z" // required ISO 8601
-updated_at: "2026-04-25T12:10:00Z" // required ISO 8601
-_sync_u: "2026-04-25T12:10:00Z" // optional 覆盖 updatedAt
-tags: tag1 | [tag1, tag2] // optional
-title/titles: title1 | [title1, title2] // optional
-aliases/alias: title1 | [title1, title2] # 和 title 一样. 为了兼容 Obsidian
-type/types: todo // optional, 默认为 markdown
-deleted: true // optional
-[custom keys]: xxx
+- Schema: [`spec/note.ts`](../../packages/core/src/vault/spec/note.ts) — `NoteFrontmatterSchema`
+- ID 生成: [`spec/note-id.ts`](../../packages/core/src/vault/spec/note-id.ts)
 
-# obsidian 保留字段 do NOT implement
-#  cover 可选封面
-#  cssclasses 自定义样式
-#  public
----
-正文
-```
+### Hold (暂不实现)
 
-##### **indexedDB**
+- `.timenote/cache/` — 缓存目录
+- `.timenote/settings.json` — 设置
+- `manifest.config` — 配置
+- `manifest.extensions` — 插件系统
+- sync-ledger 墓碑 30天过期自动清理
 
-- 用于索引，不需要同步
-- 兼容改动时不需要重建
-- 如果需要不兼容改动时可直接重建
+## Spec 总入口
 
-```
-// IndexedDB Object Store: "entities"
-{
-  // 主键 (Primary Key)
-  "id": "20260425-121000-1110",
-  "title": ["深入理解 Local-First 架构"], // 优先取 YAML title / alias
-  "type": ["markdown"], // 用于前端 Router 决定渲染组件
-  "tags": ["架构", "Web"], // 标签数组
-  "aliases": ["本地优先"], // 双链解析别名
-  "created_at": 1714047000000, // 用于 Timeline 排序 (数值型，查询最快)
-  "updated_at": 1714056000000,          
-}
-```
+[`spec/vault-spec.ts`](../../packages/core/src/vault/spec/vault-spec.ts) — re-exports 所有 Schema、类型、工具函数。
+
+## Spec Utilities
+
+| 文件 | 职责 |
+|------|------|
+| [`spec/note-id.ts`](../../packages/core/src/vault/spec/note-id.ts) | Note ID 生成 & 验证 |
+| [`spec/project-id.ts`](../../packages/core/src/vault/spec/project-id.ts) | Project ID 生成 |
+| [`spec/hash.ts`](../../packages/core/src/vault/spec/hash.ts) | 内容 Hash (MD5) |
+| [`spec/vault-layout.ts`](../../packages/core/src/vault/spec/vault-layout.ts) | 目录结构、路径约定、文件分类 |

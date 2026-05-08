@@ -3,6 +3,7 @@ import {
   normalizeAliases,
   normalizeTags,
   normalizeTitle,
+  normalizeType,
   parseNote,
   parseNoteSafe,
   serializeNote,
@@ -82,6 +83,23 @@ content`;
 
     const result = parseNote(raw);
     expect(result.frontmatter.deleted).toBe(true);
+  });
+
+  it('parses note with titles and types fields', () => {
+    const raw = `---
+created_at: "2026-04-25T12:10:00Z"
+updated_at: "2026-04-25T12:10:00Z"
+titles:
+  - "主标题"
+  - "副标题"
+types: todo
+---
+
+content`;
+
+    const result = parseNote(raw);
+    expect(result.frontmatter.titles).toEqual(['主标题', '副标题']);
+    expect(result.frontmatter.types).toBe('todo');
   });
 
   it('throws for missing required fields', () => {
@@ -207,20 +225,54 @@ describe('normalizeTitle', () => {
   it('takes first from array', () => {
     expect(normalizeTitle(['First', 'Second'])).toBe('First');
   });
+
+  it('merges title + titles, prefers title', () => {
+    expect(normalizeTitle('Primary', 'Fallback')).toBe('Primary');
+  });
+
+  it('uses titles when title is undefined', () => {
+    expect(normalizeTitle(undefined, 'From Titles')).toBe('From Titles');
+  });
+
+  it('uses titles array when title is undefined', () => {
+    expect(normalizeTitle(undefined, ['T1', 'T2'])).toBe('T1');
+  });
 });
 
 describe('normalizeAliases', () => {
-  it('collects from title, aliases, alias', () => {
-    const result = normalizeAliases(['Title1'], ['Alias1', 'Alias2'], 'Short');
-    expect(result).toEqual(['Title1', 'Alias1', 'Alias2', 'Short']);
+  it('collects from title, titles, aliases, alias', () => {
+    const result = normalizeAliases(['Title1'], ['T2'], ['Alias1', 'Alias2'], 'Short');
+    expect(result).toEqual(['Title1', 'T2', 'Alias1', 'Alias2', 'Short']);
   });
 
   it('deduplicates', () => {
-    const result = normalizeAliases(['Same'], ['Same'], 'Same');
+    const result = normalizeAliases(['Same'], ['Same'], ['Same'], 'Same');
     expect(result).toEqual(['Same']);
   });
 
   it('handles all undefined', () => {
     expect(normalizeAliases()).toEqual([]);
+  });
+});
+
+describe('normalizeType', () => {
+  it('returns markdown by default', () => {
+    expect(normalizeType()).toBe('markdown');
+  });
+
+  it('returns type when provided', () => {
+    expect(normalizeType('todo')).toBe('todo');
+  });
+
+  it('prefers type over types', () => {
+    expect(normalizeType('todo', 'canvas')).toBe('todo');
+  });
+
+  it('uses types when type is undefined', () => {
+    expect(normalizeType(undefined, 'canvas')).toBe('canvas');
+  });
+
+  it('uses first from types array', () => {
+    expect(normalizeType(undefined, ['canvas', 'todo'])).toBe('canvas');
   });
 });

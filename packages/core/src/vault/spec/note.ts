@@ -55,9 +55,11 @@ export const NoteFrontmatterSchema = z
     _sync_u: IsoDateString.optional(),
     tags: z.union([z.string(), z.array(z.string())]).optional(),
     title: z.union([z.string(), z.array(z.string())]).optional(),
+    titles: z.union([z.string(), z.array(z.string())]).optional(),
     aliases: z.union([z.string(), z.array(z.string())]).optional(),
     alias: z.union([z.string(), z.array(z.string())]).optional(),
     type: z.string().optional(),
+    types: z.union([z.string(), z.array(z.string())]).optional(),
     deleted: z.boolean().optional(),
   })
   .passthrough();
@@ -119,22 +121,27 @@ export function normalizeTags(tags?: string | string[]): string[] {
   return [tags];
 }
 
-export function normalizeTitle(title?: string | string[]): string {
-  if (!title) return '';
-  if (Array.isArray(title)) return title[0] ?? '';
-  return title;
+export function normalizeTitle(title?: string | string[], titles?: string | string[]): string {
+  const all = [...normalizeArray(title), ...normalizeArray(titles)];
+  return all[0] ?? '';
 }
 
 export function normalizeAliases(
   title?: string | string[],
+  titles?: string | string[],
   aliases?: string | string[],
   alias?: string | string[],
 ): string[] {
-  const allTitles = normalizeArray(title);
+  const allTitles = [...normalizeArray(title), ...normalizeArray(titles)];
   const allAliases = normalizeArray(aliases);
   const allAlias = normalizeArray(alias);
   const merged = [...allTitles, ...allAliases, ...allAlias];
   return [...new Set(merged)];
+}
+
+export function normalizeType(type?: string, types?: string | string[]): string {
+  const all = [...(type ? [type] : []), ...normalizeArray(types)];
+  return all[0] ?? 'markdown';
 }
 
 function normalizeArray(value?: string | string[]): string[] {
@@ -159,9 +166,11 @@ type FrontmatterKey =
   | '_sync_u'
   | 'tags'
   | 'title'
+  | 'titles'
   | 'aliases'
   | 'alias'
   | 'type'
+  | 'types'
   | 'deleted';
 
 const KEY_ORDER: FrontmatterKey[] = [
@@ -170,9 +179,11 @@ const KEY_ORDER: FrontmatterKey[] = [
   '_sync_u',
   'tags',
   'title',
+  'titles',
   'aliases',
   'alias',
   'type',
+  'types',
   'deleted',
 ];
 

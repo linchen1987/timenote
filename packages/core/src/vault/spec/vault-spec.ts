@@ -79,6 +79,7 @@ export {
   normalizeAliases,
   normalizeTags,
   normalizeTitle,
+  normalizeType,
   type ParsedNote,
   parseNote,
   parseNoteSafe,

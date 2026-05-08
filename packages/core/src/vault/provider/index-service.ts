@@ -69,9 +69,9 @@ class IndexServiceImpl implements IndexService {
     const fm = parsed.frontmatter;
     const index: NoteIndex = {
       id: noteId,
-      title: normalizeTitle(fm.title),
+      title: normalizeTitle(fm.title, fm.titles),
       tags: normalizeTags(fm.tags),
-      aliases: normalizeAliases(fm.title, fm.aliases, fm.alias),
+      aliases: normalizeAliases(fm.title, fm.titles, fm.aliases, fm.alias),
       created_at: new Date(fm.created_at).getTime(),
       updated_at: new Date(fm.updated_at).getTime(),
     };
