@@ -58,6 +58,7 @@ export default function VaultTimelinePage() {
 
   const [notes, setNotes] = useState<NoteIndex[]>([]);
   const [bodiesMap, setBodiesMap] = useState<Map<string, string>>(new Map());
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [composerContent, setComposerContent] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
@@ -72,27 +73,61 @@ export default function VaultTimelinePage() {
 
   const composerRef = useRef<MarkdownEditorRef>(null);
   const editorRef = useRef<MarkdownEditorRef>(null);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
 
-  const loadNotes = useCallback(async () => {
-    try {
-      const svc = useVaultStore.getState().getNoteService();
-      const list = searchQuery
-        ? await svc.searchNotes(searchQuery)
-        : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE });
-      setNotes(list);
-      if (projectId && list.length > 0) {
-        const bodies = await svc.getBodies(
-          projectId,
-          list.map((n) => n.id),
-        );
-        setBodiesMap(bodies);
-      } else {
+  const loadBodies = useCallback(
+    async (noteIds: string[]) => {
+      if (!projectId || noteIds.length === 0) {
         setBodiesMap(new Map());
+        return;
       }
-    } catch (e) {
-      toast.error(`Failed to load notes: ${(e as Error).message}`);
-    }
-  }, [searchQuery, projectId]);
+      const svc = useVaultStore.getState().getNoteService();
+      const bodies = await svc.getBodies(projectId, noteIds);
+      setBodiesMap((prev) => {
+        const next = new Map(prev);
+        for (const [k, v] of bodies) next.set(k, v);
+        return next;
+      });
+    },
+    [projectId],
+  );
+
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+
+  const loadNotes = useCallback(
+    async (reset?: boolean) => {
+      try {
+        const svc = useVaultStore.getState().getNoteService();
+        if (searchQuery) {
+          const list = await svc.searchNotes(searchQuery);
+          setNotes(list);
+          if (projectId && list.length > 0) {
+            await loadBodies(list.map((n) => n.id));
+          } else {
+            setBodiesMap(new Map());
+          }
+          return;
+        }
+        const offset = reset ? 0 : notesRef.current.length;
+        const list = await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE, offset });
+        const reachedEnd = list.length < NOTE_LIST_PAGE_SIZE;
+        if (reset) {
+          setNotes(list);
+        } else {
+          setNotes((prev) => [...prev, ...list]);
+        }
+        setTotalCount(reachedEnd ? offset + list.length : -1);
+        if (projectId && list.length > 0) {
+          await loadBodies(list.map((n) => n.id));
+        }
+      } catch (e) {
+        toast.error(`Failed to load notes: ${(e as Error).message}`);
+      }
+    },
+    [searchQuery, projectId, loadBodies],
+  );
 
   useEffect(() => {
     if (!projectId) return;
@@ -105,12 +140,17 @@ export default function VaultTimelinePage() {
         if (cancelled) return;
         setVaultName(v?.name ?? '');
         setReady(true);
+        setBodiesMap(new Map());
         const svc = useVaultStore.getState().getNoteService();
         const list = searchQuery
           ? await svc.searchNotes(searchQuery)
-          : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE });
+          : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE, offset: 0 });
         if (cancelled) return;
         setNotes(list);
+        const reachedEnd = !searchQuery && list.length < NOTE_LIST_PAGE_SIZE;
+        if (!searchQuery) {
+          setTotalCount(reachedEnd ? list.length : -1);
+        }
         if (projectId && list.length > 0) {
           const bodies = await svc.getBodies(
             projectId,
@@ -134,6 +174,23 @@ export default function VaultTimelinePage() {
     setSearchQuery(query);
     setInputQuery(query);
   }, [searchParams]);
+
+  const hasMore = !searchQuery && totalCount === -1;
+
+  useEffect(() => {
+    if (!ready || searchQuery || !hasMore) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingMore) {
+          setLoadingMore(true);
+          loadNotes().finally(() => setLoadingMore(false));
+        }
+      },
+      { threshold: 0.1 },
+    );
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [ready, searchQuery, hasMore, loadingMore, loadNotes]);
 
   const syncTagsToMenu = async (content: string) => {
     if (!projectId) return;
@@ -169,7 +226,7 @@ export default function VaultTimelinePage() {
       setComposerContent('');
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
-      await loadNotes();
+      await loadNotes(true);
     } catch (e) {
       toast.error(`Failed to create note: ${(e as Error).message}`);
     }
@@ -182,7 +239,7 @@ export default function VaultTimelinePage() {
       await svc.updateNote(projectId, noteId, content);
       await syncTagsToMenu(content);
       setEditingId(null);
-      await loadNotes();
+      await loadNotes(true);
     } catch (e) {
       toast.error(`Failed to update note: ${(e as Error).message}`);
     }
@@ -196,7 +253,7 @@ export default function VaultTimelinePage() {
       setNoteToDelete(null);
       setIsDeleteDialogOpen(false);
       toast.success('Note deleted');
-      await loadNotes();
+      await loadNotes(true);
     } catch (e) {
       toast.error(`Failed to delete note: ${(e as Error).message}`);
     }
@@ -234,7 +291,7 @@ export default function VaultTimelinePage() {
     if (!projectId || isSyncing) return;
     try {
       const result = await useVaultStore.getState().sync(projectId);
-      await loadNotes();
+      await loadNotes(true);
       if (result.pushed > 0 || result.pulled > 0) {
         toast.success(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
       } else {
@@ -381,6 +438,15 @@ export default function VaultTimelinePage() {
               )}
             </div>
           )}
+
+          <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+            {loadingMore && (
+              <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                Loading more...
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
