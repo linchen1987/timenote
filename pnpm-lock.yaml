@@ -29,12 +29,12 @@ importers:
       '@timenote/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      dexie-react-hooks:
-        specifier: ^4.2.0
-        version: 4.2.0(@types/react@19.2.9)(dexie@4.2.1)(react@19.2.3)
       lucide-react:
         specifier: ^0.563.0
         version: 0.563.0(react@19.2.3)
+      nanoid:
+        specifier: ^5.0.0
+        version: 5.1.6
       react:
         specifier: ^19.2.3
         version: 19.2.3
@@ -53,6 +53,9 @@ importers:
       webdav:
         specifier: ^5.8.0
         version: 5.8.0
+      zustand:
+        specifier: ^5.0.10
+        version: 5.0.10(@types/react@19.2.9)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       '@crxjs/vite-plugin':
         specifier: ^2.0.0-beta.28

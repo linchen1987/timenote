@@ -57,6 +57,7 @@ export {
   type VaultService,
   type VaultTransport,
 } from './service/vault-service';
+export { createVaultStore, type VaultStore } from './service/vault-store';
 
 // ─── Spec Layer (Persistence Format) ─────────────────────────
 

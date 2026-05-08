@@ -12,6 +12,24 @@ export { NotebookLayout, type NotebookLayoutProps } from './components/notebook-
 export { type MenuActions, NotebookSidebar } from './components/notebook-sidebar';
 export { NotebookTimeline, type NotebookTimelineProps } from './components/notebook-timeline';
 export { PageHeader } from './components/page-header';
+export {
+  type UseNotebookLayoutReturn,
+  useNotebookLayout,
+} from './components/pages/use-notebook-layout';
+export {
+  type UseNotebooksPageOptions,
+  type UseNotebooksPageReturn,
+  useNotebooksPage,
+} from './components/pages/use-notebooks-page';
+export {
+  VaultNoteDetailPage,
+  type VaultNoteDetailPageProps,
+} from './components/pages/vault-note-detail-page';
+export { VaultTagsPage, type VaultTagsPageProps } from './components/pages/vault-tags-page';
+export {
+  VaultTimelinePage,
+  type VaultTimelinePageProps,
+} from './components/pages/vault-timeline-page';
 export { StorageConfigCard, type StorageConfigCardProps } from './components/storage-config-card';
 export { SyncActions } from './components/sync-actions';
 export { TagsView, type TagsViewProps, type TagWithCount } from './components/tags-view';

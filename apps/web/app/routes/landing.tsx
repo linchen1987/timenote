@@ -15,7 +15,6 @@ import {
   Github,
   Globe,
   LayoutGrid,
-  type LucideIcon,
   Mail,
   Monitor,
   Moon,

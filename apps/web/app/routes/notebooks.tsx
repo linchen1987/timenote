@@ -1,6 +1,5 @@
 'use client';
 
-import { createNotebookToken } from '@timenote/core';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
+  useNotebooksPage,
   useTheme,
 } from '@timenote/ui';
 import {
@@ -42,10 +42,8 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, type MetaFunction } from 'react-router';
-import { toast } from 'sonner';
-import { useVaultStore, type VaultMeta } from '~/lib/vault-store';
+import { useVaultStore } from '~/lib/vault-store';
 
 export const meta: MetaFunction = () => {
   return [{ title: '笔记本 - Time Note' }];
@@ -92,100 +90,29 @@ function ThemeToggle() {
 }
 
 export default function NotebooksPage() {
-  const { listVaults, createVault, deleteVault, exportVault, importVault, checkMigration } =
-    useVaultStore();
-  const [vaults, setVaults] = useState<VaultMeta[]>([]);
-  const [isCreating, setIsCreating] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState('');
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [vaultToDelete, setVaultToDelete] = useState<string | null>(null);
-  const [isExporting, setIsExporting] = useState<string | null>(null);
-  const [isImporting, setIsImporting] = useState(false);
-  const [hasLegacyData, setHasLegacyData] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
-
-  const refresh = useCallback(async () => {
-    try {
-      const list = await listVaults();
-      setVaults(list);
-    } catch (e) {
-      toast.error(`Failed to load vaults: ${(e as Error).message}`);
-    }
-  }, [listVaults]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  useEffect(() => {
-    checkMigration()
-      .then(setHasLegacyData)
-      .catch(() => {});
-  }, [checkMigration]);
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    try {
-      await createVault(newName.trim());
-      toast.success('Vault created');
-      setNewName('');
-      setIsCreating(false);
-      await refresh();
-    } catch (e) {
-      toast.error(`Create failed: ${(e as Error).message}`);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!vaultToDelete) return;
-    try {
-      await deleteVault(vaultToDelete);
-      toast.success('Vault deleted');
-      setVaultToDelete(null);
-      setIsDeleteDialogOpen(false);
-      await refresh();
-    } catch (e) {
-      toast.error(`Delete failed: ${(e as Error).message}`);
-    }
-  };
-
-  const handleExport = async (projectId: string) => {
-    setIsExporting(projectId);
-    try {
-      await exportVault(projectId);
-      toast.success('Vault exported');
-    } catch (e) {
-      toast.error(`Export failed: ${(e as Error).message}`);
-    } finally {
-      setIsExporting(null);
-    }
-  };
-
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsImporting(true);
-    try {
-      const result = await importVault(file);
-      toast.success(`Imported "${result.vaultName}" with ${result.notesCount} notes`);
-      if (result.errors.length > 0) {
-        toast.warning(`${result.errors.length} files skipped during import`);
-      }
-      await refresh();
-    } catch (e) {
-      toast.error(`Import failed: ${(e as Error).message}`);
-    } finally {
-      setIsImporting(false);
-      if (importInputRef.current) importInputRef.current.value = '';
-    }
-  };
-
-  const copyEmail = () => {
-    navigator.clipboard.writeText('link.lin.1987@gmail.com');
-    toast.success('邮箱已复制到剪切板');
-  };
+  const {
+    vaults,
+    isCreating,
+    setIsCreating,
+    newName,
+    setNewName,
+    editingId,
+    setEditingId,
+    editName,
+    setEditName,
+    isDeleteDialogOpen,
+    setIsDeleteDialogOpen,
+    setVaultToDelete,
+    isExporting,
+    isImporting,
+    hasLegacyData,
+    importInputRef,
+    handleCreate,
+    handleDelete,
+    handleExport,
+    handleImport,
+    getNotebookLink,
+  } = useNotebooksPage(useVaultStore);
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 relative overflow-x-hidden font-sans flex flex-col">
@@ -419,11 +346,7 @@ export default function NotebooksPage() {
                     </div>
                   ) : (
                     <>
-                      <Link
-                        to={`/s/${createNotebookToken(v.projectId, v.name)}`}
-                        prefetch="intent"
-                        className="block group/title"
-                      >
+                      <Link to={getNotebookLink(v)} prefetch="intent" className="block group/title">
                         <CardTitle className="text-3xl font-black tracking-tight group-hover/title:text-primary transition-colors leading-tight line-clamp-2">
                           {v.name}
                         </CardTitle>
@@ -438,7 +361,7 @@ export default function NotebooksPage() {
                 <div className="flex-1" />
 
                 <CardFooter className="p-8 pt-0 flex justify-end items-center">
-                  <Link to={`/s/${createNotebookToken(v.projectId, v.name)}`} prefetch="intent">
+                  <Link to={getNotebookLink(v)} prefetch="intent">
                     <Button
                       variant="ghost"
                       size="sm"

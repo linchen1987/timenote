@@ -1,7 +1,7 @@
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { resolve } from 'path';
 import { defineConfig, type Plugin } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 

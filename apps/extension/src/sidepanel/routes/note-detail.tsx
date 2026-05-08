@@ -1,6 +1,6 @@
-import { NoteDetailView } from '@timenote/ui';
-import { useSyncStore } from '../../lib/sync-store';
+import { VaultNoteDetailPage } from '@timenote/ui';
+import { useVaultStore } from '../../lib/vault-store';
 
 export function NoteDetail() {
-  return <NoteDetailView useSyncStore={useSyncStore} />;
+  return <VaultNoteDetailPage useStore={useVaultStore} />;
 }

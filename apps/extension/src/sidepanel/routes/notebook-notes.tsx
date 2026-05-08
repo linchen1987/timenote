@@ -1,6 +1,6 @@
-import { NotebookTimeline } from '@timenote/ui';
-import { useSyncStore } from '../../lib/sync-store';
+import { VaultTimelinePage } from '@timenote/ui';
+import { useVaultStore } from '../../lib/vault-store';
 
 export function NotebookTimelinePage() {
-  return <NotebookTimeline useSyncStore={useSyncStore} searchMaxWidth="280px" />;
+  return <VaultTimelinePage useStore={useVaultStore} headerMaxWidth="280px" />;
 }
