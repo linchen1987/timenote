@@ -621,14 +621,13 @@ exportNotebook(id, onProgress?) -> 读取旧数据 → 构建 ZIP → 返回 Blo
 ### Phase 7: Adapter 接入
 
 25. `WebDavTransport` (实现 `FsTransport`)，验证 WebDAV 同步 (Done)
-26. Extension 端适配 (复用 core Service，消除 background fs-handler 重复代码)
+26. Extension 端适配 (复用 core Service，消除 background fs-handler 重复代码)(Done)
 
-### Phase 8: 清理 (Hold)
+### Phase 8: 清理
 
 27. 移除旧 Dexie schema (保留迁移检测)
 28. 移除旧 Service 代码
 29. 清理无用依赖
-30. 移除 `/playground/opfs` 验证页面
 
 ---
 

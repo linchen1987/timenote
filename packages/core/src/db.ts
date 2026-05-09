@@ -1,6 +1,5 @@
 import Dexie, { type Table } from 'dexie';
 import { nanoid } from 'nanoid';
-import { initSyncTracker } from './services/sync/tracker';
 import type { MenuItem, Note, Notebook, NoteTag, SyncEvent, Tag } from './types';
 
 export const generateId = () => nanoid(12);
@@ -44,8 +43,6 @@ export class TimenoteDatabase extends Dexie {
       menuItems: 'id, notebookId, parentId, order',
       syncEvents: 'id, notebookId, createdAt, [notebookId+createdAt]',
     });
-
-    initSyncTracker(this);
   }
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { DataToolsService, parseNotebookId, STORAGE_KEYS, useLocalStorage } from '@timenote/core';
+import { STORAGE_KEYS, useLocalStorage } from '@timenote/core';
 import {
   Button,
   Card,
@@ -23,7 +23,6 @@ export const meta: Route.MetaFunction = () => {
 
 export default function NotebookSettingsPage() {
   const { notebookToken } = useParams();
-  const nbId = parseNotebookId(notebookToken || '');
 
   const [storageType, setStorageType] = useLocalStorage(
     STORAGE_KEYS.STORAGE_TYPE,
@@ -47,9 +46,6 @@ export default function NotebookSettingsPage() {
     'idle' | 'testing' | 'success' | 'error'
   >('idle');
 
-  const [isClearingSyncEvents, setIsClearingSyncEvents] = useState(false);
-  const [isPruningTags, setIsPruningTags] = useState(false);
-
   const handleStorageTypeChange = (type: string) => {
     setStorageType(type);
     FsService.setStorageType(type as StorageType);
@@ -71,32 +67,6 @@ export default function NotebookSettingsPage() {
       setConnectionStatus('error');
       toast.error('Connection failed');
       console.error(e);
-    }
-  };
-
-  const clearSyncEvents = async () => {
-    setIsClearingSyncEvents(true);
-    try {
-      await DataToolsService.clearSyncEvents(nbId);
-      toast.success('SyncEvents cleared');
-    } catch (error) {
-      console.error('Clear syncEvents failed:', error);
-      toast.error('Clear failed');
-    } finally {
-      setIsClearingSyncEvents(false);
-    }
-  };
-
-  const pruneTags = async () => {
-    setIsPruningTags(true);
-    try {
-      await DataToolsService.pruneTags(nbId);
-      toast.success('Orphaned tags pruned successfully');
-    } catch (error) {
-      console.error('Prune tags failed:', error);
-      toast.error('Prune failed');
-    } finally {
-      setIsPruningTags(false);
     }
   };
 
@@ -136,34 +106,7 @@ export default function NotebookSettingsPage() {
                 Tools for maintaining and managing this notebook's data.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-8">
-              <div className="h-px bg-border" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Clear All SyncEvents</h3>
-                <p className="text-sm text-muted-foreground">
-                  Delete all records from the <code>syncEvents</code> table for this notebook.
-                </p>
-                <Button onClick={clearSyncEvents} disabled={isClearingSyncEvents}>
-                  {isClearingSyncEvents ? 'Clearing...' : 'Clear SyncEvents'}
-                </Button>
-              </div>
-
-              <div className="h-px bg-border" />
-
-              <div className="space-y-4">
-                <h3 className="font-medium">Prune Tags</h3>
-                <p className="text-sm text-muted-foreground">
-                  Delete tags that are not associated with any notes. This removes orphaned tags
-                  from the <code>tags</code> table for this notebook.
-                </p>
-                <Button onClick={pruneTags} disabled={isPruningTags}>
-                  {isPruningTags ? 'Pruning...' : 'Prune Tags'}
-                </Button>
-              </div>
-
-              <div className="h-px bg-border" />
-
+            <CardContent className="space-y-4">
               <Button variant="outline" asChild className="w-full sm:w-auto">
                 <Link to={`/s/${notebookToken}`} prefetch="intent">
                   Back to Notebook

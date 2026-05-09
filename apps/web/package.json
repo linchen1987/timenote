@@ -15,7 +15,6 @@
     "@bradenmacdonald/s3-lite-client": "jsr:^0.9.4",
     "@timenote/core": "workspace:*",
     "@timenote/ui": "workspace:*",
-    "dexie-react-hooks": "^4.2.0",
     "isbot": "^5.1.31",
     "lucide-react": "^0.563.0",
     "react": "^19.2.3",

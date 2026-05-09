@@ -1,5 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from '@timenote/ui';
-import { ChevronRight, FlaskConical, Globe, HardDrive } from 'lucide-react';
+import { ChevronRight, Globe, HardDrive } from 'lucide-react';
 import { Link } from 'react-router';
 
 export default function PlaygroundIndex() {
@@ -9,12 +9,6 @@ export default function PlaygroundIndex() {
       description: 'Test and explore WebDAV server connections and file structures.',
       href: '/playground/webdav',
       icon: <Globe className="w-6 h-6 text-blue-500" />,
-    },
-    {
-      title: 'Data Tools',
-      description: 'Raw data operations, maintenance, and database migrations.',
-      href: '/playground/data-tools',
-      icon: <FlaskConical className="w-6 h-6 text-orange-500" />,
     },
     {
       title: 'OPFS Vault Explorer',

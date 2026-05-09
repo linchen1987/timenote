@@ -14,10 +14,9 @@ export default [
     route(':noteId', 'routes/notebook-notedetail.tsx'),
   ]),
 
-  // Playground 模块
+  // Playground
   route('playground', 'routes/playground/index.tsx'),
   route('playground/webdav', 'routes/playground/webdav.tsx'),
-  route('playground/data-tools', 'routes/playground/data-tools.tsx'),
   route('playground/opfs', 'routes/playground/opfs.tsx'),
 
   // API
