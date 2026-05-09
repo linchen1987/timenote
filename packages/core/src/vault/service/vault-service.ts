@@ -17,6 +17,7 @@ export interface VaultMeta {
 
 export interface VaultService {
   createVault(name: string): Promise<string>;
+  createVaultWithId(projectId: string, name: string): Promise<void>;
   deleteVault(projectId: string): Promise<void>;
   listVaults(): Promise<VaultMeta[]>;
 
@@ -70,6 +71,24 @@ class VaultServiceImpl implements VaultService {
     );
 
     return projectId;
+  }
+
+  async createVaultWithId(projectId: string, name: string): Promise<void> {
+    const vaultDir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
+    const transport = createOpfsTransport(vaultDir);
+    this.transports.set(projectId, transport);
+
+    const now = new Date().toISOString();
+    const manifest: Manifest = {
+      project_id: projectId,
+      name,
+      version: '1.0.0',
+      created_at: now,
+      updated_at: now,
+    };
+
+    await transport.ensureDir(META_DIR);
+    await transport.write(metaPath('manifest'), JSON.stringify(manifest, null, 2));
   }
 
   async deleteVault(projectId: string): Promise<void> {

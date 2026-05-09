@@ -26,12 +26,19 @@ export interface SyncStatus {
   isSyncing: boolean;
 }
 
+export type DirtyEntry =
+  | { type: 'note'; path: string; action: 'upsert' }
+  | { type: 'note'; path: string; action: 'delete' }
+  | { type: 'meta'; key: string; action: 'upsert' };
+
 export interface VaultSyncService {
   sync(projectId: string, remote: RemoteTransport): Promise<SyncResult>;
   pull(projectId: string, remote: RemoteTransport): Promise<SyncResult>;
   push(projectId: string, remote: RemoteTransport): Promise<SyncResult>;
   getSyncStatus(projectId: string): Promise<SyncStatus>;
   buildLocalLedger(projectId: string): Promise<SyncLedger>;
+  loadLedgerCache(projectId: string): Promise<void>;
+  markDirty(projectId: string, entries: DirtyEntry[]): void;
 }
 
 export function createVaultSyncService(
@@ -42,6 +49,9 @@ export function createVaultSyncService(
 }
 
 class VaultSyncServiceImpl implements VaultSyncService {
+  private ledgerCache = new Map<string, SyncLedger>();
+  private dirtyMap = new Map<string, DirtyEntry[]>();
+
   constructor(
     private vaultService: VaultService,
     private noteService: VaultNoteService,
@@ -65,6 +75,31 @@ class VaultSyncServiceImpl implements VaultSyncService {
       return { lastSyncTime: ledger.last_sync_time, isSyncing: false };
     } catch {
       return { lastSyncTime: null, isSyncing: false };
+    }
+  }
+
+  async loadLedgerCache(projectId: string): Promise<void> {
+    try {
+      const ledger = await this.vaultService.readSyncLedger(projectId);
+      this.ledgerCache.set(projectId, ledger);
+    } catch {
+      const empty: SyncLedger = {
+        version: 1,
+        last_sync_time: new Date().toISOString(),
+        entities: {},
+        meta_files: {},
+      };
+      this.ledgerCache.set(projectId, empty);
+    }
+    this.dirtyMap.delete(projectId);
+  }
+
+  markDirty(projectId: string, entries: DirtyEntry[]): void {
+    const existing = this.dirtyMap.get(projectId);
+    if (existing) {
+      existing.push(...entries);
+    } else {
+      this.dirtyMap.set(projectId, [...entries]);
     }
   }
 
@@ -125,6 +160,71 @@ class VaultSyncServiceImpl implements VaultSyncService {
     return { version: 1, last_sync_time: lastSyncTime, entities, meta_files: metaFiles };
   }
 
+  private async buildIncrementalLedger(projectId: string): Promise<SyncLedger> {
+    const cached = this.ledgerCache.get(projectId);
+    const dirty = this.dirtyMap.get(projectId);
+
+    if (!cached) {
+      const ledger = await this.buildLocalLedger(projectId);
+      this.ledgerCache.set(projectId, ledger);
+      return ledger;
+    }
+
+    if (!dirty || dirty.length === 0) return cached;
+
+    const entities = { ...cached.entities };
+    const metaFiles = { ...cached.meta_files };
+    const local = this.vaultService.getTransport(projectId);
+
+    for (const entry of dirty) {
+      if (entry.type === 'meta') {
+        try {
+          const content = await local.read(`${META_DIR}/${entry.key}`);
+          metaFiles[entry.key] = {
+            h: await computeContentHash(content),
+            u: new Date().toISOString(),
+          };
+        } catch {
+          delete metaFiles[entry.key];
+        }
+      } else if (entry.action === 'upsert') {
+        try {
+          const content = await local.read(entry.path);
+          const parsed = parseNoteSafe(content);
+          const updatedAt = parsed?.frontmatter.updated_at || new Date().toISOString();
+          entities[entry.path] = { h: await computeContentHash(content), u: updatedAt };
+        } catch {
+          // skip if file can't be read
+        }
+      } else {
+        const filename = entry.path.split('/').pop() || '';
+        const noteId = filename.replace(/\.md$/, '');
+        try {
+          const deleteLog = await this.vaultService.readDeleteLog(projectId);
+          const deletedAt = deleteLog.records[noteId];
+          if (deletedAt) {
+            entities[entry.path] = { d: true, u: deletedAt };
+          } else {
+            delete entities[entry.path];
+          }
+        } catch {
+          delete entities[entry.path];
+        }
+      }
+    }
+
+    this.dirtyMap.delete(projectId);
+
+    const ledger: SyncLedger = {
+      version: 1,
+      last_sync_time: cached.last_sync_time,
+      entities,
+      meta_files: metaFiles,
+    };
+    this.ledgerCache.set(projectId, ledger);
+    return ledger;
+  }
+
   private async doSync(
     projectId: string,
     remote: RemoteTransport,
@@ -132,7 +232,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
   ): Promise<SyncResult> {
     const result: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, errors: [] };
 
-    const localLedger = await this.buildLocalLedger(projectId);
+    const localLedger = await this.buildIncrementalLedger(projectId);
 
     let remoteLedger: SyncLedger;
     try {
@@ -226,6 +326,9 @@ class VaultSyncServiceImpl implements VaultSyncService {
     };
 
     await this.vaultService.writeSyncLedger(projectId, mergedLedger);
+    this.ledgerCache.set(projectId, mergedLedger);
+    this.dirtyMap.delete(projectId);
+
     try {
       await remote.ensureDir(META_DIR);
       await remote.write(syncLedgerPath(), JSON.stringify(mergedLedger, null, 2));

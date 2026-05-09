@@ -69,6 +69,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
       initialContentRef.current = content;
       setHasUnsavedChanges(false);
       toast.success('Saved');
+      useStore.getState().notifyNoteChange(projectId, nId, 'update');
     } catch (e) {
       toast.error(`Failed to save: ${(e as Error).message}`);
     }

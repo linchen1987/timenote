@@ -1,5 +1,6 @@
 'use client';
 
+import { CONTACT_EMAIL } from '@timenote/core';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,11 +27,14 @@ import {
 import {
   ArrowRight,
   ArrowRightLeft,
+  Cloud,
+  CloudDownload,
   Download,
   Edit2,
   Github,
   Globe,
   LayoutGrid,
+  Loader2,
   Mail,
   Monitor,
   Moon,
@@ -43,7 +47,6 @@ import {
   Upload,
 } from 'lucide-react';
 import { Link, type MetaFunction } from 'react-router';
-import { CONTACT_EMAIL } from '@timenote/core';
 import { useVaultStore } from '~/lib/vault-store';
 
 export const meta: MetaFunction = () => {
@@ -93,6 +96,9 @@ function ThemeToggle() {
 export default function NotebooksPage() {
   const {
     vaults,
+    remoteOnlyVaults,
+    isLoadingRemote,
+    isPulling,
     isCreating,
     setIsCreating,
     newName,
@@ -112,6 +118,7 @@ export default function NotebooksPage() {
     handleDelete,
     handleExport,
     handleImport,
+    handlePullVault,
     getNotebookLink,
   } = useNotebooksPage(useVaultStore);
 
@@ -375,7 +382,7 @@ export default function NotebooksPage() {
               </Card>
             ))}
 
-            {vaults.length === 0 && !isCreating && (
+            {vaults.length === 0 && !isCreating && remoteOnlyVaults.length === 0 && (
               <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 flex flex-col items-center justify-center py-32 text-center bg-card/40 backdrop-blur-md rounded-[3rem] border-2 border-dashed border-border/60">
                 <div className="w-24 h-24 bg-primary/10 rounded-3xl flex items-center justify-center mb-8 text-primary/40">
                   <NotebookIcon className="w-12 h-12" />
@@ -396,6 +403,65 @@ export default function NotebooksPage() {
               </div>
             )}
           </div>
+
+          {remoteOnlyVaults.length > 0 && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
+              <div className="flex items-center gap-4 pt-8 border-t border-border/40">
+                <div className="w-12 h-12 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500">
+                  <Cloud className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black tracking-tight">云端笔记本</h2>
+                  <p className="text-sm text-muted-foreground">
+                    以下笔记本存在于远程存储中，点击拉取到本地
+                  </p>
+                </div>
+                {isLoadingRemote && (
+                  <Loader2 className="w-5 h-5 animate-spin text-blue-500 ml-auto" />
+                )}
+              </div>
+
+              <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {remoteOnlyVaults.map((v) => (
+                  <Card
+                    key={v.projectId}
+                    className="group bg-blue-500/5 backdrop-blur-md border border-blue-500/20 hover:border-blue-500/50 transition-all duration-500 rounded-[2.5rem] overflow-hidden flex flex-col h-full"
+                  >
+                    <CardHeader className="p-8 pb-4">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="w-14 h-14 bg-blue-500/10 rounded-2xl flex items-center justify-center text-blue-500">
+                          <Cloud className="w-7 h-7" />
+                        </div>
+                      </div>
+                      <CardTitle className="text-3xl font-black tracking-tight leading-tight line-clamp-2">
+                        {v.name}
+                      </CardTitle>
+                      <p className="text-[10px] text-muted-foreground mt-4 font-black uppercase tracking-widest opacity-40">
+                        ID: {v.projectId}
+                      </p>
+                    </CardHeader>
+
+                    <div className="flex-1" />
+
+                    <CardFooter className="p-8 pt-0 flex justify-end items-center">
+                      <Button
+                        onClick={() => handlePullVault(v.projectId)}
+                        disabled={isPulling === v.projectId}
+                        className="rounded-full font-black bg-blue-500 hover:bg-blue-600 text-white gap-2 px-4"
+                      >
+                        {isPulling === v.projectId ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CloudDownload className="w-4 h-4" />
+                        )}
+                        拉取到本地
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 

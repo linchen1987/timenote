@@ -11,6 +11,9 @@ type UseVaultStoreHook = {
 
 export interface UseNotebooksPageReturn {
   vaults: VaultMeta[];
+  remoteOnlyVaults: VaultMeta[];
+  isLoadingRemote: boolean;
+  isPulling: string | null;
   isCreating: boolean;
   setIsCreating: (v: boolean) => void;
   newName: string;
@@ -31,12 +34,14 @@ export interface UseNotebooksPageReturn {
   handleDelete: () => Promise<void>;
   handleExport: (projectId: string) => Promise<void>;
   handleImport: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+  handlePullVault: (projectId: string) => Promise<void>;
   refresh: () => Promise<void>;
   getNotebookLink: (v: VaultMeta) => string;
   messages: {
     created: string;
     deleted: string;
     exported: string;
+    pulled: string;
   };
 }
 
@@ -45,6 +50,7 @@ export interface UseNotebooksPageOptions {
     created?: string;
     deleted?: string;
     exported?: string;
+    pulled?: string;
   };
 }
 
@@ -56,11 +62,23 @@ export function useNotebooksPage(
     created: options?.messages?.created ?? 'Vault created',
     deleted: options?.messages?.deleted ?? 'Vault deleted',
     exported: options?.messages?.exported ?? 'Vault exported',
+    pulled: options?.messages?.pulled ?? 'Vault pulled from remote',
   };
 
-  const { listVaults, createVault, deleteVault, exportVault, importVault, checkMigration } =
-    useStore();
+  const {
+    listVaults,
+    listRemoteVaults,
+    pullVault,
+    createVault,
+    deleteVault,
+    exportVault,
+    importVault,
+    checkMigration,
+  } = useStore();
   const [vaults, setVaults] = useState<VaultMeta[]>([]);
+  const [remoteOnlyVaults, setRemoteOnlyVaults] = useState<VaultMeta[]>([]);
+  const [isLoadingRemote, setIsLoadingRemote] = useState(false);
+  const [isPulling, setIsPulling] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -76,10 +94,21 @@ export function useNotebooksPage(
     try {
       const list = await listVaults();
       setVaults(list);
+
+      setIsLoadingRemote(true);
+      try {
+        const remoteList = await listRemoteVaults();
+        const localIds = new Set(list.map((v) => v.projectId));
+        setRemoteOnlyVaults(remoteList.filter((v) => !localIds.has(v.projectId)));
+      } catch {
+        setRemoteOnlyVaults([]);
+      } finally {
+        setIsLoadingRemote(false);
+      }
     } catch (e) {
       toast.error(`Failed to load vaults: ${(e as Error).message}`);
     }
-  }, [listVaults]);
+  }, [listVaults, listRemoteVaults]);
 
   useEffect(() => {
     refresh();
@@ -150,8 +179,24 @@ export function useNotebooksPage(
 
   const getNotebookLink = (v: VaultMeta) => `/s/${createNotebookToken(v.projectId, v.name)}`;
 
+  const handlePullVault = async (projectId: string) => {
+    setIsPulling(projectId);
+    try {
+      await pullVault(projectId);
+      toast.success(msg.pulled);
+      await refresh();
+    } catch (e) {
+      toast.error(`Pull failed: ${(e as Error).message}`);
+    } finally {
+      setIsPulling(null);
+    }
+  };
+
   return {
     vaults,
+    remoteOnlyVaults,
+    isLoadingRemote,
+    isPulling,
     isCreating,
     setIsCreating,
     newName,
@@ -172,6 +217,7 @@ export function useNotebooksPage(
     handleDelete,
     handleExport,
     handleImport,
+    handlePullVault,
     refresh,
     getNotebookLink,
     messages: msg,

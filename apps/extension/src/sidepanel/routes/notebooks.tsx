@@ -24,11 +24,14 @@ import {
 import {
   ArrowRight,
   ArrowRightLeft,
+  Cloud,
+  CloudDownload,
   Download,
   Edit2,
   Github,
   Globe,
   LayoutGrid,
+  Loader2,
   Moon,
   MoreVertical,
   Notebook as NotebookIcon,
@@ -78,6 +81,9 @@ function ThemeToggle() {
 export function NotebooksList() {
   const {
     vaults,
+    remoteOnlyVaults,
+    isLoadingRemote,
+    isPulling,
     isCreating,
     setIsCreating,
     newName,
@@ -97,9 +103,10 @@ export function NotebooksList() {
     handleDelete,
     handleExport,
     handleImport,
+    handlePullVault,
     getNotebookLink,
   } = useNotebooksPage(useVaultStore, {
-    messages: { created: '笔记本创建成功', deleted: '笔记本已删除' },
+    messages: { created: '笔记本创建成功', deleted: '笔记本已删除', pulled: '拉取成功' },
   });
 
   return (
@@ -352,7 +359,7 @@ export function NotebooksList() {
               </Card>
             ))}
 
-            {vaults.length === 0 && !isCreating && (
+            {vaults.length === 0 && !isCreating && remoteOnlyVaults.length === 0 && (
               <div className="flex flex-col items-center justify-center py-20 text-center bg-card/40 backdrop-blur-md rounded-3xl border-2 border-dashed border-border/60">
                 <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 text-primary/40">
                   <NotebookIcon className="w-8 h-8" />
@@ -372,6 +379,63 @@ export function NotebooksList() {
               </div>
             )}
           </div>
+
+          {remoteOnlyVaults.length > 0 && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="flex items-center gap-3 pt-6 border-t border-border/40">
+                <div className="w-8 h-8 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-500">
+                  <Cloud className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black tracking-tight">云端笔记本</h2>
+                  <p className="text-[10px] text-muted-foreground">点击拉取到本地</p>
+                </div>
+                {isLoadingRemote && (
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-500 ml-auto" />
+                )}
+              </div>
+
+              <div className="grid gap-3">
+                {remoteOnlyVaults.map((v) => (
+                  <Card
+                    key={v.projectId}
+                    className="group bg-blue-500/5 backdrop-blur-md border border-blue-500/20 hover:border-blue-500/40 transition-all rounded-2xl flex flex-col"
+                  >
+                    <CardHeader className="p-4 pb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center text-blue-500 shrink-0">
+                          <Cloud className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-base font-black tracking-tight leading-tight truncate">
+                            {v.name}
+                          </CardTitle>
+                          <p className="text-[10px] text-muted-foreground font-black uppercase tracking-widest opacity-40 mt-0.5">
+                            ID: {v.projectId}
+                          </p>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardFooter className="p-4 pt-0 flex justify-end">
+                      <Button
+                        size="sm"
+                        onClick={() => handlePullVault(v.projectId)}
+                        disabled={isPulling === v.projectId}
+                        className="rounded-full font-black bg-blue-500 hover:bg-blue-600 text-white gap-1.5 px-3 h-8 text-xs"
+                      >
+                        {isPulling === v.projectId ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <CloudDownload className="w-3.5 h-3.5" />
+                        )}
+                        拉取
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 

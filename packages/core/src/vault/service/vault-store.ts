@@ -9,8 +9,10 @@ import {
   createVaultNoteService,
   createVaultService,
   createVaultSyncService,
+  type DirtyEntry,
   type ImportResult,
   type LegacyNotebookInfo,
+  type Manifest,
   type MigrationProgress,
   type MigrationResult,
   type MigrationService,
@@ -25,6 +27,8 @@ import {
   type VaultService,
   type VaultSyncService,
 } from '../index';
+import { ManifestSchema } from '../spec/manifest';
+import { noteFilePath } from '../spec/vault-layout';
 
 export type VaultStore = {
   vaultService: VaultService | null;
@@ -78,12 +82,23 @@ export type VaultStore = {
 
   getTagsWithCounts: () => Promise<{ name: string; count: number }[]>;
 
+  listRemoteVaults: () => Promise<VaultMeta[]>;
+  pullVault: (projectId: string) => Promise<void>;
+
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
   push: (projectId: string) => Promise<SyncResult>;
 
+  notifyNoteChange: (
+    projectId: string,
+    noteId: string,
+    action: 'create' | 'update' | 'delete',
+  ) => void;
+  scheduleAutoSync: (projectId: string) => void;
+
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
+  importAndMerge: (projectId: string, file: File) => Promise<ImportResult>;
 
   checkMigration: () => Promise<boolean>;
   listLegacyNotebooks: () => Promise<LegacyNotebookInfo[]>;
@@ -110,8 +125,49 @@ export function createVaultStore(
     isConfigured: () => transport.isConfigured(),
   };
 
+  const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function debounceSync(store: VaultStore, projectId: string): void {
+    const existing = syncTimers.get(projectId);
+    if (existing) clearTimeout(existing);
+    syncTimers.set(
+      projectId,
+      setTimeout(() => {
+        syncTimers.delete(projectId);
+        if (!store.isSyncing) {
+          store.sync(projectId).catch(() => {});
+        }
+      }, 1000),
+    );
+  }
+
   function getRemoteForProject(projectId: string): RemoteTransport {
     return createPrefixedTransport(`timenote/vaults/${projectId}`, remoteTransport);
+  }
+
+  const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
+
+  async function listRemoteVaults(): Promise<VaultMeta[]> {
+    if (!(await checkConfigured(transport))) return [];
+    try {
+      const entries = await remoteTransport.list(VAULTS_REMOTE_PREFIX);
+      const vaults: VaultMeta[] = [];
+      for (const entry of entries) {
+        if (entry.type !== 'directory') continue;
+        const projectId = entry.basename;
+        try {
+          const manifestPath = `${VAULTS_REMOTE_PREFIX}/${projectId}/${metaPath('manifest')}`;
+          const raw = await remoteTransport.read(manifestPath);
+          const manifest: Manifest = ManifestSchema.parse(JSON.parse(raw));
+          vaults.push({ projectId: manifest.project_id, name: manifest.name });
+        } catch {
+          vaults.push({ projectId, name: projectId });
+        }
+      }
+      return vaults;
+    } catch {
+      return [];
+    }
   }
 
   return create<VaultStore>((set, get) => ({
@@ -139,7 +195,7 @@ export function createVaultStore(
       const menuService = createVaultMenuService(vaultService);
       const syncService = createVaultSyncService(vaultService, noteService);
       const exportService = createVaultExportService(vaultService);
-      const importService = createVaultImportService(vaultService, noteService);
+      const importService = createVaultImportService(vaultService, noteService, syncService);
       const migrationService = createMigrationService();
       set({
         vaultService,
@@ -185,6 +241,7 @@ export function createVaultStore(
 
       const syncService = get().syncService;
       if (syncService) {
+        await syncService.loadLedgerCache(projectId);
         try {
           const status = await syncService.getSyncStatus(projectId);
           set({ lastSyncTime: status.lastSyncTime });
@@ -232,6 +289,10 @@ export function createVaultStore(
       const updated = [...current, newItem];
       await get().menuService?.saveMenu(projectId, updated);
       set({ menuItems: updated });
+      get().syncService?.markDirty(projectId, [
+        { type: 'meta', key: 'menu.json', action: 'upsert' },
+      ]);
+      get().scheduleAutoSync(projectId);
     },
 
     updateMenuItem: async (projectId, id, updates) => {
@@ -248,6 +309,10 @@ export function createVaultStore(
       );
       await get().menuService?.saveMenu(projectId, updated);
       set({ menuItems: updated });
+      get().syncService?.markDirty(projectId, [
+        { type: 'meta', key: 'menu.json', action: 'upsert' },
+      ]);
+      get().scheduleAutoSync(projectId);
     },
 
     deleteMenuItem: async (projectId, id) => {
@@ -263,6 +328,10 @@ export function createVaultStore(
       const updated = current.filter((i) => !idsToDelete.has(i.id));
       await get().menuService?.saveMenu(projectId, updated);
       set({ menuItems: updated });
+      get().syncService?.markDirty(projectId, [
+        { type: 'meta', key: 'menu.json', action: 'upsert' },
+      ]);
+      get().scheduleAutoSync(projectId);
     },
 
     reorderMenuItems: async (projectId, updates) => {
@@ -273,12 +342,36 @@ export function createVaultStore(
       });
       await get().menuService?.saveMenu(projectId, updated);
       set({ menuItems: updated });
+      get().syncService?.markDirty(projectId, [
+        { type: 'meta', key: 'menu.json', action: 'upsert' },
+      ]);
+      get().scheduleAutoSync(projectId);
     },
 
     getTagsWithCounts: async () => {
       const svc = get().noteService;
       if (!svc) return [];
       return svc.getTagsWithCounts();
+    },
+
+    notifyNoteChange: (
+      projectId: string,
+      noteId: string,
+      action: 'create' | 'update' | 'delete',
+    ) => {
+      const syncService = get().syncService;
+      if (!syncService) return;
+      const path = noteFilePath(noteId);
+      if (action === 'delete') {
+        syncService.markDirty(projectId, [{ type: 'note', path, action: 'delete' }]);
+      } else {
+        syncService.markDirty(projectId, [{ type: 'note', path, action: 'upsert' }]);
+      }
+      get().scheduleAutoSync(projectId);
+    },
+
+    scheduleAutoSync: (projectId: string) => {
+      debounceSync(get(), projectId);
     },
 
     sync: async (projectId: string) => {
@@ -343,10 +436,49 @@ export function createVaultStore(
       await exportService.downloadVault(projectId);
     },
 
+    listRemoteVaults: async () => {
+      await get().init();
+      return listRemoteVaults();
+    },
+
+    pullVault: async (projectId: string) => {
+      if (!(await checkConfigured(transport))) {
+        throw new Error('Storage not configured');
+      }
+      await get().init();
+      const vaultService = get().vaultService;
+      if (!vaultService) throw new Error('VaultService not initialized');
+
+      const remote = getRemoteForProject(projectId);
+      let manifest: Manifest;
+      try {
+        const raw = await remote.read(metaPath('manifest'));
+        manifest = ManifestSchema.parse(JSON.parse(raw));
+      } catch {
+        throw new Error('Remote vault manifest not found');
+      }
+
+      const existing = await vaultService.listVaults();
+      if (!existing.find((v) => v.projectId === projectId)) {
+        await vaultService.createVaultWithId(projectId, manifest.name);
+      }
+
+      await get().sync(projectId);
+      await get().listVaults();
+    },
+
     importVault: async (file: File) => {
       const importService = get().importService;
       if (!importService) throw new Error('ImportService not initialized');
       const result = await importService.importVault(file);
+      await get().listVaults();
+      return result;
+    },
+
+    importAndMerge: async (projectId: string, file: File) => {
+      const importService = get().importService;
+      if (!importService) throw new Error('ImportService not initialized');
+      const result = await importService.importAndMerge(projectId, file);
       await get().listVaults();
       return result;
     },

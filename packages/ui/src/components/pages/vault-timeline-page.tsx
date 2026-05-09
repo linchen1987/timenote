@@ -230,12 +230,13 @@ export function VaultTimelinePage({
     if (!composerContent.trim() || !resolvedProjectId) return;
     try {
       const svc = getNoteService();
-      await svc.createNote(resolvedProjectId, composerContent);
+      const noteId = await svc.createNote(resolvedProjectId, composerContent);
       await syncTagsToMenu(composerContent);
       setComposerContent('');
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
       await loadNotes(true);
+      useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'create');
     } catch (e) {
       toast.error(`Failed to create note: ${(e as Error).message}`);
     }
@@ -249,6 +250,7 @@ export function VaultTimelinePage({
       await syncTagsToMenu(content);
       setEditingId(null);
       await loadNotes(true);
+      useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'update');
     } catch (e) {
       toast.error(`Failed to update note: ${(e as Error).message}`);
     }
@@ -263,6 +265,7 @@ export function VaultTimelinePage({
       setIsDeleteDialogOpen(false);
       toast.success('Note deleted');
       await loadNotes(true);
+      useStore.getState().notifyNoteChange(resolvedProjectId, noteToDelete, 'delete');
     } catch (e) {
       toast.error(`Failed to delete note: ${(e as Error).message}`);
     }

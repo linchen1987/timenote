@@ -46,6 +46,7 @@ export { compareEntities, mergeEntities, type SyncPlan } from './service/sync-al
 export {
   createPrefixedTransport,
   createVaultSyncService,
+  type DirtyEntry,
   type RemoteTransport,
   type SyncResult,
   type SyncStatus,
