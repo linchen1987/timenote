@@ -35,17 +35,20 @@ export interface VaultNoteService {
 }
 
 export function createVaultNoteService(vaultService: VaultService): VaultNoteService {
-  return new VaultNoteServiceImpl(vaultService, createIndexService(), new SimpleSearchProvider());
+  return new VaultNoteServiceImpl(vaultService);
 }
 
 class VaultNoteServiceImpl implements VaultNoteService {
   private activeProjectId: string | null = null;
+  private indexService: IndexService | null = null;
+  private searchProvider: SearchProvider = new SimpleSearchProvider();
 
-  constructor(
-    private vaultService: VaultService,
-    private indexService: IndexService,
-    private searchProvider: SearchProvider,
-  ) {}
+  constructor(private vaultService: VaultService) {}
+
+  private get idx(): IndexService {
+    if (!this.indexService) throw new Error('No active vault. Call activateVault() first.');
+    return this.indexService;
+  }
 
   async createNote(projectId: string, content?: string): Promise<string> {
     const noteId = generateNoteId();
@@ -62,7 +65,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     const transport = this.vaultService.getTransport(projectId);
     await transport.write(noteFilePath(noteId), raw);
 
-    if (this.activeProjectId === projectId) {
+    if (this.activeProjectId === projectId && this.indexService) {
       await this.indexService.indexNote(noteId, raw);
       this.searchProvider.add(noteId, body);
     }
@@ -81,8 +84,10 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async getBody(projectId: string, noteId: string): Promise<string> {
-    const cached = await this.indexService.getBody(noteId);
-    if (cached !== undefined) return cached;
+    if (this.indexService) {
+      const cached = await this.indexService.getBody(noteId);
+      if (cached !== undefined) return cached;
+    }
 
     const transport = this.vaultService.getTransport(projectId);
     const path = noteFilePath(noteId);
@@ -95,7 +100,9 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>> {
-    const cached = await this.indexService.getBodies(noteIds);
+    const cached = this.indexService
+      ? await this.indexService.getBodies(noteIds)
+      : new Map<string, string>();
     if (cached.size === noteIds.length) return cached;
 
     const missing = noteIds.filter((id) => !cached.has(id));
@@ -130,7 +137,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     const raw = serializeNote(updatedFm, content);
     await transport.write(path, raw);
 
-    if (this.activeProjectId === projectId) {
+    if (this.activeProjectId === projectId && this.indexService) {
       await this.indexService.indexNote(noteId, raw);
       this.searchProvider.update(noteId, content);
     }
@@ -145,13 +152,20 @@ class VaultNoteServiceImpl implements VaultNoteService {
     await transport.remove(path);
     await this.vaultService.appendDeleteLog(projectId, noteId);
 
-    if (this.activeProjectId === projectId) {
+    if (this.activeProjectId === projectId && this.indexService) {
       await this.indexService.removeNoteIndex(noteId);
       this.searchProvider.remove(noteId);
     }
   }
 
   async activateVault(projectId: string): Promise<void> {
+    if (this.activeProjectId === projectId && this.indexService) return;
+
+    this.indexService = null;
+    this.searchProvider.clear();
+
+    this.indexService = createIndexService(projectId);
+
     const existingIds = await this.indexService.getAllNoteIds();
 
     if (existingIds.size > 0) {
@@ -191,12 +205,13 @@ class VaultNoteServiceImpl implements VaultNoteService {
     }
 
     const CONCURRENCY = 8;
+    const svc = this.indexService;
     for (let i = 0; i < notesToProcess.length; i += CONCURRENCY) {
       const batch = notesToProcess.slice(i, i + CONCURRENCY);
       await Promise.all(
         batch.map(async ({ noteId, path }) => {
           const raw = await transport.read(path);
-          await this.indexService.indexNote(noteId, raw);
+          await svc.indexNote(noteId, raw);
           const parsed = parseNoteSafe(raw);
           if (parsed) this.searchProvider.add(noteId, parsed.body);
         }),
@@ -207,13 +222,16 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   deactivateVault(): void {
-    this.indexService.clearIndex();
+    this.indexService = null;
     this.searchProvider.clear();
     this.activeProjectId = null;
   }
 
   async rebuildIndex(projectId: string): Promise<void> {
-    this.indexService.clearIndex();
+    if (this.indexService) {
+      await this.indexService.clearIndex();
+      this.indexService = null;
+    }
     this.searchProvider.clear();
     this.activeProjectId = null;
     await this.activateVault(projectId);
@@ -221,7 +239,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
   async listNotes(options?: { limit?: number; offset?: number }): Promise<NoteIndex[]> {
     this.ensureActive();
-    return this.indexService.getTimeline(options?.limit, options?.offset);
+    return this.idx.getTimeline(options?.limit, options?.offset);
   }
 
   async searchNotes(query: string): Promise<NoteIndex[]> {
@@ -232,7 +250,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
     if (parsed.tags.length > 0) {
       for (const tag of parsed.tags) {
-        const notesByTag = await this.indexService.getNotesByTag(tag);
+        const notesByTag = await this.idx.getNotesByTag(tag);
         const ids = new Set(notesByTag.map((n) => n.id));
         candidateIds = candidateIds ? new Set([...candidateIds].filter((id) => ids.has(id))) : ids;
       }
@@ -253,12 +271,12 @@ class VaultNoteServiceImpl implements VaultNoteService {
     } else if (candidateIds) {
       finalIds = [...candidateIds];
     } else {
-      return this.indexService.getTimeline(50, 0);
+      return this.idx.getTimeline(50, 0);
     }
 
     const indexes: NoteIndex[] = [];
     for (const id of finalIds) {
-      const idx = await this.indexService.getIndex(id);
+      const idx = await this.idx.getIndex(id);
       if (idx) indexes.push(idx);
     }
 
@@ -267,26 +285,26 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
   async getNotesByTag(tag: string): Promise<NoteIndex[]> {
     this.ensureActive();
-    return this.indexService.getNotesByTag(tag);
+    return this.idx.getNotesByTag(tag);
   }
 
   async getAllTags(): Promise<string[]> {
     this.ensureActive();
-    return this.indexService.getAllTags();
+    return this.idx.getAllTags();
   }
 
   async getTagsWithCounts(): Promise<{ name: string; count: number }[]> {
     this.ensureActive();
-    return this.indexService.getTagsWithCounts();
+    return this.idx.getTagsWithCounts();
   }
 
   async getNoteIndex(noteId: string): Promise<NoteIndex | undefined> {
     this.ensureActive();
-    return this.indexService.getIndex(noteId);
+    return this.idx.getIndex(noteId);
   }
 
   private ensureActive(): void {
-    if (!this.activeProjectId) {
+    if (!this.activeProjectId || !this.indexService) {
       throw new Error('No active vault. Call activateVault() first.');
     }
   }

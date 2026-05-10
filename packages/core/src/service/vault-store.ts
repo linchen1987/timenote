@@ -7,6 +7,7 @@ import {
   type MigrationResult,
   type MigrationService,
 } from '../migration/migration-service';
+import { deleteVaultIndexDatabase } from '../provider/index-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
 import { metaPath, noteFilePath } from '../spec/vault-layout';
@@ -222,6 +223,7 @@ export function createVaultStore(
     deleteVault: async (projectId: string) => {
       await get().init();
       await get().vaultService?.deleteVault(projectId);
+      await deleteVaultIndexDatabase(projectId);
       await get().listVaults();
     },
 

@@ -24,12 +24,16 @@ interface NoteBody {
   body: string;
 }
 
+function vaultIndexDbName(projectId: string): string {
+  return `TimenoteVaultIndex_${projectId}`;
+}
+
 class VaultIndexDB extends Dexie {
   notes!: Table<NoteIndex>;
   bodies!: Table<NoteBody>;
 
-  constructor() {
-    super('TimenoteVaultIndex');
+  constructor(projectId: string) {
+    super(vaultIndexDbName(projectId));
     this.version(1).stores({
       notes: 'id, title, updated_at, created_at, *tags',
     });
@@ -44,6 +48,7 @@ export interface IndexService {
   indexNote(noteId: string, rawContent: string): Promise<void>;
   removeNoteIndex(noteId: string): Promise<void>;
   clearIndex(): Promise<void>;
+  close(): Promise<void>;
   getTimeline(limit?: number, offset?: number): Promise<NoteIndex[]>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
@@ -55,12 +60,20 @@ export interface IndexService {
   getBodies(noteIds: string[]): Promise<Map<string, string>>;
 }
 
-export function createIndexService(): IndexService {
-  return new IndexServiceImpl();
+export function createIndexService(projectId: string): IndexService {
+  return new IndexServiceImpl(projectId);
+}
+
+export async function deleteVaultIndexDatabase(projectId: string): Promise<void> {
+  await Dexie.delete(vaultIndexDbName(projectId));
 }
 
 class IndexServiceImpl implements IndexService {
-  private db = new VaultIndexDB();
+  private db: VaultIndexDB;
+
+  constructor(projectId: string) {
+    this.db = new VaultIndexDB(projectId);
+  }
 
   async indexNote(noteId: string, rawContent: string): Promise<void> {
     const parsed = parseNoteSafe(rawContent);
@@ -88,6 +101,10 @@ class IndexServiceImpl implements IndexService {
   async clearIndex(): Promise<void> {
     await this.db.notes.clear();
     await this.db.bodies.clear();
+  }
+
+  async close(): Promise<void> {
+    this.db.close();
   }
 
   async getTimeline(limit = 50, offset = 0): Promise<NoteIndex[]> {

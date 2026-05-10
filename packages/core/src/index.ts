@@ -16,6 +16,7 @@ export {
 
 export {
   createIndexService,
+  deleteVaultIndexDatabase,
   type IndexService,
   type NoteIndex,
   NoteIndexSchema,
