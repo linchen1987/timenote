@@ -17,4 +17,7 @@ export const STORAGE_KEYS = {
   SIDEBAR_WIDTH: '@timenote/sidebar_width',
   DESKTOP_SIDEBAR_OPEN: '@timenote/desktop_sidebar_open',
   LAST_NOTEBOOK_TOKEN: '@timenote/last_notebook_token',
+  SYNC_CACHE_PREFIX: '@timenote/sync_cache',
 } as const;
+
+export const SYNC_TTL_MS = 30 * 60 * 1000;

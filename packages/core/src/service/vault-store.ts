@@ -1,5 +1,6 @@
 import { nanoid } from 'nanoid';
 import { create } from 'zustand';
+import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
 import {
   createMigrationService,
   type LegacyNotebookInfo,
@@ -28,6 +29,30 @@ import {
 import { createVaultService, type VaultMeta, type VaultService } from '../vault/vault-service';
 import { createVaultMenuService, type VaultMenuService } from './menu-service';
 import { createVaultNoteService, type VaultNoteService } from './note-service';
+
+function syncCacheKey(projectId: string): string {
+  return `${STORAGE_KEYS.SYNC_CACHE_PREFIX}/${projectId}`;
+}
+
+function getSyncCacheTime(projectId: string): number | null {
+  try {
+    const raw = sessionStorage.getItem(syncCacheKey(projectId));
+    return raw ? Number(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function touchSyncCache(projectId: string): void {
+  try {
+    sessionStorage.setItem(syncCacheKey(projectId), String(Date.now()));
+  } catch {}
+}
+
+function isSyncCacheValid(projectId: string): boolean {
+  const ts = getSyncCacheTime(projectId);
+  return ts !== null && Date.now() - ts < SYNC_TTL_MS;
+}
 
 export type VaultStore = {
   vaultService: VaultService | null;
@@ -87,6 +112,7 @@ export type VaultStore = {
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
   push: (projectId: string) => Promise<SyncResult>;
+  tryEntrySync: (projectId: string) => Promise<void>;
 
   notifyNoteChange: (
     projectId: string,
@@ -367,6 +393,14 @@ export function createVaultStore(
       debounceSync(get(), projectId);
     },
 
+    tryEntrySync: async (projectId: string) => {
+      if (isSyncCacheValid(projectId)) return;
+      if (!(await checkConfigured(transport))) return;
+      try {
+        await get().sync(projectId);
+      } catch {}
+    },
+
     sync: async (projectId: string) => {
       if (!(await checkConfigured(transport))) {
         throw new Error('Storage not configured. Please configure S3 or WebDAV settings.');
@@ -378,6 +412,7 @@ export function createVaultStore(
         const remote = getRemoteForProject(projectId);
         const result = await syncService.sync(projectId, remote);
         set({ lastSyncTime: new Date().toISOString() });
+        touchSyncCache(projectId);
         await get().loadMenu(projectId);
         return result;
       } finally {
@@ -396,6 +431,7 @@ export function createVaultStore(
         const remote = getRemoteForProject(projectId);
         const result = await syncService.pull(projectId, remote);
         set({ lastSyncTime: new Date().toISOString() });
+        touchSyncCache(projectId);
         await get().loadMenu(projectId);
         return result;
       } finally {
@@ -414,6 +450,7 @@ export function createVaultStore(
         const remote = getRemoteForProject(projectId);
         const result = await syncService.push(projectId, remote);
         set({ lastSyncTime: new Date().toISOString() });
+        touchSyncCache(projectId);
         return result;
       } finally {
         set({ isSyncing: false });
