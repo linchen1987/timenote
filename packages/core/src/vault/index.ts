@@ -13,17 +13,58 @@ export {
   SimpleSearchProvider,
 } from './provider/search-provider';
 
-// ─── Service Layer ───────────────────────────────────────────
+// ─── Core Module (Sync Engine + Vault Lifecycle) ──────────────
 
+export {
+  applyDirtyEntries,
+  buildEmptyLedger,
+  buildLedgerFromFile,
+  buildLedgerFromFs,
+  type DirtyEntry,
+} from './core/build-ledger';
+export { type ExecuteResult, executePlan } from './core/execute-plan';
 export {
   createVaultExportService,
   type VaultExportService,
-} from './service/export-service';
+} from './core/export-service';
 export {
   createVaultImportService,
   type ImportResult,
   type VaultImportService,
-} from './service/import-service';
+} from './core/import-service';
+export {
+  compareEntities,
+  mergeEntities,
+  resolve,
+  type SyncDirection,
+  type SyncPlan,
+  type SyncSession,
+} from './core/sync-algorithm';
+export {
+  createPrefixedTransport,
+  createVaultSyncService,
+  type RemoteTransport,
+  type SyncOptions,
+  type SyncResult,
+  type SyncStatus,
+  toVaultFs,
+  type VaultSyncService,
+} from './core/sync-service';
+export {
+  createOpfsVaultFs,
+  createTransportVaultFs,
+  type VaultFs,
+} from './core/vault-fs';
+export {
+  createVaultService,
+  type VaultMeta,
+  type VaultService,
+  type VaultTransport,
+} from './core/vault-service';
+export { writeLedger } from './core/write-ledger';
+
+// ─── Service Layer ───────────────────────────────────────────
+
 export { createVaultMenuService, type VaultMenuService } from './service/menu-service';
 export {
   flattenMenuItems,
@@ -42,22 +83,6 @@ export {
   type VaultNoteService,
 } from './service/note-service';
 export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
-export { compareEntities, mergeEntities, type SyncPlan } from './service/sync-algorithm';
-export {
-  createPrefixedTransport,
-  createVaultSyncService,
-  type DirtyEntry,
-  type RemoteTransport,
-  type SyncResult,
-  type SyncStatus,
-  type VaultSyncService,
-} from './service/sync-service';
-export {
-  createVaultService,
-  type VaultMeta,
-  type VaultService,
-  type VaultTransport,
-} from './service/vault-service';
 export { createVaultStore, type VaultStore } from './service/vault-store';
 
 // ─── Spec Layer (Persistence Format) ─────────────────────────

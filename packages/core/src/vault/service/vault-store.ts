@@ -9,7 +9,6 @@ import {
   createVaultNoteService,
   createVaultService,
   createVaultSyncService,
-  type DirtyEntry,
   type ImportResult,
   type LegacyNotebookInfo,
   type Manifest,
@@ -19,6 +18,7 @@ import {
   type RemoteTransport,
   type RuntimeMenuItem,
   type SyncResult,
+  toVaultFs,
   type VaultExportService,
   type VaultImportService,
   type VaultMenuService,
@@ -28,7 +28,7 @@ import {
   type VaultSyncService,
 } from '../index';
 import { ManifestSchema } from '../spec/manifest';
-import { noteFilePath } from '../spec/vault-layout';
+import { metaPath, noteFilePath } from '../spec/vault-layout';
 
 export type VaultStore = {
   vaultService: VaultService | null;
@@ -83,7 +83,7 @@ export type VaultStore = {
   getTagsWithCounts: () => Promise<{ name: string; count: number }[]>;
 
   listRemoteVaults: () => Promise<VaultMeta[]>;
-  pullVault: (projectId: string) => Promise<void>;
+  cloneVault: (projectId: string) => Promise<void>;
 
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
@@ -98,7 +98,6 @@ export type VaultStore = {
 
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
-  importAndMerge: (projectId: string, file: File) => Promise<ImportResult>;
 
   checkMigration: () => Promise<boolean>;
   listLegacyNotebooks: () => Promise<LegacyNotebookInfo[]>;
@@ -194,7 +193,7 @@ export function createVaultStore(
       const noteService = createVaultNoteService(vaultService);
       const menuService = createVaultMenuService(vaultService);
       const syncService = createVaultSyncService(vaultService, noteService);
-      const exportService = createVaultExportService(vaultService);
+      const exportService = createVaultExportService(vaultService, syncService);
       const importService = createVaultImportService(vaultService, noteService, syncService);
       const migrationService = createMigrationService();
       set({
@@ -242,12 +241,6 @@ export function createVaultStore(
       const syncService = get().syncService;
       if (syncService) {
         await syncService.loadLedgerCache(projectId);
-        try {
-          const status = await syncService.getSyncStatus(projectId);
-          set({ lastSyncTime: status.lastSyncTime });
-        } catch {
-          // ignore
-        }
       }
     },
 
@@ -384,8 +377,7 @@ export function createVaultStore(
         if (!syncService) throw new Error('SyncService not initialized');
         const remote = getRemoteForProject(projectId);
         const result = await syncService.sync(projectId, remote);
-        const status = await syncService.getSyncStatus(projectId);
-        set({ lastSyncTime: status.lastSyncTime });
+        set({ lastSyncTime: new Date().toISOString() });
         await get().loadMenu(projectId);
         return result;
       } finally {
@@ -403,8 +395,7 @@ export function createVaultStore(
         if (!syncService) throw new Error('SyncService not initialized');
         const remote = getRemoteForProject(projectId);
         const result = await syncService.pull(projectId, remote);
-        const status = await syncService.getSyncStatus(projectId);
-        set({ lastSyncTime: status.lastSyncTime });
+        set({ lastSyncTime: new Date().toISOString() });
         await get().loadMenu(projectId);
         return result;
       } finally {
@@ -422,8 +413,7 @@ export function createVaultStore(
         if (!syncService) throw new Error('SyncService not initialized');
         const remote = getRemoteForProject(projectId);
         const result = await syncService.push(projectId, remote);
-        const status = await syncService.getSyncStatus(projectId);
-        set({ lastSyncTime: status.lastSyncTime });
+        set({ lastSyncTime: new Date().toISOString() });
         return result;
       } finally {
         set({ isSyncing: false });
@@ -441,13 +431,15 @@ export function createVaultStore(
       return listRemoteVaults();
     },
 
-    pullVault: async (projectId: string) => {
+    cloneVault: async (projectId: string) => {
       if (!(await checkConfigured(transport))) {
         throw new Error('Storage not configured');
       }
       await get().init();
       const vaultService = get().vaultService;
+      const syncService = get().syncService;
       if (!vaultService) throw new Error('VaultService not initialized');
+      if (!syncService) throw new Error('SyncService not initialized');
 
       const remote = getRemoteForProject(projectId);
       let manifest: Manifest;
@@ -463,7 +455,9 @@ export function createVaultStore(
         await vaultService.createVaultWithId(projectId, manifest.name);
       }
 
-      await get().sync(projectId);
+      await syncService.initFromSource(projectId, toVaultFs(remote), {
+        writeSourceLedger: true,
+      });
       await get().listVaults();
     },
 
@@ -471,14 +465,6 @@ export function createVaultStore(
       const importService = get().importService;
       if (!importService) throw new Error('ImportService not initialized');
       const result = await importService.importVault(file);
-      await get().listVaults();
-      return result;
-    },
-
-    importAndMerge: async (projectId: string, file: File) => {
-      const importService = get().importService;
-      if (!importService) throw new Error('ImportService not initialized');
-      const result = await importService.importAndMerge(projectId, file);
       await get().listVaults();
       return result;
     },

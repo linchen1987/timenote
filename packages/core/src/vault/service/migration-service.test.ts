@@ -1,9 +1,9 @@
 import 'fake-indexeddb/auto';
 import JSZip from 'jszip';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../db';
-import type { MenuItem, Note, Notebook, NoteTag, Tag } from '../types';
-import { createMigrationService, type MigrationProgress } from './service/migration-service';
+import { db } from '../../db';
+import type { MenuItem, Note, Notebook, NoteTag, Tag } from '../../types';
+import { createMigrationService, type MigrationProgress } from './migration-service';
 
 function createNotebook(overrides: Partial<Notebook> = {}): Notebook {
   const now = Date.now();

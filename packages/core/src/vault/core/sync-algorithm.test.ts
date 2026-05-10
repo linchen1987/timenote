@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SyncEntity } from '../spec/sync-ledger';
-import { compareEntities, mergeEntities, type SyncPlan } from './sync-algorithm';
+import type { SyncEntity, SyncLedger } from '../spec/sync-ledger';
+import { compareEntities, mergeEntities, resolve, type SyncPlan } from './sync-algorithm';
 
 function alive(hash: string, updated: string): SyncEntity {
   return { h: hash, u: updated };
@@ -8,6 +8,13 @@ function alive(hash: string, updated: string): SyncEntity {
 
 function tombstone(updated: string): SyncEntity {
   return { d: true, u: updated };
+}
+
+function makeLedger(
+  entities: Record<string, SyncEntity> = {},
+  metaFiles: Record<string, SyncEntity> = {},
+): SyncLedger {
+  return { version: 1, entities, meta_files: metaFiles };
 }
 
 describe('compareEntities', () => {
@@ -222,5 +229,58 @@ describe('mergeEntities', () => {
     expect((merged['b.md'] as { h: string }).h).toBe('h1');
     expect((merged['c.md'] as { h: string }).h).toBe('h1');
     expect((merged['d.md'] as { h: string }).h).toBe('h3');
+  });
+});
+
+describe('resolve', () => {
+  it('combines note and meta plans into unified SyncPlan', () => {
+    const local = makeLedger({ 'a.md': alive('h1', '2026-01-01T00:00:00Z') }, {});
+    const remote = makeLedger(
+      {
+        'a.md': alive('h2', '2026-01-02T00:00:00Z'),
+        'b.md': alive('h3', '2026-01-01T00:00:00Z'),
+      },
+      { 'menu.json': alive('hm1', '2026-01-01T00:00:00Z') },
+    );
+
+    const session = resolve(local, remote, 'pull');
+
+    expect(session.plan.toPull).toContain('a.md');
+    expect(session.plan.toPull).toContain('b.md');
+    expect(session.plan.toPull).toContain('meta:menu.json');
+    expect(session.plan.conflicts).toBe(1);
+
+    expect(session.mergedLedger.entities['a.md']).toEqual({ h: 'h2', u: '2026-01-02T00:00:00Z' });
+    expect(session.mergedLedger.entities['b.md']).toEqual({ h: 'h3', u: '2026-01-01T00:00:00Z' });
+    expect(session.mergedLedger.meta_files['menu.json']).toEqual({
+      h: 'hm1',
+      u: '2026-01-01T00:00:00Z',
+    });
+  });
+
+  it('empty ledgers produce empty plan and ledger', () => {
+    const session = resolve(makeLedger(), makeLedger(), 'both');
+    expect(session.plan.toPull).toEqual([]);
+    expect(session.plan.toPush).toEqual([]);
+    expect(session.plan.toDeleteLocal).toEqual([]);
+    expect(session.plan.toDeleteRemote).toEqual([]);
+    expect(session.plan.conflicts).toBe(0);
+    expect(Object.keys(session.mergedLedger.entities)).toHaveLength(0);
+  });
+
+  it('pull direction skips push actions', () => {
+    const local = makeLedger({ 'a.md': alive('h1', '2026-01-01T00:00:00Z') });
+    const remote = makeLedger();
+
+    const session = resolve(local, remote, 'pull');
+    expect(session.plan.toPush).toEqual([]);
+  });
+
+  it('push direction skips pull actions', () => {
+    const local = makeLedger();
+    const remote = makeLedger({ 'a.md': alive('h1', '2026-01-01T00:00:00Z') });
+
+    const session = resolve(local, remote, 'push');
+    expect(session.plan.toPull).toEqual([]);
   });
 });

@@ -40,24 +40,17 @@
 
 ## Project Structure (Monorepo)
 - `packages/core/` - Shared core package (`@timenote/core`)
-  - `src/db.ts` - Dexie database schema and instance
-  - `src/types.ts` - TypeScript type definitions
+  - `src/db.ts` - Dexie database schema and instance (legacy)
+  - `src/types.ts` - TypeScript type definitions (legacy)
   - `src/constants.ts` - Application constants (localStorage keys)
   - `src/utils/` - Utility functions (cn, token, search)
-  - `src/services/` - Business logic (Note, Menu, Data, Import, Export, Sync)
-  - `src/stores/` - Zustand stores (sidebar, sync)
-  - `src/hooks/` - Shared React hooks
   - `src/fs/` - File system abstraction layer (FsTransport interface)
-  - `src/vault/` - Vault subsystem (2.0.0 new architecture)
-    - `types.ts` - Zod schemas (NoteIndex, Manifest, etc.)
-    - `note-id.ts` - ID generation (YYYYMMDD-HHmmss-SSSR format)
-    - `frontmatter.ts` - YAML frontmatter parse/serialize (js-yaml based)
-    - `search-provider.ts` - SimpleSearchProvider (memory full-text cache)
-    - `index-service.ts` - IndexedDB index via Dexie (TimenoteVaultIndex)
-    - `note-service.ts` - VaultNoteService (OPFS CRUD + index + search)
-    - `vault-service.ts` - Vault lifecycle (create/delete/list, meta files)
-    - `opfs-transport.ts` - OPFS FileSystemDirectoryHandle wrapper
-    - `menu-transform.ts` - Nested↔Flat menu conversion
+  - `src/vault/` - Vault subsystem (2.0.0)
+    - `spec/` - 持久化格式定义 (Zod schemas: manifest, menu, note, note-id, sync-ledger, delete-log, hash, vault-layout)
+    - `provider/` - 底层 adapter (OPFS transport, IndexedDB index, full-text search)
+    - `core/` - 核心数据层：同步引擎 + vault 生命周期 (vault-fs, vault-service, sync-algorithm, build-ledger, execute-plan, write-ledger, sync-service, import-service, export-service)
+    - `service/` - 业务服务 (vault-store, note-service, menu-service, menu-transform, search-query, migration-service)
+  - `src/hooks/` - Shared React hooks
 - `packages/ui/` - Shared UI package (`@timenote/ui`)
   - `src/components/ui/` - Shadcn UI components
   - `src/components/editor/` - TipTap Markdown editor
@@ -66,10 +59,7 @@
   - `src/styles/app.css` - Tailwind CSS styles
 - `apps/web/` - Web application (Cloudflare Workers SSR)
   - `app/routes/` - Route components
-  - `app/lib/web-transport.ts` - Web FsTransport (fetch /api/fs)
-  - `app/lib/fs-service.ts` - Web FsService instance
-  - `app/lib/sync-service.ts` - Web SyncService instance
-  - `app/lib/vault-store.ts` - Zustand store for VaultService + VaultNoteService
+  - `app/lib/vault-store.ts` - Zustand store binding for web
   - `app/services/fs-client.ts` - Server-side WebDAV/S3 client
 - `apps/extension/` - Browser extension (Chrome Side Panel)
   - `src/sidepanel/` - Side Panel React SPA
@@ -79,6 +69,12 @@
 
 ## Business Logic
 - 不同的 notebook 中的数据是隔离的
+
+## Terminology (名词概念)
+- **Notebook**：用户可见的"笔记本"概念。UI 路由 `/s/:notebookToken`、组件名 `NotebookLayout`、`useNotebooksPage` 等都使用 notebook。Notebook 是面向用户的完整体验单元。
+- **Vault**：抽象的核心存储单元。一个 vault 包含 notes、manifest、menu、delete-log、sync-ledger 等物理文件。Vault 不绑定特定存储后端（OPFS/S3/WebDAV/ZIP 都是 adapter）。
+- **Project**：vault 的唯一标识符（`projectId`），存储在 manifest 的 `project_id` 字段中。Project 和 vault 是一一对应关系。
+- **三者的关系**：Notebook（用户层）= Vault（数据层）= Project（标识层），是同一个实体在不同抽象层的不同名称。
 
 ## Key Commands
 - `pnpm dev` - Start web dev server

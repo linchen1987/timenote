@@ -68,7 +68,7 @@ export function useNotebooksPage(
   const {
     listVaults,
     listRemoteVaults,
-    pullVault,
+    cloneVault,
     createVault,
     deleteVault,
     exportVault,
@@ -182,7 +182,7 @@ export function useNotebooksPage(
   const handlePullVault = async (projectId: string) => {
     setIsPulling(projectId);
     try {
-      await pullVault(projectId);
+      await cloneVault(projectId);
       toast.success(msg.pulled);
       await refresh();
     } catch (e) {

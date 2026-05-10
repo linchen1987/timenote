@@ -117,9 +117,11 @@ class MigrationServiceImpl implements MigrationService {
     zip.file(metaPath('manifest'), JSON.stringify(manifest, null, 2));
 
     const menuData = this.buildMenuData(menuItems, idMapping);
+    menuData.updated_at = new Date().toISOString();
     zip.file(metaPath('menu'), JSON.stringify(menuData, null, 2));
 
-    const deleteLog = { version: 1, records: {} };
+    const now = new Date().toISOString();
+    const deleteLog = { version: 1, updated_at: now, records: {} };
     zip.file(metaPath('deleteLog'), JSON.stringify(deleteLog, null, 2));
 
     onProgress?.({

@@ -13,6 +13,7 @@ import { IsoDateString } from './manifest';
  * @example
  * {
  *   "version": 1,
+ *   "updated_at": "2026-04-26T10:00:00Z",
  *   "records": {
  *     "20260425-112010-1234": "2026-04-26T10:00:00Z"
  *   }
@@ -21,6 +22,7 @@ import { IsoDateString } from './manifest';
 
 export const DeleteLogSchema = z.object({
   version: z.literal(1),
+  updated_at: IsoDateString,
   records: z.record(z.string(), IsoDateString),
 });
 
@@ -28,6 +30,7 @@ export type DeleteLog = z.infer<typeof DeleteLogSchema>;
 
 export const DELETE_LOG_EXAMPLE = {
   version: 1,
+  updated_at: '2026-04-26T11:30:00Z',
   records: {
     '20260425-112010-1234': '2026-04-26T10:00:00Z',
     '20260420-080000-5678': '2026-04-26T11:30:00Z',

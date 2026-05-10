@@ -3,7 +3,6 @@ import { type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { MenuData } from '../spec/menu';
 import { generateProjectId } from '../spec/project-id';
-import type { SyncLedger } from '../spec/sync-ledger';
 import { META_DIR, metaPath } from '../spec/vault-layout';
 
 export interface VaultTransport extends OpfsTransport {}
@@ -28,8 +27,6 @@ export interface VaultService {
   writeMenu(projectId: string, menu: MenuData): Promise<void>;
   readDeleteLog(projectId: string): Promise<DeleteLog>;
   appendDeleteLog(projectId: string, noteId: string): Promise<void>;
-  readSyncLedger(projectId: string): Promise<SyncLedger>;
-  writeSyncLedger(projectId: string, ledger: SyncLedger): Promise<void>;
 }
 
 export async function createVaultService(): Promise<VaultService> {
@@ -45,35 +42,15 @@ class VaultServiceImpl implements VaultService {
 
   async createVault(name: string): Promise<string> {
     const projectId = generateProjectId();
-    const vaultDir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
-    const transport = createOpfsTransport(vaultDir);
-    this.transports.set(projectId, transport);
-
-    const now = new Date().toISOString();
-    const manifest: Manifest = {
-      project_id: projectId,
-      name,
-      version: '1.0.0',
-      created_at: now,
-      updated_at: now,
-    };
-
-    await transport.ensureDir(META_DIR);
-    await transport.write(metaPath('manifest'), JSON.stringify(manifest, null, 2));
-    await transport.write(metaPath('menu'), JSON.stringify({ version: 1, items: [] }, null, 2));
-    await transport.write(
-      metaPath('deleteLog'),
-      JSON.stringify({ version: 1, records: {} }, null, 2),
-    );
-    await transport.write(
-      metaPath('syncLedger'),
-      JSON.stringify({ version: 1, last_sync_time: now, entities: {}, meta_files: {} }, null, 2),
-    );
-
+    await this.initVault(projectId, name);
     return projectId;
   }
 
   async createVaultWithId(projectId: string, name: string): Promise<void> {
+    await this.initVault(projectId, name);
+  }
+
+  private async initVault(projectId: string, name: string): Promise<void> {
     const vaultDir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
     const transport = createOpfsTransport(vaultDir);
     this.transports.set(projectId, transport);
@@ -89,6 +66,18 @@ class VaultServiceImpl implements VaultService {
 
     await transport.ensureDir(META_DIR);
     await transport.write(metaPath('manifest'), JSON.stringify(manifest, null, 2));
+    await transport.write(
+      metaPath('menu'),
+      JSON.stringify({ version: 1, updated_at: now, items: [] }, null, 2),
+    );
+    await transport.write(
+      metaPath('deleteLog'),
+      JSON.stringify({ version: 1, updated_at: now, records: {} }, null, 2),
+    );
+    await transport.write(
+      metaPath('syncLedger'),
+      JSON.stringify({ version: 1, entities: {}, meta_files: {} }, null, 2),
+    );
   }
 
   async deleteVault(projectId: string): Promise<void> {
@@ -139,6 +128,7 @@ class VaultServiceImpl implements VaultService {
 
   async writeMenu(projectId: string, menu: MenuData): Promise<void> {
     const transport = await this.getTransportOrThrow(projectId);
+    menu.updated_at = new Date().toISOString();
     await transport.write(metaPath('menu'), JSON.stringify(menu, null, 2));
   }
 
@@ -150,20 +140,11 @@ class VaultServiceImpl implements VaultService {
 
   async appendDeleteLog(projectId: string, noteId: string): Promise<void> {
     const log = await this.readDeleteLog(projectId);
-    log.records[noteId] = new Date().toISOString();
+    const now = new Date().toISOString();
+    log.records[noteId] = now;
+    log.updated_at = now;
     const transport = await this.getTransportOrThrow(projectId);
     await transport.write(metaPath('deleteLog'), JSON.stringify(log, null, 2));
-  }
-
-  async readSyncLedger(projectId: string): Promise<SyncLedger> {
-    const transport = await this.getTransportOrThrow(projectId);
-    const raw = await transport.read(metaPath('syncLedger'));
-    return JSON.parse(raw) as SyncLedger;
-  }
-
-  async writeSyncLedger(projectId: string, ledger: SyncLedger): Promise<void> {
-    const transport = await this.getTransportOrThrow(projectId);
-    await transport.write(metaPath('syncLedger'), JSON.stringify(ledger, null, 2));
   }
 
   private async getTransportOrThrow(projectId: string): Promise<VaultTransport> {

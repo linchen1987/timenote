@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { IsoDateString } from './manifest';
 
 /**
  * # menu.json — Sidebar Menu Tree
@@ -11,6 +12,7 @@ import { z } from 'zod';
  * @example
  * {
  *   "version": 1,
+ *   "updated_at": "2026-04-25T12:00:00Z",
  *   "items": [
  *     { "title": "工作项目", "type": "note", "note_id": "20260425-121000-1110" },
  *     { "title": "近期想法", "type": "search", "search": "xxx" }
@@ -38,6 +40,7 @@ const MenuItemSchema: z.ZodType<MenuItem> = z.lazy(() =>
 
 export const MenuDataSchema = z.object({
   version: z.literal(1),
+  updated_at: IsoDateString,
   items: z.array(MenuItemSchema),
 });
 
@@ -45,6 +48,7 @@ export type MenuData = z.infer<typeof MenuDataSchema>;
 
 export const MENU_EXAMPLE = {
   version: 1,
+  updated_at: '2026-04-25T12:00:00Z',
   items: [
     {
       title: '工作项目',

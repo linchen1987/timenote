@@ -14,7 +14,6 @@ import { IsoDateString } from './manifest';
  * @example
  * {
  *   "version": 1,
- *   "last_sync_time": "2026-04-25T13:00:00Z",
  *   "entities": {
  *     "2026-04/20260425-112010-1234.md": { "h": "e10adc39...", "u": "2026-04-25T12:10:00Z" },
  *     "2026-04/20260425-112010-5678.md": { "d": true, "u": "2026-04-25T14:30:00Z" }
@@ -40,7 +39,6 @@ export type SyncEntity = z.infer<typeof SyncEntitySchema>;
 
 export const SyncLedgerSchema = z.object({
   version: z.literal(1),
-  last_sync_time: IsoDateString,
   entities: z.record(z.string(), SyncEntitySchema),
   meta_files: z.record(z.string(), SyncEntitySchema),
 });
@@ -49,7 +47,6 @@ export type SyncLedger = z.infer<typeof SyncLedgerSchema>;
 
 export const SYNC_LEDGER_EXAMPLE = {
   version: 1,
-  last_sync_time: '2026-04-25T13:00:00Z',
   entities: {
     '2026-04/20260425-112010-1234.md': {
       h: 'e10adc3949ba59abbe56e057f20f883e',

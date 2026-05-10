@@ -133,8 +133,16 @@ describe('Vault ZIP generation and parsing', () => {
   it('creates a valid ZIP blob with expected entries', async () => {
     const files: Record<string, string> = {
       [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('test123', 'TestVault')),
-      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({ version: 1, items: [] }),
-      [`${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify({ version: 1, records: {} }),
+      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({
+        version: 1,
+        updated_at: new Date().toISOString(),
+        items: [],
+      }),
+      [`${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify({
+        version: 1,
+        updated_at: new Date().toISOString(),
+        records: {},
+      }),
       '2026-04/20260425-121000-1110.md': createValidNoteContent('Hello world'),
       '2026-05/20260501-080000-5678.md': createValidNoteContent('Second note'),
     };
@@ -172,7 +180,11 @@ describe('Vault ZIP generation and parsing', () => {
 
   it('detects missing manifest', async () => {
     const files = {
-      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({ version: 1, items: [] }),
+      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({
+        version: 1,
+        updated_at: new Date().toISOString(),
+        items: [],
+      }),
     };
     const buffer = await createVaultZipBuffer(files);
     const zip = await JSZip.loadAsync(buffer);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseSearchQuery } from './service/search-query';
+import { parseSearchQuery } from './search-query';
 
 describe('parseSearchQuery', () => {
   it('parses tag-only query', () => {

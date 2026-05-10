@@ -72,6 +72,7 @@ describe('MenuDataSchema', () => {
   it('parses valid menu with note items', () => {
     const data = {
       version: 1,
+      updated_at: '2026-04-25T12:00:00Z',
       items: [
         {
           title: '工作',
@@ -86,6 +87,7 @@ describe('MenuDataSchema', () => {
   it('parses valid menu with search items', () => {
     const data = {
       version: 1,
+      updated_at: '2026-04-25T12:00:00Z',
       items: [{ title: '搜索', type: 'search', search: 'query' }],
     };
     expect(MenuDataSchema.parse(data)).toEqual(data);
@@ -94,6 +96,7 @@ describe('MenuDataSchema', () => {
   it('parses nested menu', () => {
     const data = {
       version: 1,
+      updated_at: '2026-04-25T12:00:00Z',
       items: [
         {
           title: 'Parent',
@@ -107,7 +110,7 @@ describe('MenuDataSchema', () => {
   });
 
   it('rejects invalid version', () => {
-    const data = { version: 2, items: [] };
+    const data = { version: 2, updated_at: '2026-04-25T12:00:00Z', items: [] };
     expect(() => MenuDataSchema.parse(data)).toThrow();
   });
 });
@@ -116,6 +119,7 @@ describe('DeleteLogSchema', () => {
   it('parses valid delete log', () => {
     const data = {
       version: 1,
+      updated_at: '2026-04-26T11:30:00Z',
       records: {
         '20260425-112010-1234': '2026-04-26T10:00:00Z',
         '20260420-080000-5678': '2026-04-26T11:30:00Z',
@@ -127,6 +131,7 @@ describe('DeleteLogSchema', () => {
   it('rejects invalid date format in records', () => {
     const data = {
       version: 1,
+      updated_at: '2026-04-26T11:30:00Z',
       records: {
         '20260425-112010-1234': 'not-a-date',
       },
@@ -156,7 +161,6 @@ describe('SyncLedgerSchema', () => {
   it('parses valid sync ledger', () => {
     const data = {
       version: 1,
-      last_sync_time: '2026-04-25T13:00:00Z',
       entities: {
         '20260425-112010-1234': { h: 'abc123', u: '2026-04-25T12:10:00Z' },
         '20260425-112010-5678': { d: true, u: '2026-04-25T14:30:00Z' },

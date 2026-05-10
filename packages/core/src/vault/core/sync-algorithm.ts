@@ -1,4 +1,6 @@
-import type { SyncEntity } from '../spec/sync-ledger';
+import type { SyncEntity, SyncLedger } from '../spec/sync-ledger';
+
+export type SyncDirection = 'both' | 'pull' | 'push';
 
 export interface SyncPlan {
   toPull: string[];
@@ -8,10 +10,46 @@ export interface SyncPlan {
   conflicts: number;
 }
 
+export interface SyncSession {
+  plan: SyncPlan;
+  mergedLedger: SyncLedger;
+}
+
+export function resolve(
+  localLedger: SyncLedger,
+  remoteLedger: SyncLedger,
+  direction: SyncDirection,
+): SyncSession {
+  const notePlan = compareEntities(localLedger.entities, remoteLedger.entities, direction);
+  const metaPlan = compareEntities(localLedger.meta_files, remoteLedger.meta_files, direction);
+
+  const plan: SyncPlan = {
+    toPull: [...notePlan.toPull, ...metaPlan.toPull.map((mf) => `meta:${mf}`)],
+    toPush: [...notePlan.toPush, ...metaPlan.toPush.map((mf) => `meta:${mf}`)],
+    toDeleteLocal: [...notePlan.toDeleteLocal, ...metaPlan.toDeleteLocal.map((mf) => `meta:${mf}`)],
+    toDeleteRemote: [
+      ...notePlan.toDeleteRemote,
+      ...metaPlan.toDeleteRemote.map((mf) => `meta:${mf}`),
+    ],
+    conflicts: notePlan.conflicts + metaPlan.conflicts,
+  };
+
+  const mergedEntities = mergeEntities(localLedger.entities, remoteLedger.entities, notePlan);
+  const mergedMeta = mergeEntities(localLedger.meta_files, remoteLedger.meta_files, metaPlan);
+
+  const mergedLedger: SyncLedger = {
+    version: 1,
+    entities: mergedEntities,
+    meta_files: mergedMeta,
+  };
+
+  return { plan, mergedLedger };
+}
+
 export function compareEntities(
   localMap: Record<string, SyncEntity>,
   remoteMap: Record<string, SyncEntity>,
-  direction: 'both' | 'pull' | 'push',
+  direction: SyncDirection,
 ): SyncPlan {
   const toPull: string[] = [];
   const toPush: string[] = [];
