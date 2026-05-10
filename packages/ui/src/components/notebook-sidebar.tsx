@@ -1,5 +1,4 @@
-import { cn, createNotebookToken } from '@timenote/core';
-import type { RuntimeMenuItem } from '@timenote/core/vault';
+import { cn, createNotebookToken, type RuntimeMenuItem } from '@timenote/core';
 import {
   ArrowDown,
   ArrowUp,

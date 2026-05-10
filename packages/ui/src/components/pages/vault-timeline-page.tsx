@@ -1,5 +1,10 @@
-import { NOTE_LIST_PAGE_SIZE, type NoteIndex, noteIdToUrl, parseNotebookId } from '@timenote/core';
-import type { VaultStore } from '@timenote/core/vault';
+import {
+  NOTE_LIST_PAGE_SIZE,
+  type NoteIndex,
+  noteIdToUrl,
+  parseNotebookId,
+  type VaultStore,
+} from '@timenote/core';
 import {
   Calendar,
   Cloud,

@@ -1,5 +1,5 @@
+import { STORAGE_KEYS } from '@timenote/core';
 import { create } from 'zustand';
-import { STORAGE_KEYS } from '../constants';
 
 interface SidebarState {
   isDesktopSidebarOpen: boolean;

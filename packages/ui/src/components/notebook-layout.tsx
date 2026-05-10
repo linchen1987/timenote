@@ -1,8 +1,14 @@
-import { cn, noteIdToUrl, parseNotebookId, STORAGE_KEYS, useSidebarStore } from '@timenote/core';
-import type { RuntimeMenuItem } from '@timenote/core/vault';
+import {
+  cn,
+  noteIdToUrl,
+  parseNotebookId,
+  type RuntimeMenuItem,
+  STORAGE_KEYS,
+} from '@timenote/core';
 import { GripVertical } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
+import { useSidebarStore } from '../stores/sidebar-store';
 import { type MenuActions, NotebookSidebar } from './notebook-sidebar';
 import { Sheet, SheetContent } from './ui/sheet';
 

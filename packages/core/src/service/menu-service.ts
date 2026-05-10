@@ -1,6 +1,6 @@
 import type { RuntimeMenuItem } from '../spec/menu';
+import type { VaultService } from '../vault/vault-service';
 import { flattenMenuItems, nestifyMenuItems } from './menu-transform';
-import type { VaultService } from './vault-service';
 
 export interface VaultMenuService {
   loadMenu(projectId: string): Promise<RuntimeMenuItem[]>;

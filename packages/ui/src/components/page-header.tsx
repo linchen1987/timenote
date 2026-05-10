@@ -1,6 +1,7 @@
-import { cn, useSidebarStore } from '@timenote/core';
+import { cn } from '@timenote/core';
 import { Menu, PanelLeft } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useSidebarStore } from '../stores/sidebar-store';
 import { Button } from './ui/button';
 
 interface PageHeaderProps {

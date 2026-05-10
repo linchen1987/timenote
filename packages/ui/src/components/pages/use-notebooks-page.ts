@@ -1,5 +1,4 @@
-import { createNotebookToken } from '@timenote/core';
-import type { VaultMeta, VaultStore } from '@timenote/core/vault';
+import { createNotebookToken, type VaultMeta, type VaultStore } from '@timenote/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 

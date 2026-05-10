@@ -1,6 +1,11 @@
+/**
+ * @deprecated v1.x legacy Dexie database.
+ * Only used by migration-service to read old data for v1→v2 migration.
+ * Do not use in new code.
+ */
 import Dexie, { type Table } from 'dexie';
 import { nanoid } from 'nanoid';
-import type { MenuItem, Note, Notebook, NoteTag, SyncEvent, Tag } from './types';
+import type { MenuItem, Note, Notebook, NoteTag, SyncEvent, Tag } from './legacy-types';
 
 export const generateId = () => nanoid(12);
 

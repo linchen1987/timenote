@@ -1,8 +1,8 @@
 import 'fake-indexeddb/auto';
 import JSZip from 'jszip';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { db } from '../../db';
-import type { MenuItem, Note, Notebook, NoteTag, Tag } from '../../types';
+import { db } from './legacy-db';
+import type { MenuItem, Note, Notebook, NoteTag, Tag } from './legacy-types';
 import { createMigrationService, type MigrationProgress } from './migration-service';
 
 function createNotebook(overrides: Partial<Notebook> = {}): Notebook {

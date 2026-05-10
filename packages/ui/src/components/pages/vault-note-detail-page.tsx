@@ -1,5 +1,4 @@
-import { noteIdFromUrl, parseNotebookId } from '@timenote/core';
-import type { VaultStore } from '@timenote/core/vault';
+import { noteIdFromUrl, parseNotebookId, type VaultStore } from '@timenote/core';
 import { ChevronLeft, Cloud, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';

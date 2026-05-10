@@ -1,5 +1,4 @@
-import { parseNotebookId } from '@timenote/core';
-import type { VaultStore } from '@timenote/core/vault';
+import { parseNotebookId, type RuntimeMenuItem, type VaultStore } from '@timenote/core';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
 
@@ -10,7 +9,7 @@ type UseVaultStoreHook = {
 };
 
 export interface UseNotebookLayoutReturn {
-  menuItems: import('@timenote/core/vault').RuntimeMenuItem[];
+  menuItems: RuntimeMenuItem[];
   vaultName: string | undefined;
   notebooks: { id: string; name: string }[];
   menuActions: {

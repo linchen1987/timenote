@@ -1,5 +1,4 @@
-import { parseNotebookId } from '@timenote/core';
-import type { VaultStore } from '@timenote/core/vault';
+import { parseNotebookId, type VaultStore } from '@timenote/core';
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router';
 import type { TagWithCount } from '../tags-view';

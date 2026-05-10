@@ -2,33 +2,31 @@ import { nanoid } from 'nanoid';
 import { create } from 'zustand';
 import {
   createMigrationService,
-  createPrefixedTransport,
-  createVaultExportService,
-  createVaultImportService,
-  createVaultMenuService,
-  createVaultNoteService,
-  createVaultService,
-  createVaultSyncService,
-  type ImportResult,
   type LegacyNotebookInfo,
-  type Manifest,
   type MigrationProgress,
   type MigrationResult,
   type MigrationService,
+} from '../migration/migration-service';
+import { type Manifest, ManifestSchema } from '../spec/manifest';
+import type { RuntimeMenuItem } from '../spec/menu';
+import { metaPath, noteFilePath } from '../spec/vault-layout';
+import { createVaultExportService, type VaultExportService } from '../vault/export-service';
+import {
+  createVaultImportService,
+  type ImportResult,
+  type VaultImportService,
+} from '../vault/import-service';
+import {
+  createPrefixedTransport,
+  createVaultSyncService,
   type RemoteTransport,
-  type RuntimeMenuItem,
   type SyncResult,
   toVaultFs,
-  type VaultExportService,
-  type VaultImportService,
-  type VaultMenuService,
-  type VaultMeta,
-  type VaultNoteService,
-  type VaultService,
   type VaultSyncService,
-} from '../index';
-import { ManifestSchema } from '../spec/manifest';
-import { metaPath, noteFilePath } from '../spec/vault-layout';
+} from '../vault/sync-service';
+import { createVaultService, type VaultMeta, type VaultService } from '../vault/vault-service';
+import { createVaultMenuService, type VaultMenuService } from './menu-service';
+import { createVaultNoteService, type VaultNoteService } from './note-service';
 
 export type VaultStore = {
   vaultService: VaultService | null;

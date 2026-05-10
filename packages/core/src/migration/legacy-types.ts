@@ -1,3 +1,8 @@
+/**
+ * @deprecated v1.x legacy type definitions.
+ * Only used by migration-service to read old data for v1→v2 migration.
+ * Do not use in new code.
+ */
 export interface Notebook {
   id: string;
   name: string;

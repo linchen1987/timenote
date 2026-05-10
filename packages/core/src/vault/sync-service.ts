@@ -1,22 +1,20 @@
-import type { FsTransport } from '../../fs/types';
+import type { FsTransport } from '../fs/types';
 import type { VaultNoteService } from '../service/note-service';
 import type { SyncLedger } from '../spec/sync-ledger';
 import { META_DIR } from '../spec/vault-layout';
+import type { DirtyEntry } from './build-ledger';
 import {
   applyDirtyEntries,
   buildEmptyLedger,
   buildLedgerFromFile,
   buildLedgerFromFs,
-  createOpfsVaultFs,
-  type DirtyEntry,
-  type ExecuteResult,
-  executePlan,
-  resolve,
-  type SyncDirection,
-  type VaultFs,
-  writeLedger,
-} from './index';
+} from './build-ledger';
+import type { ExecuteResult } from './execute-plan';
+import { executePlan } from './execute-plan';
+import { resolve, type SyncDirection } from './sync-algorithm';
+import { createOpfsVaultFs, type VaultFs } from './vault-fs';
 import type { VaultService } from './vault-service';
+import { writeLedger } from './write-ledger';
 
 export interface RemoteTransport extends FsTransport {
   remove(path: string): Promise<void>;

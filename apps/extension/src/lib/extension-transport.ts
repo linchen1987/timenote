@@ -1,5 +1,5 @@
+import type { RemoteTransport } from '@timenote/core';
 import type { FsStat } from '@timenote/core/fs';
-import type { RemoteTransport } from '@timenote/core/vault';
 import type { FsMessage, MessageResponse } from './message-types';
 
 async function sendMessage<T>(message: FsMessage): Promise<T> {

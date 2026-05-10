@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { FsStat } from '../../fs/types';
+import type { FsStat } from '../fs/types';
 import type { VaultNoteService } from '../service/note-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import { MAX_ZIP_SIZE, metaPath } from '../spec/vault-layout';

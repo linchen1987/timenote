@@ -11,8 +11,8 @@ import {
 } from '../spec/note';
 import { generateNoteId, noteIdFromFilename } from '../spec/note-id';
 import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layout';
+import type { VaultService } from '../vault/vault-service';
 import { extractTagsFromBody, parseSearchQuery } from './search-query';
-import type { VaultService } from './vault-service';
 
 export interface VaultNoteService {
   createNote(projectId: string, content?: string): Promise<string>;

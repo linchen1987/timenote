@@ -1,4 +1,4 @@
-import type { FsStat } from '../../fs/types';
+import type { FsStat } from '../fs/types';
 import type { OpfsTransport } from '../provider/opfs-transport';
 
 export interface VaultFs {

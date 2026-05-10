@@ -1,15 +1,15 @@
 import JSZip from 'jszip';
-import { db } from '../../db';
-import type {
-  MenuItem as OldMenuItem,
-  Note as OldNote,
-  Notebook as OldNotebook,
-} from '../../types';
 import type { Manifest } from '../spec/manifest';
 import type { MenuData, MenuItem } from '../spec/menu';
 import { type NoteFrontmatter, serializeNote } from '../spec/note';
 import { filenameFromNoteId, generateNoteId, volumeNameFromNoteId } from '../spec/note-id';
 import { metaPath } from '../spec/vault-layout';
+import { db } from './legacy-db';
+import type {
+  MenuItem as OldMenuItem,
+  Note as OldNote,
+  Notebook as OldNotebook,
+} from './legacy-types';
 
 export interface LegacyNotebookInfo {
   id: string;

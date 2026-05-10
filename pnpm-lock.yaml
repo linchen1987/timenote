@@ -302,6 +302,9 @@ importers:
       tiptap-markdown:
         specifier: ^0.9.0
         version: 0.9.0(@tiptap/core@3.17.1(@tiptap/pm@3.17.1))
+      zustand:
+        specifier: ^5.0.10
+        version: 5.0.10(@types/react@19.2.9)(react@19.2.3)(use-sync-external-store@1.6.0(react@19.2.3))
     devDependencies:
       typescript:
         specifier: ^5.9.2

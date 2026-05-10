@@ -9,7 +9,7 @@ import {
   type VaultMeta,
   type VaultNoteService,
   type VaultService,
-} from '@timenote/core/vault';
+} from '@timenote/core';
 import {
   Button,
   Card,

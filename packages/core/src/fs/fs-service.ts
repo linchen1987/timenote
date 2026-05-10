@@ -1,3 +1,8 @@
+/**
+ * @legacy v1.x FsService wrapper with directory caching.
+ * Used by apps/web and apps/extension settings routes for WebDAV/S3 configuration.
+ * v2.0 sync uses its own RemoteTransport + VaultFs pattern.
+ */
 import type { FsStat, FsTransport } from './types';
 
 const existingDirs = new Set<string>();
