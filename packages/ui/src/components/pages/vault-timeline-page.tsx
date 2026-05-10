@@ -85,6 +85,7 @@ export function VaultTimelinePage({
   const [ready, setReady] = useState(false);
   const isSyncing = useStore((s) => s.isSyncing);
   const lastSyncTime = useStore((s) => s.lastSyncTime);
+  const noteVersion = useStore((s) => s.noteVersion);
 
   const composerRef = useRef<MarkdownEditorRef>(null);
   const editorRef = useRef<MarkdownEditorRef>(null);
@@ -144,6 +145,7 @@ export function VaultTimelinePage({
     [searchQuery, resolvedProjectId, loadBodies, useStore.getState],
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: noteVersion intentionally triggers re-fetch
   useEffect(() => {
     if (!resolvedProjectId) return;
     let cancelled = false;
@@ -185,7 +187,7 @@ export function VaultTimelinePage({
     return () => {
       cancelled = true;
     };
-  }, [resolvedProjectId, searchQuery, useStore.getState]);
+  }, [resolvedProjectId, searchQuery, noteVersion, useStore.getState]);
 
   useEffect(() => {
     const query = searchParams.get('q') || '';

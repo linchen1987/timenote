@@ -27,6 +27,11 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const initialContentRef = useRef('');
+  // Must use currentContentRef instead of editorRef.current?.getMarkdown() in cleanup.
+  // During unmount, TipTap's ProseMirror view/model may be mid-destruction,
+  // causing getMarkdown() to return empty string and overwrite the note with blank content.
+  // This ref is a plain string updated on every editor onChange, immune to editor lifecycle.
+  const currentContentRef = useRef('');
   const isSyncing = useStore((s) => s.isSyncing);
 
   useEffect(() => {
@@ -46,6 +51,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
         if (note) {
           setBody(note.body);
           initialContentRef.current = note.body;
+          currentContentRef.current = note.body;
         }
       } catch (e) {
         if (!cancelled) toast.error(`Failed to load note: ${(e as Error).message}`);
@@ -58,6 +64,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   }, [projectId, nId, useStore.getState]);
 
   const handleUpdate = useCallback((content: string) => {
+    currentContentRef.current = content;
     setHasUnsavedChanges(content !== initialContentRef.current);
   }, []);
 
@@ -76,6 +83,20 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
     } catch (e) {
       toast.error(`Failed to save: ${(e as Error).message}`);
     }
+  }, [projectId, nId, useStore.getState]);
+
+  // Auto-save on leave: fires when component unmounts or noteId changes (navigating to another note).
+  // Uses currentContentRef (NOT editorRef) — see comment above for why.
+  useEffect(() => {
+    return () => {
+      const content = currentContentRef.current;
+      if (content && content !== initialContentRef.current && projectId && nId) {
+        const svc = useStore.getState().getNoteService();
+        svc.updateNote(projectId, nId, content).then(() => {
+          useStore.getState().notifyNoteChange(projectId, nId, 'update');
+        });
+      }
+    };
   }, [projectId, nId, useStore.getState]);
 
   useEffect(() => {

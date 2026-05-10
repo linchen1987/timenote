@@ -67,6 +67,7 @@ export type VaultStore = {
   activeProjectId: string | null;
   isSyncing: boolean;
   lastSyncTime: string | null;
+  noteVersion: number;
   needsMigration: boolean;
   legacyNotebooks: LegacyNotebookInfo[];
   migrationStatus: 'idle' | 'migrating' | 'done';
@@ -207,6 +208,7 @@ export function createVaultStore(
     activeProjectId: null,
     isSyncing: false,
     lastSyncTime: null,
+    noteVersion: 0,
     needsMigration: false,
     legacyNotebooks: [],
     migrationStatus: 'idle',
@@ -387,6 +389,7 @@ export function createVaultStore(
         syncService.markDirty(projectId, [{ type: 'note', path, action: 'upsert' }]);
       }
       get().scheduleAutoSync(projectId);
+      set((s) => ({ noteVersion: s.noteVersion + 1 }));
     },
 
     scheduleAutoSync: (projectId: string) => {
