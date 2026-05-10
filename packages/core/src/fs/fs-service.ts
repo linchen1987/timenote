@@ -30,7 +30,8 @@ export function createFsService(transport: FsTransport) {
     async exists(path: string): Promise<boolean> {
       if (existingDirs.has(path)) return true;
       try {
-        await transport.exists(path);
+        const result = await transport.exists(path);
+        if (!result) return false;
         existingDirs.add(path);
         return true;
       } catch {
