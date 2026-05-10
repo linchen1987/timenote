@@ -280,6 +280,8 @@ class VaultNoteServiceImpl implements VaultNoteService {
       if (idx) indexes.push(idx);
     }
 
+    indexes.sort((a, b) => b.updated_at - a.updated_at);
+
     return indexes;
   }
 
