@@ -10,7 +10,8 @@ export default defineConfig({
     cloudflare({ viteEnvironment: { name: 'ssr' } }),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // 不自动更新，由 use-service-worker-update 手动控制更新流程
+      registerType: 'prompt',
       injectRegister: false,
       devOptions: {
         enabled: true,
@@ -19,6 +20,8 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: false,
       workbox: {
+        // 离线时所有路由回退到缓存的 index.html，使 SPA 路由可离线访问
+        navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/s\/.*\/manifest.webmanifest$/],
         skipWaiting: false,
         clientsClaim: true,
