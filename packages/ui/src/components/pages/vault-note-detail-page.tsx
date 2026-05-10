@@ -24,6 +24,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
 
   const editorRef = useRef<MarkdownEditorRef>(null);
   const [body, setBody] = useState<string | null>(null);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const initialContentRef = useRef('');
   const isSyncing = useStore((s) => s.isSyncing);
@@ -37,6 +38,9 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
         await useStore.getState().activateVault(projectId);
         if (cancelled) return;
         const svc = useStore.getState().getNoteService();
+        const tags = await svc.getAllTags();
+        if (cancelled) return;
+        setAvailableTags(tags);
         const note = await svc.getNote(projectId, nId);
         if (cancelled) return;
         if (note) {
@@ -160,6 +164,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
             minHeight="70vh"
             className="text-lg bg-transparent border-none shadow-none p-0"
             showToolbar={true}
+            availableTags={availableTags}
           />
         </div>
 

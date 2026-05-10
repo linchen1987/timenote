@@ -81,6 +81,7 @@ export function VaultTimelinePage({
   const [menuName, setMenuName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [vaultName, setVaultName] = useState('');
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const isSyncing = useStore((s) => s.isSyncing);
   const lastSyncTime = useStore((s) => s.lastSyncTime);
@@ -156,6 +157,9 @@ export function VaultTimelinePage({
         setReady(true);
         setBodiesMap(new Map());
         const svc = useStore.getState().getNoteService();
+        const tags = await svc.getAllTags();
+        if (cancelled) return;
+        setAvailableTags(tags);
         const list = searchQuery
           ? await svc.searchNotes(searchQuery)
           : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE, offset: 0 });
@@ -396,6 +400,7 @@ export function VaultTimelinePage({
                 showToolbar={false}
                 className="text-lg bg-transparent border-none shadow-none p-0"
                 onSubmit={handleComposerSubmit}
+                availableTags={availableTags}
               />
               <div className="flex justify-end items-center mt-3 pt-3 border-t border-muted/20">
                 <Button
@@ -432,6 +437,7 @@ export function VaultTimelinePage({
                 setIsMenuDialogOpen(true);
               }}
               linkExtraProps={linkExtraProps}
+              availableTags={availableTags}
             />
           ))}
 
@@ -540,6 +546,7 @@ function NoteCard({
   onDelete,
   onAddToMenu,
   linkExtraProps,
+  availableTags: noteAvailableTags,
 }: {
   note: NoteIndex;
   notebookToken: string;
@@ -551,6 +558,7 @@ function NoteCard({
   onDelete: (id: string) => void;
   onAddToMenu: (id: string) => void;
   linkExtraProps?: Record<string, unknown>;
+  availableTags: string[];
 }) {
   const [body, setBody] = useState<string | null>(initialBody);
   const isEditing = editingId === note.id;
@@ -633,6 +641,7 @@ function NoteCard({
                 autoFocus
                 minHeight="200px"
                 className="text-base"
+                availableTags={noteAvailableTags}
               />
             )}
             <div className="flex justify-between items-center pt-2">
