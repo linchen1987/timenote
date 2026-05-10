@@ -1,5 +1,5 @@
 import { noteIdFromUrl, parseNotebookId, type VaultStore } from '@timenote/core';
-import { ChevronLeft, Cloud, Loader2 } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, Loader2, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -127,23 +127,26 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
               }
             }}
             disabled={isSyncing}
-            title="Sync to cloud"
+            title={isSyncing ? 'Syncing...' : 'Sync'}
             className="rounded-full"
           >
             {isSyncing ? (
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
             ) : (
-              <Cloud className="w-4 h-4 text-muted-foreground" />
+              <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
             )}
           </Button>
-          <Button
-            size="sm"
-            onClick={handleSave}
-            disabled={!hasUnsavedChanges}
-            className="rounded-full"
-          >
-            Save
-          </Button>
+          {hasUnsavedChanges && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSave}
+              className="rounded-full text-primary"
+              title="Save"
+            >
+              <Save className="w-4 h-4" />
+            </Button>
+          )}
         </div>
       </PageHeader>
 

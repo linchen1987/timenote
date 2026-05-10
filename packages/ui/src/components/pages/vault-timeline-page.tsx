@@ -6,8 +6,8 @@ import {
   type VaultStore,
 } from '@timenote/core';
 import {
+  ArrowUpDown,
   Calendar,
-  Cloud,
   Loader2,
   Maximize2,
   MoreVertical,
@@ -343,16 +343,18 @@ export function VaultTimelinePage({
             onClick={handleSync}
             disabled={isSyncing}
             title={
-              lastSyncTime
-                ? `Last sync: ${new Date(lastSyncTime).toLocaleString()}`
-                : 'Sync to cloud'
+              isSyncing
+                ? 'Syncing...'
+                : lastSyncTime
+                  ? `Last sync: ${new Date(lastSyncTime).toLocaleString()}`
+                  : 'Sync'
             }
             className="shrink-0 rounded-full"
           >
             {isSyncing ? (
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
             ) : (
-              <Cloud className="w-4 h-4 text-muted-foreground" />
+              <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
             )}
           </Button>
           <form onSubmit={handleSearchSubmit} className="relative group w-full">
