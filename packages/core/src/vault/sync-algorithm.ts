@@ -1,4 +1,4 @@
-import type { SyncEntity, SyncLedger } from '../spec/sync-ledger';
+import { createSyncLedger, type SyncEntity, type SyncLedger } from '../spec/sync-ledger';
 
 export type SyncDirection = 'both' | 'pull' | 'push';
 
@@ -37,11 +37,7 @@ export function resolve(
   const mergedEntities = mergeEntities(localLedger.entities, remoteLedger.entities, notePlan);
   const mergedMeta = mergeEntities(localLedger.meta_files, remoteLedger.meta_files, metaPlan);
 
-  const mergedLedger: SyncLedger = {
-    version: 1,
-    entities: mergedEntities,
-    meta_files: mergedMeta,
-  };
+  const mergedLedger = createSyncLedger(mergedEntities, mergedMeta);
 
   return { plan, mergedLedger };
 }

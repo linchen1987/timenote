@@ -38,16 +38,26 @@ const MenuItemSchema: z.ZodType<MenuItem> = z.lazy(() =>
   }),
 );
 
+export const MENU_VERSION = 1 as const;
+
 export const MenuDataSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(MENU_VERSION),
   updated_at: IsoDateString,
   items: z.array(MenuItemSchema),
 });
 
 export type MenuData = z.infer<typeof MenuDataSchema>;
 
+export function createMenuData(items: MenuItem[], updatedAt?: string): MenuData {
+  return {
+    version: MENU_VERSION,
+    updated_at: updatedAt ?? new Date().toISOString(),
+    items,
+  };
+}
+
 export const MENU_EXAMPLE = {
-  version: 1,
+  version: MENU_VERSION,
   updated_at: '2026-04-25T12:00:00Z',
   items: [
     {

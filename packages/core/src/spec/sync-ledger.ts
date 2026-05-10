@@ -24,6 +24,8 @@ import { IsoDateString } from './manifest';
  * }
  */
 
+export const SYNC_LEDGER_VERSION = 1 as const;
+
 export const SyncEntitySchema = z.union([
   z.object({
     h: z.string(),
@@ -38,15 +40,26 @@ export const SyncEntitySchema = z.union([
 export type SyncEntity = z.infer<typeof SyncEntitySchema>;
 
 export const SyncLedgerSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(SYNC_LEDGER_VERSION),
   entities: z.record(z.string(), SyncEntitySchema),
   meta_files: z.record(z.string(), SyncEntitySchema),
 });
 
 export type SyncLedger = z.infer<typeof SyncLedgerSchema>;
 
+export function createEmptySyncLedger(): SyncLedger {
+  return { version: SYNC_LEDGER_VERSION, entities: {}, meta_files: {} };
+}
+
+export function createSyncLedger(
+  entities: Record<string, SyncEntity>,
+  metaFiles: Record<string, SyncEntity>,
+): SyncLedger {
+  return { version: SYNC_LEDGER_VERSION, entities, meta_files: metaFiles };
+}
+
 export const SYNC_LEDGER_EXAMPLE = {
-  version: 1,
+  version: SYNC_LEDGER_VERSION,
   entities: {
     '2026-04/20260425-112010-1234.md': {
       h: 'e10adc3949ba59abbe56e057f20f883e',

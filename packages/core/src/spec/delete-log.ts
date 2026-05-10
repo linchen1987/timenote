@@ -20,16 +20,23 @@ import { IsoDateString } from './manifest';
  * }
  */
 
+export const DELETE_LOG_VERSION = 1 as const;
+
 export const DeleteLogSchema = z.object({
-  version: z.literal(1),
+  version: z.literal(DELETE_LOG_VERSION),
   updated_at: IsoDateString,
   records: z.record(z.string(), IsoDateString),
 });
 
 export type DeleteLog = z.infer<typeof DeleteLogSchema>;
 
+export function createEmptyDeleteLog(updatedAt?: string): DeleteLog {
+  const now = new Date().toISOString();
+  return { version: DELETE_LOG_VERSION, updated_at: updatedAt ?? now, records: {} };
+}
+
 export const DELETE_LOG_EXAMPLE = {
-  version: 1,
+  version: DELETE_LOG_VERSION,
   updated_at: '2026-04-26T11:30:00Z',
   records: {
     '20260425-112010-1234': '2026-04-26T10:00:00Z',

@@ -1,8 +1,9 @@
 import { createOpfsTransport, type OpfsTransport } from '../provider/opfs-transport';
-import { type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
-import { type Manifest, ManifestSchema } from '../spec/manifest';
-import type { MenuData } from '../spec/menu';
+import { createEmptyDeleteLog, type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
+import { createManifest, type Manifest, ManifestSchema } from '../spec/manifest';
+import { createMenuData, type MenuData } from '../spec/menu';
 import { generateProjectId } from '../spec/project-id';
+import { createEmptySyncLedger } from '../spec/sync-ledger';
 import { META_DIR, metaPath } from '../spec/vault-layout';
 
 export interface VaultTransport extends OpfsTransport {}
@@ -56,28 +57,21 @@ class VaultServiceImpl implements VaultService {
     this.transports.set(projectId, transport);
 
     const now = new Date().toISOString();
-    const manifest: Manifest = {
+    const manifest = createManifest({
       project_id: projectId,
       name,
-      version: '1.0.0',
       created_at: now,
       updated_at: now,
-    };
+    });
 
     await transport.ensureDir(META_DIR);
     await transport.write(metaPath('manifest'), JSON.stringify(manifest, null, 2));
-    await transport.write(
-      metaPath('menu'),
-      JSON.stringify({ version: 1, updated_at: now, items: [] }, null, 2),
-    );
+    await transport.write(metaPath('menu'), JSON.stringify(createMenuData([], now), null, 2));
     await transport.write(
       metaPath('deleteLog'),
-      JSON.stringify({ version: 1, updated_at: now, records: {} }, null, 2),
+      JSON.stringify(createEmptyDeleteLog(now), null, 2),
     );
-    await transport.write(
-      metaPath('syncLedger'),
-      JSON.stringify({ version: 1, entities: {}, meta_files: {} }, null, 2),
-    );
+    await transport.write(metaPath('syncLedger'), JSON.stringify(createEmptySyncLedger(), null, 2));
   }
 
   async deleteVault(projectId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SyncEntity, SyncLedger } from '../spec/sync-ledger';
+import { createSyncLedger } from '../spec/sync-ledger';
 import { compareEntities, mergeEntities, resolve, type SyncPlan } from './sync-algorithm';
 
 function alive(hash: string, updated: string): SyncEntity {
@@ -14,7 +15,7 @@ function makeLedger(
   entities: Record<string, SyncEntity> = {},
   metaFiles: Record<string, SyncEntity> = {},
 ): SyncLedger {
-  return { version: 1, entities, meta_files: metaFiles };
+  return createSyncLedger(entities, metaFiles);
 }
 
 describe('compareEntities', () => {

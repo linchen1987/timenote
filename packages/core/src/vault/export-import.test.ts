@@ -1,5 +1,8 @@
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
+import { createEmptyDeleteLog } from '../spec/delete-log';
+import { createManifest, MANIFEST_VERSION } from '../spec/manifest';
+import { createMenuData } from '../spec/menu';
 import { detectZipRootPrefix } from './import-service';
 
 const TIMENOTE_DIR = '.timenote';
@@ -14,14 +17,8 @@ const VALID_META_FILES = new Set([
 ]);
 const MAX_ZIP_SIZE = 100 * 1024 * 1024;
 
-function createManifest(projectId: string, name: string) {
-  return {
-    project_id: projectId,
-    name,
-    version: '1.0.0',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+function buildManifest(projectId: string, name: string) {
+  return createManifest({ project_id: projectId, name });
 }
 
 function createValidNoteContent(body: string) {
@@ -133,17 +130,9 @@ describe('Vault Export/Import ZIP classification', () => {
 describe('Vault ZIP generation and parsing', () => {
   it('creates a valid ZIP blob with expected entries', async () => {
     const files: Record<string, string> = {
-      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('test123', 'TestVault')),
-      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({
-        version: 1,
-        updated_at: new Date().toISOString(),
-        items: [],
-      }),
-      [`${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify({
-        version: 1,
-        updated_at: new Date().toISOString(),
-        records: {},
-      }),
+      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(buildManifest('test123', 'TestVault')),
+      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify(createMenuData([])),
+      [`${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify(createEmptyDeleteLog()),
       '2026-04/20260425-121000-1110.md': createValidNoteContent('Hello world'),
       '2026-05/20260501-080000-5678.md': createValidNoteContent('Second note'),
     };
@@ -165,7 +154,7 @@ describe('Vault ZIP generation and parsing', () => {
   });
 
   it('ZIP manifest can be parsed and validated', async () => {
-    const manifest = createManifest('abc123', 'MyVault');
+    const manifest = buildManifest('abc123', 'MyVault');
     const files = { [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(manifest) };
     const buffer = await createVaultZipBuffer(files);
     const zip = await JSZip.loadAsync(buffer);
@@ -176,16 +165,12 @@ describe('Vault ZIP generation and parsing', () => {
     const parsed = JSON.parse(raw);
     expect(parsed.project_id).toBe('abc123');
     expect(parsed.name).toBe('MyVault');
-    expect(parsed.version).toBe('1.0.0');
+    expect(parsed.version).toBe(MANIFEST_VERSION);
   });
 
   it('detects missing manifest', async () => {
     const files = {
-      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({
-        version: 1,
-        updated_at: new Date().toISOString(),
-        items: [],
-      }),
+      [`${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify(createMenuData([])),
     };
     const buffer = await createVaultZipBuffer(files);
     const zip = await JSZip.loadAsync(buffer);
@@ -196,7 +181,7 @@ describe('Vault ZIP generation and parsing', () => {
   it('roundtrip: create ZIP, re-parse, verify content', async () => {
     const noteContent = createValidNoteContent('Roundtrip test #tag1');
     const files: Record<string, string> = {
-      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('rt001', 'Roundtrip')),
+      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(buildManifest('rt001', 'Roundtrip')),
       '2026-04/20260425-121000-1110.md': noteContent,
     };
 
@@ -220,7 +205,7 @@ describe('ZIP size validation', () => {
 describe('ZIP with root directory prefix', () => {
   it('detects no root prefix when .timenote is at top level', async () => {
     const files: Record<string, string> = {
-      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('p1', 'Vault')),
+      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(buildManifest('p1', 'Vault')),
     };
     const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
     expect(zip.file(`${TIMENOTE_DIR}/${MANIFEST_FILE}`)).not.toBeNull();
@@ -229,9 +214,7 @@ describe('ZIP with root directory prefix', () => {
   it('detects root prefix when .timenote is inside a subdirectory', async () => {
     const rootDir = 'my-vault';
     const files: Record<string, string> = {
-      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
-        createManifest('p2', 'Vault'),
-      ),
+      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(buildManifest('p2', 'Vault')),
       [`${rootDir}/2026-04/20260425-121000-1110.md`]: createValidNoteContent('Hello'),
     };
     const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
@@ -246,18 +229,10 @@ describe('ZIP with root directory prefix', () => {
     const noteContent = createValidNoteContent('Root prefix test');
     const files: Record<string, string> = {
       [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
-        createManifest('rt002', 'Backup'),
+        buildManifest('rt002', 'Backup'),
       ),
-      [`${rootDir}/${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({
-        version: 1,
-        updated_at: new Date().toISOString(),
-        items: [],
-      }),
-      [`${rootDir}/${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify({
-        version: 1,
-        updated_at: new Date().toISOString(),
-        records: {},
-      }),
+      [`${rootDir}/${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify(createMenuData([])),
+      [`${rootDir}/${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify(createEmptyDeleteLog()),
       [`${rootDir}/2026-04/20260425-121000-1110.md`]: noteContent,
     };
 
@@ -273,7 +248,7 @@ describe('ZIP with root directory prefix', () => {
     const rootDir = 'My Vault Backup';
     const files: Record<string, string> = {
       [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
-        createManifest('sp1', 'Spaces'),
+        buildManifest('sp1', 'Spaces'),
       ),
     };
     const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
@@ -284,7 +259,7 @@ describe('ZIP with root directory prefix', () => {
 describe('detectZipRootPrefix', () => {
   it('returns empty string for flat structure', async () => {
     const files: Record<string, string> = {
-      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('p1', 'Vault')),
+      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(buildManifest('p1', 'Vault')),
       '2026-04/20260425-121000-1110.md': createValidNoteContent('hi'),
     };
     const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
@@ -294,9 +269,7 @@ describe('detectZipRootPrefix', () => {
   it('detects single root directory', async () => {
     const rootDir = 'my-vault';
     const files: Record<string, string> = {
-      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
-        createManifest('p2', 'Vault'),
-      ),
+      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(buildManifest('p2', 'Vault')),
       [`${rootDir}/2026-04/20260425-121000-1110.md`]: createValidNoteContent('hi'),
     };
     const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));

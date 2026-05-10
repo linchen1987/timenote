@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DeleteLogSchema } from './delete-log';
-import { ManifestSchema } from './manifest';
-import { MenuDataSchema } from './menu';
+import { DELETE_LOG_VERSION, DeleteLogSchema } from './delete-log';
+import { MANIFEST_VERSION, ManifestSchema } from './manifest';
+import { MENU_VERSION, MenuDataSchema } from './menu';
 import { NoteFilenameSchema, NoteFrontmatterSchema, NoteIdSchema, VolumeNameSchema } from './note';
-import { SyncEntitySchema, SyncLedgerSchema } from './sync-ledger';
+import { SYNC_LEDGER_VERSION, SyncEntitySchema, SyncLedgerSchema } from './sync-ledger';
 
 describe('NoteIdSchema', () => {
   it('accepts valid note IDs', () => {
@@ -45,7 +45,7 @@ describe('ManifestSchema', () => {
     const data = {
       project_id: 'v-abc123',
       name: 'My Notes',
-      version: '1.0.0',
+      version: MANIFEST_VERSION,
       created_at: '2026-04-25T12:10:00Z',
       updated_at: '2026-04-25T12:10:00Z',
     };
@@ -71,7 +71,7 @@ describe('ManifestSchema', () => {
 describe('MenuDataSchema', () => {
   it('parses valid menu with note items', () => {
     const data = {
-      version: 1,
+      version: MENU_VERSION,
       updated_at: '2026-04-25T12:00:00Z',
       items: [
         {
@@ -86,7 +86,7 @@ describe('MenuDataSchema', () => {
 
   it('parses valid menu with search items', () => {
     const data = {
-      version: 1,
+      version: MENU_VERSION,
       updated_at: '2026-04-25T12:00:00Z',
       items: [{ title: '搜索', type: 'search', search: 'query' }],
     };
@@ -95,7 +95,7 @@ describe('MenuDataSchema', () => {
 
   it('parses nested menu', () => {
     const data = {
-      version: 1,
+      version: MENU_VERSION,
       updated_at: '2026-04-25T12:00:00Z',
       items: [
         {
@@ -118,7 +118,7 @@ describe('MenuDataSchema', () => {
 describe('DeleteLogSchema', () => {
   it('parses valid delete log', () => {
     const data = {
-      version: 1,
+      version: DELETE_LOG_VERSION,
       updated_at: '2026-04-26T11:30:00Z',
       records: {
         '20260425-112010-1234': '2026-04-26T10:00:00Z',
@@ -130,7 +130,7 @@ describe('DeleteLogSchema', () => {
 
   it('rejects invalid date format in records', () => {
     const data = {
-      version: 1,
+      version: DELETE_LOG_VERSION,
       updated_at: '2026-04-26T11:30:00Z',
       records: {
         '20260425-112010-1234': 'not-a-date',
@@ -160,7 +160,7 @@ describe('SyncEntitySchema', () => {
 describe('SyncLedgerSchema', () => {
   it('parses valid sync ledger', () => {
     const data = {
-      version: 1,
+      version: SYNC_LEDGER_VERSION,
       entities: {
         '20260425-112010-1234': { h: 'abc123', u: '2026-04-25T12:10:00Z' },
         '20260425-112010-5678': { d: true, u: '2026-04-25T14:30:00Z' },

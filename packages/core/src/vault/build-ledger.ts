@@ -2,8 +2,13 @@ import { DeleteLogSchema } from '../spec/delete-log';
 import { computeContentHash } from '../spec/hash';
 import { type NoteId, parseNoteSafe } from '../spec/note';
 import { isValidNoteFilename, isValidVolumeName, volumeNameFromNoteId } from '../spec/note-id';
-import type { SyncEntity, SyncLedger } from '../spec/sync-ledger';
-import { SyncLedgerSchema } from '../spec/sync-ledger';
+import {
+  createEmptySyncLedger,
+  createSyncLedger,
+  type SyncEntity,
+  type SyncLedger,
+  SyncLedgerSchema,
+} from '../spec/sync-ledger';
 import { META_DIR, metaPath, SYNCABLE_META_FILES, syncLedgerPath } from '../spec/vault-layout';
 import type { VaultFs } from './vault-fs';
 
@@ -60,7 +65,7 @@ export async function buildLedgerFromFs(fs: VaultFs): Promise<SyncLedger> {
     // skip invalid or missing delete-log
   }
 
-  return { version: 1, entities, meta_files: metaFiles };
+  return createSyncLedger(entities, metaFiles);
 }
 
 export async function applyDirtyEntries(
@@ -115,7 +120,7 @@ export async function applyDirtyEntries(
     }
   }
 
-  return { version: 1, entities, meta_files: metaFiles };
+  return createSyncLedger(entities, metaFiles);
 }
 
 export async function buildLedgerFromFile(fs: VaultFs): Promise<SyncLedger> {
@@ -124,5 +129,5 @@ export async function buildLedgerFromFile(fs: VaultFs): Promise<SyncLedger> {
 }
 
 export function buildEmptyLedger(): SyncLedger {
-  return { version: 1, entities: {}, meta_files: {} };
+  return createEmptySyncLedger();
 }

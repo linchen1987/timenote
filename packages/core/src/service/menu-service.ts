@@ -1,4 +1,4 @@
-import type { RuntimeMenuItem } from '../spec/menu';
+import { createMenuData, type RuntimeMenuItem } from '../spec/menu';
 import type { VaultService } from '../vault/vault-service';
 import { flattenMenuItems, nestifyMenuItems } from './menu-transform';
 
@@ -16,7 +16,7 @@ export function createVaultMenuService(vaultService: VaultService): VaultMenuSer
 
     async saveMenu(projectId: string, items: RuntimeMenuItem[]): Promise<void> {
       const nested = nestifyMenuItems(items);
-      await vaultService.writeMenu(projectId, { version: 1, items: nested });
+      await vaultService.writeMenu(projectId, createMenuData(nested));
     },
   };
 }
