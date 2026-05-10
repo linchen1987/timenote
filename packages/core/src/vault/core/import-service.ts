@@ -30,6 +30,31 @@ export function createVaultImportService(
   return new VaultImportServiceImpl(vaultService, noteService, syncService);
 }
 
+export function detectZipRootPrefix(zip: JSZip): string {
+  if (zip.file(metaPath('manifest'))) return '';
+
+  const allPaths: string[] = [];
+  zip.forEach((path) => {
+    allPaths.push(path);
+  });
+
+  const roots = new Set<string>();
+  for (const path of allPaths) {
+    if (path === metaPath('manifest')) continue;
+    const slashIdx = path.indexOf('/');
+    if (slashIdx < 0) continue;
+    const root = path.slice(0, slashIdx + 1);
+    if (path === `${root}${metaPath('manifest')}`) return root;
+    roots.add(root);
+  }
+
+  for (const root of roots) {
+    if (zip.file(`${root}${metaPath('manifest')}`)) return root;
+  }
+
+  return '';
+}
+
 class VaultImportServiceImpl implements VaultImportService {
   constructor(
     private vaultService: VaultService,
@@ -38,20 +63,12 @@ class VaultImportServiceImpl implements VaultImportService {
   ) {}
 
   async parseManifest(file: File): Promise<Manifest> {
-    if (file.size > MAX_ZIP_SIZE) {
-      throw new Error(
-        `ZIP file too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum 100MB.`,
-      );
-    }
-    const zip = await JSZip.loadAsync(file);
-    const entry = zip.file(metaPath('manifest'));
-    if (!entry) throw new Error(`Invalid vault ZIP: missing ${metaPath('manifest')}`);
-    const raw = await entry.async('string');
-    return ManifestSchema.parse(JSON.parse(raw));
+    const { manifest } = await this.parseZip(file);
+    return manifest;
   }
 
   async importVault(file: File): Promise<ImportResult> {
-    const { zip, manifest } = await this.parseZip(file);
+    const { zip, manifest, rootPrefix } = await this.parseZip(file);
     const projectId = manifest.project_id;
 
     const existingVaults = await this.vaultService.listVaults();
@@ -61,7 +78,7 @@ class VaultImportServiceImpl implements VaultImportService {
       await this.vaultService.createVaultWithId(projectId, manifest.name);
     }
 
-    const zipFs = this.createZipVaultFs(zip);
+    const zipFs = this.createZipVaultFs(zip, rootPrefix);
 
     const syncResult = exists
       ? await this.syncService.syncWithSource(projectId, zipFs, {
@@ -84,11 +101,14 @@ class VaultImportServiceImpl implements VaultImportService {
     };
   }
 
-  private createZipVaultFs(zip: JSZip): VaultFs {
+  private createZipVaultFs(zip: JSZip, rootPrefix: string): VaultFs {
+    const prefix = rootPrefix;
+    const resolvePath = (path: string) => (prefix ? `${prefix}${path}` : path);
+
     return {
       async read(path: string): Promise<string> {
-        const entry = zip.file(path);
-        if (!entry) throw new Error(`File not found in ZIP: ${path}`);
+        const entry = zip.file(resolvePath(path));
+        if (!entry) throw new Error(`File not found in ZIP: ${resolvePath(path)}`);
         return entry.async('string');
       },
       async write(): Promise<void> {
@@ -99,15 +119,15 @@ class VaultImportServiceImpl implements VaultImportService {
       },
       async list(dirPath: string): Promise<FsStat[]> {
         const entries: FsStat[] = [];
-        const prefix = dirPath ? `${dirPath}/` : '';
+        const listPrefix = dirPath ? `${resolvePath(dirPath)}/` : prefix || '';
         const seen = new Set<string>();
 
         zip.forEach((relativePath) => {
           if (relativePath.endsWith('/') || relativePath.includes('..')) return;
 
-          if (prefix && !relativePath.startsWith(prefix)) return;
+          if (listPrefix && !relativePath.startsWith(listPrefix)) return;
 
-          const rest = relativePath.slice(prefix.length);
+          const rest = relativePath.slice(listPrefix.length);
           const parts = rest.split('/');
           const name = parts[0];
 
@@ -136,13 +156,17 @@ class VaultImportServiceImpl implements VaultImportService {
         return entries;
       },
       async exists(path: string): Promise<boolean> {
-        return zip.file(path) !== null;
+        return zip.file(resolvePath(path)) !== null;
       },
       async ensureDir(): Promise<void> {},
     };
   }
 
-  private async parseZip(file: File): Promise<{ zip: JSZip; manifest: Manifest }> {
+  private async parseZip(file: File): Promise<{
+    zip: JSZip;
+    manifest: Manifest;
+    rootPrefix: string;
+  }> {
     if (file.size > MAX_ZIP_SIZE) {
       throw new Error(
         `ZIP file too large: ${(file.size / 1024 / 1024).toFixed(1)}MB. Maximum 100MB.`,
@@ -150,7 +174,9 @@ class VaultImportServiceImpl implements VaultImportService {
     }
 
     const zip = await JSZip.loadAsync(file);
-    const manifestEntry = zip.file(metaPath('manifest'));
+    const rootPrefix = detectZipRootPrefix(zip);
+
+    const manifestEntry = zip.file(`${rootPrefix}${metaPath('manifest')}`);
     if (!manifestEntry) {
       throw new Error(`Invalid vault ZIP: missing ${metaPath('manifest')}`);
     }
@@ -163,6 +189,6 @@ class VaultImportServiceImpl implements VaultImportService {
       throw new Error('Invalid vault ZIP: manifest.json is not valid');
     }
 
-    return { zip, manifest };
+    return { zip, manifest, rootPrefix };
   }
 }

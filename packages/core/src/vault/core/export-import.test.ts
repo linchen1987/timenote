@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { describe, expect, it } from 'vitest';
+import { detectZipRootPrefix } from './import-service';
 
 const TIMENOTE_DIR = '.timenote';
 const MANIFEST_FILE = 'manifest.json';
@@ -213,5 +214,100 @@ describe('ZIP size validation', () => {
     const oversizedFile = new File([''], 'big.zip', { type: 'application/zip' });
     Object.defineProperty(oversizedFile, 'size', { value: 101 * 1024 * 1024 });
     expect(oversizedFile.size).toBeGreaterThan(MAX_ZIP_SIZE);
+  });
+});
+
+describe('ZIP with root directory prefix', () => {
+  it('detects no root prefix when .timenote is at top level', async () => {
+    const files: Record<string, string> = {
+      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('p1', 'Vault')),
+    };
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+    expect(zip.file(`${TIMENOTE_DIR}/${MANIFEST_FILE}`)).not.toBeNull();
+  });
+
+  it('detects root prefix when .timenote is inside a subdirectory', async () => {
+    const rootDir = 'my-vault';
+    const files: Record<string, string> = {
+      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
+        createManifest('p2', 'Vault'),
+      ),
+      [`${rootDir}/2026-04/20260425-121000-1110.md`]: createValidNoteContent('Hello'),
+    };
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+
+    expect(zip.file(`${TIMENOTE_DIR}/${MANIFEST_FILE}`)).toBeNull();
+    expect(zip.file(`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`)).not.toBeNull();
+    expect(zip.file(`${rootDir}/2026-04/20260425-121000-1110.md`)).not.toBeNull();
+  });
+
+  it('roundtrip with root prefix: read note content correctly', async () => {
+    const rootDir = 'timenote-backup';
+    const noteContent = createValidNoteContent('Root prefix test');
+    const files: Record<string, string> = {
+      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
+        createManifest('rt002', 'Backup'),
+      ),
+      [`${rootDir}/${TIMENOTE_DIR}/${MENU_FILE}`]: JSON.stringify({
+        version: 1,
+        updated_at: new Date().toISOString(),
+        items: [],
+      }),
+      [`${rootDir}/${TIMENOTE_DIR}/${DELETE_LOG_FILE}`]: JSON.stringify({
+        version: 1,
+        updated_at: new Date().toISOString(),
+        records: {},
+      }),
+      [`${rootDir}/2026-04/20260425-121000-1110.md`]: noteContent,
+    };
+
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+
+    const entry = zip.file(`${rootDir}/2026-04/20260425-121000-1110.md`);
+    expect(entry).not.toBeNull();
+    const content = await entry?.async('string');
+    expect(content).toBe(noteContent);
+  });
+
+  it('handles root dir with spaces in name', async () => {
+    const rootDir = 'My Vault Backup';
+    const files: Record<string, string> = {
+      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
+        createManifest('sp1', 'Spaces'),
+      ),
+    };
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+    expect(zip.file(`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`)).not.toBeNull();
+  });
+});
+
+describe('detectZipRootPrefix', () => {
+  it('returns empty string for flat structure', async () => {
+    const files: Record<string, string> = {
+      [`${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(createManifest('p1', 'Vault')),
+      '2026-04/20260425-121000-1110.md': createValidNoteContent('hi'),
+    };
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+    expect(detectZipRootPrefix(zip)).toBe('');
+  });
+
+  it('detects single root directory', async () => {
+    const rootDir = 'my-vault';
+    const files: Record<string, string> = {
+      [`${rootDir}/${TIMENOTE_DIR}/${MANIFEST_FILE}`]: JSON.stringify(
+        createManifest('p2', 'Vault'),
+      ),
+      [`${rootDir}/2026-04/20260425-121000-1110.md`]: createValidNoteContent('hi'),
+    };
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+    expect(detectZipRootPrefix(zip)).toBe(`${rootDir}/`);
+  });
+
+  it('returns empty string when no manifest found', async () => {
+    const files: Record<string, string> = {
+      'random.txt': 'no vault here',
+    };
+    const zip = await JSZip.loadAsync(await createVaultZipBuffer(files));
+    expect(detectZipRootPrefix(zip)).toBe('');
   });
 });
