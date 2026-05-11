@@ -6,14 +6,28 @@ export { NotebookLayout, type NotebookLayoutProps } from './components/notebook-
 export { type MenuActions, NotebookSidebar } from './components/notebook-sidebar';
 export { PageHeader } from './components/page-header';
 export {
+  NotebookSettingsPage,
+  type NotebookSettingsPageProps,
+} from './components/pages/notebook-settings-page';
+export {
+  NotebooksPage,
+  type NotebooksPageProps,
+} from './components/pages/notebooks-page';
+export { SettingsPage, type SettingsPageProps } from './components/pages/settings-page';
+export {
   type UseNotebookLayoutReturn,
   useNotebookLayout,
 } from './components/pages/use-notebook-layout';
 export {
   type UseNotebooksPageOptions,
   type UseNotebooksPageReturn,
+  type UseVaultStoreHook,
   useNotebooksPage,
 } from './components/pages/use-notebooks-page';
+export {
+  type UseProviderScannerReturn,
+  useProviderScanner,
+} from './components/pages/use-provider-scanner';
 export {
   VaultNoteDetailPage,
   type VaultNoteDetailPageProps,
@@ -23,6 +37,14 @@ export {
   VaultTimelinePage,
   type VaultTimelinePageProps,
 } from './components/pages/vault-timeline-page';
+export {
+  emptyProviderForm,
+  ProviderForm,
+  type ProviderFormProps,
+  type ProviderFormState,
+} from './components/provider-form';
+export { ProviderListCard, type ProviderListCardProps } from './components/provider-list-card';
+export { RemoteConfigCard, type RemoteConfigCardProps } from './components/remote-config-card';
 export { StorageConfigCard, type StorageConfigCardProps } from './components/storage-config-card';
 export { TagsView, type TagsViewProps, type TagWithCount } from './components/tags-view';
 export { type Theme, ThemeProvider, themeScript, useTheme } from './components/theme-provider';

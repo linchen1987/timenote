@@ -1,6 +1,28 @@
-import type { RemoteTransport } from '@timenote/core';
+import type { ProviderConfig, RemoteTransport } from '@timenote/core';
 import type { FsStat } from '@timenote/core/fs';
-import type { FsMessage, MessageResponse } from './message-types';
+import type { FsConnection, FsMessage, MessageResponse } from './message-types';
+
+function connectionFromProvider(provider: ProviderConfig): FsConnection {
+  if (provider.type === 'webdav' && provider.webdav) {
+    return {
+      type: 'webdav',
+      url: provider.webdav.url,
+      username: provider.webdav.username,
+      password: provider.webdav.password,
+    };
+  }
+  if (provider.type === 's3' && provider.s3) {
+    return {
+      type: 's3',
+      bucket: provider.s3.bucket,
+      endpoint: provider.s3.endpoint,
+      accessKeyId: provider.s3.accessKeyId,
+      secretAccessKey: provider.s3.secretAccessKey,
+      region: provider.s3.region,
+    };
+  }
+  throw new Error(`Invalid provider: ${provider.id}`);
+}
 
 async function sendMessage<T>(message: FsMessage): Promise<T> {
   const response: MessageResponse<T> = await chrome.runtime.sendMessage(message);
@@ -10,40 +32,36 @@ async function sendMessage<T>(message: FsMessage): Promise<T> {
   return response.data as T;
 }
 
-export const extensionTransport: RemoteTransport = {
-  async list(path: string): Promise<FsStat[]> {
-    return sendMessage<FsStat[]>({ type: 'fs:list', path });
-  },
+export function createExtensionTransport(provider: ProviderConfig): RemoteTransport {
+  const connection = connectionFromProvider(provider);
 
-  async read(path: string): Promise<string> {
-    return sendMessage<string>({ type: 'fs:read', path });
-  },
+  return {
+    async list(path: string): Promise<FsStat[]> {
+      return sendMessage<FsStat[]>({ type: 'fs:list', path, connection });
+    },
 
-  async write(path: string, content: string): Promise<void> {
-    await sendMessage<null>({ type: 'fs:write', path, content });
-  },
+    async read(path: string): Promise<string> {
+      return sendMessage<string>({ type: 'fs:read', path, connection });
+    },
 
-  async remove(path: string): Promise<void> {
-    await sendMessage<null>({ type: 'fs:delete', path });
-  },
+    async write(path: string, content: string): Promise<void> {
+      await sendMessage<null>({ type: 'fs:write', path, content, connection });
+    },
 
-  async exists(path: string): Promise<boolean> {
-    return sendMessage<boolean>({ type: 'fs:exists', path });
-  },
+    async remove(path: string): Promise<void> {
+      await sendMessage<null>({ type: 'fs:delete', path, connection });
+    },
 
-  async ensureDir(path: string): Promise<void> {
-    await sendMessage<null>({ type: 'fs:ensureDir', path });
-  },
+    async exists(path: string): Promise<boolean> {
+      return sendMessage<boolean>({ type: 'fs:exists', path, connection });
+    },
 
-  async isConfigured(): Promise<boolean> {
-    const result = await chrome.storage.local.get([
-      '@timenote/storage_type',
-      '@timenote/webdav_url',
-      '@timenote/s3_bucket',
-    ]);
-    return !!(
-      result['@timenote/storage_type'] &&
-      (result['@timenote/webdav_url'] || result['@timenote/s3_bucket'])
-    );
-  },
-};
+    async ensureDir(path: string): Promise<void> {
+      await sendMessage<null>({ type: 'fs:ensureDir', path, connection });
+    },
+
+    isConfigured(): boolean {
+      return true;
+    },
+  };
+}

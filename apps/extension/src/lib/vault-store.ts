@@ -1,6 +1,12 @@
-import { createVaultStore, type VaultMeta } from '@timenote/core';
-import { extensionTransport } from './extension-transport';
+import { createVaultStore, type TransportResolver, type VaultMeta } from '@timenote/core';
+import { createExtensionTransport } from './extension-transport';
 
 export type { VaultMeta };
 
-export const useVaultStore = createVaultStore(extensionTransport);
+const resolver: TransportResolver = {
+  createTransport(provider) {
+    return createExtensionTransport(provider);
+  },
+};
+
+export const useVaultStore = createVaultStore(resolver);

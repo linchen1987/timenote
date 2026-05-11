@@ -12,6 +12,16 @@ import { deleteVaultIndexDatabase } from '../provider/index-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
 import { metaPath, noteFilePath } from '../spec/vault-layout';
+import {
+  getDefaultRemotePath,
+  getEnabledRemotes,
+  getRemote,
+  type RemoteEntry,
+  removeRemote as removeRemoteConfig,
+  setRemote,
+} from '../storage/notebook-remotes';
+import { migrateLegacyProviders } from '../storage/provider-migration';
+import { getProvider, type ProviderConfig } from '../storage/provider-registry';
 import { createVaultExportService, type VaultExportService } from '../vault/export-service';
 import {
   createVaultImportService,
@@ -52,6 +62,39 @@ function touchSyncCache(projectId: string): void {
 function isSyncCacheValid(projectId: string): boolean {
   const ts = getSyncCacheTime(projectId);
   return ts !== null && Date.now() - ts < SYNC_TTL_MS;
+}
+
+const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
+const DEFAULT_REMOTE_NAME = 'origin';
+
+export interface TransportResolver {
+  createTransport(provider: ProviderConfig): RemoteTransport;
+}
+
+export interface ResolvedTransport {
+  transport: RemoteTransport;
+  remoteName: string;
+  providerId: string;
+  path: string;
+}
+
+function resolveTransport(
+  projectId: string,
+  resolver: TransportResolver,
+): ResolvedTransport | null {
+  const remoteNames = Object.keys(getEnabledRemotes(projectId));
+  const remoteName = remoteNames[0];
+  if (!remoteName) return null;
+
+  const entry = getRemote(projectId, remoteName);
+  if (!entry || !entry.enabled) return null;
+
+  const provider = getProvider(entry.providerId);
+  if (!provider) return null;
+
+  const transport = resolver.createTransport(provider);
+  const prefixed = createPrefixedTransport(entry.path, transport);
+  return { transport: prefixed, remoteName, providerId: provider.id, path: entry.path };
 }
 
 export type VaultStore = {
@@ -107,8 +150,14 @@ export type VaultStore = {
 
   getTagsWithCounts: () => Promise<{ name: string; count: number }[]>;
 
-  listRemoteVaults: () => Promise<VaultMeta[]>;
+  configureRemote: (projectId: string, providerId: string, path?: string) => void;
+  removeRemote: (projectId: string, remoteName?: string) => void;
+  toggleRemote: (projectId: string, remoteName?: string) => void;
+  getRemoteConfig: (projectId: string, remoteName?: string) => RemoteEntry | null;
+
+  listRemoteVaults: (providerId: string) => Promise<VaultMeta[]>;
   cloneVault: (projectId: string) => Promise<void>;
+  cloneFromProvider: (providerId: string, path: string) => Promise<void>;
 
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
@@ -131,70 +180,25 @@ export type VaultStore = {
   clearLegacyData: () => Promise<void>;
 };
 
-async function checkConfigured(
-  transport: RemoteTransport | { isConfigured(): boolean | Promise<boolean> },
-): Promise<boolean> {
-  return transport.isConfigured();
+const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function debounceSync(store: VaultStore, projectId: string): void {
+  const existing = syncTimers.get(projectId);
+  if (existing) clearTimeout(existing);
+  syncTimers.set(
+    projectId,
+    setTimeout(() => {
+      syncTimers.delete(projectId);
+      if (!store.isSyncing) {
+        store.sync(projectId).catch(() => {});
+      }
+    }, 1000),
+  );
 }
 
-export function createVaultStore(
-  transport: RemoteTransport | { isConfigured(): boolean | Promise<boolean> },
-) {
-  const remoteTransport: RemoteTransport = {
-    list: (path) => transport.list(path),
-    read: (path) => transport.read(path),
-    write: (path, content) => transport.write(path, content),
-    exists: (path) => transport.exists(path),
-    ensureDir: (path) => transport.ensureDir(path),
-    remove: (path) => transport.remove(path),
-    isConfigured: () => transport.isConfigured(),
-  };
+const EMPTY_SYNC_RESULT: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, errors: [] };
 
-  const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
-
-  function debounceSync(store: VaultStore, projectId: string): void {
-    const existing = syncTimers.get(projectId);
-    if (existing) clearTimeout(existing);
-    syncTimers.set(
-      projectId,
-      setTimeout(() => {
-        syncTimers.delete(projectId);
-        if (!store.isSyncing) {
-          store.sync(projectId).catch(() => {});
-        }
-      }, 1000),
-    );
-  }
-
-  function getRemoteForProject(projectId: string): RemoteTransport {
-    return createPrefixedTransport(`timenote/vaults/${projectId}`, remoteTransport);
-  }
-
-  const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
-
-  async function listRemoteVaults(): Promise<VaultMeta[]> {
-    if (!(await checkConfigured(transport))) return [];
-    try {
-      const entries = await remoteTransport.list(VAULTS_REMOTE_PREFIX);
-      const vaults: VaultMeta[] = [];
-      for (const entry of entries) {
-        if (entry.type !== 'directory') continue;
-        const projectId = entry.basename;
-        try {
-          const manifestPath = `${VAULTS_REMOTE_PREFIX}/${projectId}/${metaPath('manifest')}`;
-          const raw = await remoteTransport.read(manifestPath);
-          const manifest: Manifest = ManifestSchema.parse(JSON.parse(raw));
-          vaults.push({ projectId: manifest.project_id, name: manifest.name });
-        } catch {
-          vaults.push({ projectId, name: projectId });
-        }
-      }
-      return vaults;
-    } catch {
-      return [];
-    }
-  }
-
+export function createVaultStore(resolver: TransportResolver) {
   return create<VaultStore>((set, get) => ({
     vaultService: null,
     noteService: null,
@@ -216,6 +220,7 @@ export function createVaultStore(
 
     init: async () => {
       if (get().vaultService) return;
+      migrateLegacyProviders();
       const vaultService = await createVaultService();
       const noteService = createVaultNoteService(vaultService);
       const menuService = createVaultMenuService(vaultService);
@@ -252,6 +257,7 @@ export function createVaultStore(
       await get().init();
       await get().vaultService?.deleteVault(projectId);
       await deleteVaultIndexDatabase(projectId);
+      removeRemoteConfig(projectId);
       await get().listVaults();
     },
 
@@ -375,6 +381,122 @@ export function createVaultStore(
       return svc.getTagsWithCounts();
     },
 
+    configureRemote: (projectId: string, providerId: string, path?: string) => {
+      setRemote(projectId, DEFAULT_REMOTE_NAME, {
+        providerId,
+        path: path ?? getDefaultRemotePath(projectId),
+        enabled: true,
+      });
+    },
+
+    removeRemote: (projectId: string, remoteName?: string) => {
+      removeRemoteConfig(projectId, remoteName ?? DEFAULT_REMOTE_NAME);
+    },
+
+    toggleRemote: (projectId: string, remoteName?: string) => {
+      const name = remoteName ?? DEFAULT_REMOTE_NAME;
+      const entry = getRemote(projectId, name);
+      if (entry) {
+        setRemote(projectId, name, { ...entry, enabled: !entry.enabled });
+      }
+    },
+
+    getRemoteConfig: (projectId: string, remoteName?: string): RemoteEntry | null => {
+      return getRemote(projectId, remoteName ?? DEFAULT_REMOTE_NAME);
+    },
+
+    listRemoteVaults: async (providerId: string): Promise<VaultMeta[]> => {
+      const provider = getProvider(providerId);
+      if (!provider) return [];
+      try {
+        const transport = resolver.createTransport(provider);
+        const entries = await transport.list(VAULTS_REMOTE_PREFIX);
+        const vaults: VaultMeta[] = [];
+        for (const entry of entries) {
+          if (entry.type !== 'directory') continue;
+          const projectId = entry.basename;
+          try {
+            const manifestPath = `${VAULTS_REMOTE_PREFIX}/${projectId}/${metaPath('manifest')}`;
+            const raw = await transport.read(manifestPath);
+            const manifest: Manifest = ManifestSchema.parse(JSON.parse(raw));
+            vaults.push({ projectId: manifest.project_id, name: manifest.name });
+          } catch {
+            vaults.push({ projectId, name: projectId });
+          }
+        }
+        return vaults;
+      } catch {
+        return [];
+      }
+    },
+
+    cloneVault: async (projectId: string) => {
+      await get().init();
+      const vaultService = get().vaultService;
+      const syncService = get().syncService;
+      if (!vaultService) throw new Error('VaultService not initialized');
+      if (!syncService) throw new Error('SyncService not initialized');
+
+      const resolved = resolveTransport(projectId, resolver);
+      if (!resolved) throw new Error('No remote configured for this notebook');
+
+      const remote = resolved.transport;
+      let manifest: Manifest;
+      try {
+        const raw = await remote.read(metaPath('manifest'));
+        manifest = ManifestSchema.parse(JSON.parse(raw));
+      } catch {
+        throw new Error('Remote vault manifest not found');
+      }
+
+      const existing = await vaultService.listVaults();
+      if (!existing.find((v) => v.projectId === projectId)) {
+        await vaultService.createVaultWithId(projectId, manifest.name);
+      }
+
+      await syncService.initFromSource(projectId, toVaultFs(remote), {
+        writeSourceLedger: true,
+      });
+      await get().listVaults();
+    },
+
+    cloneFromProvider: async (providerId: string, path: string) => {
+      await get().init();
+      const vaultService = get().vaultService;
+      const syncService = get().syncService;
+      if (!vaultService) throw new Error('VaultService not initialized');
+      if (!syncService) throw new Error('SyncService not initialized');
+
+      const provider = getProvider(providerId);
+      if (!provider) throw new Error(`Provider not found: ${providerId}`);
+
+      const transport = createPrefixedTransport(path, resolver.createTransport(provider));
+      let manifest: Manifest;
+      try {
+        const raw = await transport.read(metaPath('manifest'));
+        manifest = ManifestSchema.parse(JSON.parse(raw));
+      } catch {
+        throw new Error('Remote vault manifest not found');
+      }
+
+      const projectId = manifest.project_id;
+      const existing = await vaultService.listVaults();
+      if (!existing.find((v) => v.projectId === projectId)) {
+        await vaultService.createVaultWithId(projectId, manifest.name);
+      }
+
+      setRemote(projectId, DEFAULT_REMOTE_NAME, {
+        providerId,
+        path,
+        enabled: true,
+      });
+
+      await syncService.initFromSource(projectId, toVaultFs(transport), {
+        writeSourceLedger: true,
+      });
+      await get().listVaults();
+    },
+
     notifyNoteChange: (
       projectId: string,
       noteId: string,
@@ -398,22 +520,21 @@ export function createVaultStore(
 
     tryEntrySync: async (projectId: string) => {
       if (isSyncCacheValid(projectId)) return;
-      if (!(await checkConfigured(transport))) return;
+      const resolved = resolveTransport(projectId, resolver);
+      if (!resolved) return;
       try {
         await get().sync(projectId);
       } catch {}
     },
 
     sync: async (projectId: string) => {
-      if (!(await checkConfigured(transport))) {
-        throw new Error('Storage not configured. Please configure S3 or WebDAV settings.');
-      }
+      const resolved = resolveTransport(projectId, resolver);
+      if (!resolved) return EMPTY_SYNC_RESULT;
       set({ isSyncing: true });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
-        const remote = getRemoteForProject(projectId);
-        const result = await syncService.sync(projectId, remote);
+        const result = await syncService.sync(projectId, resolved.transport);
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         await get().loadMenu(projectId);
@@ -424,15 +545,13 @@ export function createVaultStore(
     },
 
     pull: async (projectId: string) => {
-      if (!(await checkConfigured(transport))) {
-        throw new Error('Storage not configured');
-      }
+      const resolved = resolveTransport(projectId, resolver);
+      if (!resolved) return EMPTY_SYNC_RESULT;
       set({ isSyncing: true });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
-        const remote = getRemoteForProject(projectId);
-        const result = await syncService.pull(projectId, remote);
+        const result = await syncService.pull(projectId, resolved.transport);
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         await get().loadMenu(projectId);
@@ -443,15 +562,13 @@ export function createVaultStore(
     },
 
     push: async (projectId: string) => {
-      if (!(await checkConfigured(transport))) {
-        throw new Error('Storage not configured');
-      }
+      const resolved = resolveTransport(projectId, resolver);
+      if (!resolved) return EMPTY_SYNC_RESULT;
       set({ isSyncing: true });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
-        const remote = getRemoteForProject(projectId);
-        const result = await syncService.push(projectId, remote);
+        const result = await syncService.push(projectId, resolved.transport);
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         return result;
@@ -464,41 +581,6 @@ export function createVaultStore(
       const exportService = get().exportService;
       if (!exportService) throw new Error('ExportService not initialized');
       await exportService.downloadVault(projectId);
-    },
-
-    listRemoteVaults: async () => {
-      await get().init();
-      return listRemoteVaults();
-    },
-
-    cloneVault: async (projectId: string) => {
-      if (!(await checkConfigured(transport))) {
-        throw new Error('Storage not configured');
-      }
-      await get().init();
-      const vaultService = get().vaultService;
-      const syncService = get().syncService;
-      if (!vaultService) throw new Error('VaultService not initialized');
-      if (!syncService) throw new Error('SyncService not initialized');
-
-      const remote = getRemoteForProject(projectId);
-      let manifest: Manifest;
-      try {
-        const raw = await remote.read(metaPath('manifest'));
-        manifest = ManifestSchema.parse(JSON.parse(raw));
-      } catch {
-        throw new Error('Remote vault manifest not found');
-      }
-
-      const existing = await vaultService.listVaults();
-      if (!existing.find((v) => v.projectId === projectId)) {
-        await vaultService.createVaultWithId(projectId, manifest.name);
-      }
-
-      await syncService.initFromSource(projectId, toVaultFs(remote), {
-        writeSourceLedger: true,
-      });
-      await get().listVaults();
     },
 
     importVault: async (file: File) => {

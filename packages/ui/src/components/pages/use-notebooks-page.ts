@@ -2,7 +2,7 @@ import { createNotebookToken, type VaultMeta, type VaultStore } from '@timenote/
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
-type UseVaultStoreHook = {
+export type UseVaultStoreHook = {
   (): VaultStore;
   getState: () => VaultStore;
   <T>(selector: (s: VaultStore) => T): T;
@@ -10,9 +10,6 @@ type UseVaultStoreHook = {
 
 export interface UseNotebooksPageReturn {
   vaults: VaultMeta[];
-  remoteOnlyVaults: VaultMeta[];
-  isLoadingRemote: boolean;
-  isPulling: string | null;
   isCreating: boolean;
   setIsCreating: (v: boolean) => void;
   newName: string;
@@ -66,7 +63,6 @@ export function useNotebooksPage(
 
   const {
     listVaults,
-    listRemoteVaults,
     cloneVault,
     createVault,
     deleteVault,
@@ -75,9 +71,7 @@ export function useNotebooksPage(
     checkMigration,
   } = useStore();
   const [vaults, setVaults] = useState<VaultMeta[]>([]);
-  const [remoteOnlyVaults, setRemoteOnlyVaults] = useState<VaultMeta[]>([]);
-  const [isLoadingRemote, setIsLoadingRemote] = useState(false);
-  const [isPulling, setIsPulling] = useState<string | null>(null);
+  const [, setIsPulling] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newName, setNewName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -93,21 +87,10 @@ export function useNotebooksPage(
     try {
       const list = await listVaults();
       setVaults(list);
-
-      setIsLoadingRemote(true);
-      try {
-        const remoteList = await listRemoteVaults();
-        const localIds = new Set(list.map((v) => v.projectId));
-        setRemoteOnlyVaults(remoteList.filter((v) => !localIds.has(v.projectId)));
-      } catch {
-        setRemoteOnlyVaults([]);
-      } finally {
-        setIsLoadingRemote(false);
-      }
     } catch (e) {
       toast.error(`Failed to load vaults: ${(e as Error).message}`);
     }
-  }, [listVaults, listRemoteVaults]);
+  }, [listVaults]);
 
   useEffect(() => {
     refresh();
@@ -193,9 +176,6 @@ export function useNotebooksPage(
 
   return {
     vaults,
-    remoteOnlyVaults,
-    isLoadingRemote,
-    isPulling,
     isCreating,
     setIsCreating,
     newName,

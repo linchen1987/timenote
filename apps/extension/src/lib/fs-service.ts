@@ -1,13 +1,7 @@
-import { createFsService } from '@timenote/core/fs';
-import { extensionTransport } from './extension-transport';
+import type { ProviderConfig } from '@timenote/core';
+import { createExtensionTransport } from './extension-transport';
 
-export type StorageType = 'webdav' | 's3';
-
-const setStorageType = async (type: StorageType): Promise<void> => {
-  await chrome.storage.local.set({ '@timenote/storage_type': type });
-};
-
-export const FsService = {
-  ...createFsService(extensionTransport),
-  setStorageType,
-};
+export function testProviderConnection(provider: ProviderConfig): Promise<boolean> {
+  const transport = createExtensionTransport(provider);
+  return transport.exists('/');
+}

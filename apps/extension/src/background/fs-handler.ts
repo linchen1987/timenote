@@ -1,17 +1,8 @@
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
 import { createClient, type FileStat, type WebDAVClient, type WebDAVClientOptions } from 'webdav';
-import type { FsMessage, MessageResponse } from '../lib/message-types';
+import type { FsConnection, FsMessage, MessageResponse } from '../lib/message-types';
 
-type FsConnection =
-  | { type: 'webdav'; url: string; username?: string; password?: string; token?: string }
-  | {
-      type: 's3';
-      bucket: string;
-      endpoint?: string;
-      accessKeyId: string;
-      secretAccessKey: string;
-      region?: string;
-    };
+export type { FsConnection };
 
 type FsStat = {
   filename: string;
@@ -261,46 +252,6 @@ class S3FsClient implements FsClient {
   }
 }
 
-async function getConnection(): Promise<FsConnection | null> {
-  const result = await chrome.storage.local.get([
-    '@timenote/storage_type',
-    '@timenote/webdav_url',
-    '@timenote/webdav_username',
-    '@timenote/webdav_password',
-    '@timenote/s3_bucket',
-    '@timenote/s3_endpoint',
-    '@timenote/s3_access_key_id',
-    '@timenote/s3_secret_access_key',
-    '@timenote/s3_region',
-  ]);
-
-  const storageType = result['@timenote/storage_type'] || 'webdav';
-
-  if (storageType === 's3') {
-    const bucket = result['@timenote/s3_bucket'];
-    const accessKeyId = result['@timenote/s3_access_key_id'];
-    const secretAccessKey = result['@timenote/s3_secret_access_key'];
-    if (!bucket || !accessKeyId || !secretAccessKey) return null;
-    return {
-      type: 's3',
-      bucket,
-      endpoint: result['@timenote/s3_endpoint'] || undefined,
-      accessKeyId,
-      secretAccessKey,
-      region: result['@timenote/s3_region'] || undefined,
-    };
-  }
-
-  const url = result['@timenote/webdav_url'];
-  if (!url) return null;
-  return {
-    type: 'webdav',
-    url,
-    username: result['@timenote/webdav_username'] || '',
-    password: result['@timenote/webdav_password'] || '',
-  };
-}
-
 chrome.runtime.onMessage.addListener((message: FsMessage, _sender, sendResponse) => {
   if (message.type?.startsWith('fs:')) {
     handleFsMessage(message).then(sendResponse);
@@ -308,9 +259,16 @@ chrome.runtime.onMessage.addListener((message: FsMessage, _sender, sendResponse)
   }
 });
 
+function getConnectionFromMessage(message: FsMessage): FsConnection | null {
+  if ('connection' in message) {
+    return (message as { connection: FsConnection }).connection;
+  }
+  return null;
+}
+
 async function handleFsMessage(message: FsMessage): Promise<MessageResponse> {
   try {
-    const connection = await getConnection();
+    const connection = getConnectionFromMessage(message);
     if (!connection) {
       return { success: false, error: 'Storage not configured' };
     }

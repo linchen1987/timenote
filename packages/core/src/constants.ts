@@ -18,6 +18,8 @@ export const STORAGE_KEYS = {
   DESKTOP_SIDEBAR_OPEN: '@timenote/desktop_sidebar_open',
   LAST_NOTEBOOK_TOKEN: '@timenote/last_notebook_token',
   SYNC_CACHE_PREFIX: '@timenote/sync_cache',
+  PROVIDERS: '@timenote/providers',
+  NOTEBOOK_REMOTES: '@timenote/notebook_remotes',
 } as const;
 
 export const SYNC_TTL_MS = 30 * 60 * 1000;

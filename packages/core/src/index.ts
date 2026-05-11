@@ -28,6 +28,32 @@ export {
   SimpleSearchProvider,
 } from './provider/search-provider';
 
+// ─── Storage Configuration ──────────────────────────────────────
+
+export {
+  getAllRemotes,
+  getDefaultRemotePath,
+  getEnabledRemotes,
+  getRemote,
+  listAllRemotes,
+  type NotebookRemoteConfig,
+  type RemoteEntry,
+  removeRemote,
+  setRemote,
+} from './storage/notebook-remotes';
+export { migrateLegacyProviders } from './storage/provider-migration';
+export {
+  deleteProvider,
+  generateProviderId,
+  getProvider,
+  listProviders,
+  type ProviderConfig,
+  type ProviderType,
+  type S3Provider,
+  saveProvider,
+  type WebdavProvider,
+} from './storage/provider-registry';
+
 // ─── Sync Engine + Vault Lifecycle ────────────────────────────
 
 export {
@@ -91,7 +117,7 @@ export {
   type VaultNoteService,
 } from './service/note-service';
 export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
-export { createVaultStore, type VaultStore } from './service/vault-store';
+export { createVaultStore, type TransportResolver, type VaultStore } from './service/vault-store';
 
 // ─── Migration (v1.x → v2.0) ────────────────────────────────
 

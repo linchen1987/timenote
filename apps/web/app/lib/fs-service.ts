@@ -1,8 +1,7 @@
-import { createFsService } from '@timenote/core/fs';
-import { type StorageType, setStorageType, webTransport } from './web-transport';
+import type { ProviderConfig } from '@timenote/core';
+import { createTransportForProvider } from './web-transport';
 
-export const FsService = {
-  ...createFsService(webTransport),
-  setStorageType,
-};
-export type { StorageType };
+export function testProviderConnection(provider: ProviderConfig): Promise<boolean> {
+  const transport = createTransportForProvider(provider);
+  return transport.exists('/');
+}

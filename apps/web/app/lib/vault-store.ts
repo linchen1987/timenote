@@ -1,4 +1,10 @@
-import { createVaultStore } from '@timenote/core';
-import { webTransport } from './web-transport';
+import { createVaultStore, type TransportResolver } from '@timenote/core';
+import { createTransportForProvider } from './web-transport';
 
-export const useVaultStore = createVaultStore(webTransport);
+const resolver: TransportResolver = {
+  createTransport(provider) {
+    return createTransportForProvider(provider);
+  },
+};
+
+export const useVaultStore = createVaultStore(resolver);
