@@ -48,6 +48,15 @@ export const NoteFilenameSchema = z
 
 // ─── Frontmatter Schema ─────────────────────────────────────
 
+export const AttachmentRefSchema = z.object({
+  path: z.string(),
+  name: z.string().optional(),
+  mime: z.string().optional(),
+  size: z.number().int().nonnegative().optional(),
+});
+
+export type AttachmentRef = z.infer<typeof AttachmentRefSchema>;
+
 export const NoteFrontmatterSchema = z
   .object({
     created_at: IsoDateString,
@@ -61,6 +70,7 @@ export const NoteFrontmatterSchema = z
     type: z.string().optional(),
     types: z.union([z.string(), z.array(z.string())]).optional(),
     deleted: z.boolean().optional(),
+    attachments: z.array(AttachmentRefSchema).optional(),
   })
   .passthrough();
 
@@ -171,7 +181,8 @@ type FrontmatterKey =
   | 'alias'
   | 'type'
   | 'types'
-  | 'deleted';
+  | 'deleted'
+  | 'attachments';
 
 const KEY_ORDER: FrontmatterKey[] = [
   'created_at',
@@ -185,6 +196,7 @@ const KEY_ORDER: FrontmatterKey[] = [
   'type',
   'types',
   'deleted',
+  'attachments',
 ];
 
 function sortFrontmatter(fm: NoteFrontmatter): Record<string, unknown> {

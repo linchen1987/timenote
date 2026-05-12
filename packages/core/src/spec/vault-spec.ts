@@ -1,29 +1,7 @@
 /**
  * # Timenote Vault Specification
  *
- * ## Design Philosophy
- * - 个人笔记应用，极简主义与性能平衡
- * - 兼容文件系统
- * - 人类可读优先
- * - 万物皆 markdown，不直接处理图片/附件
- * - 白名单准入：引擎仅识别符合规范的文件和路径，其余文件视为透明
- *
- * ## Core vs Non-Core
- * - Core (物理文件即真理 Single Source of Truth): .md 笔记、manifest.json、menu.json、delete-log.json
- * - Non-Core (可从核心数据重建): sync-ledger.json、IndexedDB 索引
- *
- * ## File → Module Map
- * - manifest.json    → spec/manifest.ts
- * - menu.json        → spec/menu.ts
- * - delete-log.json  → spec/delete-log.ts
- * - sync-ledger.json → spec/sync-ledger.ts
- * - .md note file    → spec/note.ts
- *
- * ## Spec Utilities (in spec/)
- * - note-id.ts       → Note ID generation & validation
- * - project-id.ts    → Project ID generation
- * - hash.ts          → Content hash (MD5)
- * - vault-layout.ts  → Directory structure, path conventions, file classification
+ * 规范文档: docs/vault-spec.md
  */
 
 // ─── Directory Structure ────────────────────────────────────
@@ -37,7 +15,9 @@ export const VAULT_TREE = `
   │   └── sync-ledger.json    ← non-core: 同步状态 (可从文件重建)
   ├── {YYYY-MM}/              ← Volume: ^[0-9]{4}-[0-9]{2}$
   │   └── {YYYYMMDD-HHmmss-SSSR}.md  ← Note: ^[0-9]{8}-[0-9]{6}-[0-9]{4}\\.[a-zA-Z0-9]+$
-  └── ...
+  └── assets/                 ← Attachments: SHA-256 hash-named files
+      └── {hash[:2]}/
+          └── {hash}.{ext}
 ` as const;
 
 // ─── Meta File Registry ─────────────────────────────────────

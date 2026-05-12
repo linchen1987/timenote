@@ -1,5 +1,5 @@
 import { DeleteLogSchema } from '../spec/delete-log';
-import { computeContentHash } from '../spec/hash';
+import { computeBinaryHash, computeContentHash } from '../spec/hash';
 import { type NoteId, parseNoteSafe } from '../spec/note';
 import { isValidNoteFilename, isValidVolumeName, volumeNameFromNoteId } from '../spec/note-id';
 import {
@@ -9,12 +9,20 @@ import {
   type SyncLedger,
   SyncLedgerSchema,
 } from '../spec/sync-ledger';
-import { META_DIR, metaPath, SYNCABLE_META_FILES, syncLedgerPath } from '../spec/vault-layout';
+import {
+  ASSETS_DIR,
+  META_DIR,
+  metaPath,
+  SYNCABLE_META_FILES,
+  syncLedgerPath,
+} from '../spec/vault-layout';
 import type { VaultFs } from './vault-fs';
 
 export type DirtyEntry =
   | { type: 'note'; path: string; action: 'upsert' }
   | { type: 'note'; path: string; action: 'delete' }
+  | { type: 'attachment'; path: string; action: 'upsert' }
+  | { type: 'attachment'; path: string; action: 'delete' }
   | { type: 'meta'; key: string; action: 'upsert' };
 
 export async function buildLedgerFromFs(fs: VaultFs): Promise<SyncLedger> {
@@ -39,6 +47,8 @@ export async function buildLedgerFromFs(fs: VaultFs): Promise<SyncLedger> {
       }
     }
   }
+
+  await scanAssets(fs, entities);
 
   for (const mf of SYNCABLE_META_FILES) {
     try {
@@ -68,6 +78,29 @@ export async function buildLedgerFromFs(fs: VaultFs): Promise<SyncLedger> {
   return createSyncLedger(entities, metaFiles);
 }
 
+async function scanAssets(fs: VaultFs, entities: Record<string, SyncEntity>): Promise<void> {
+  try {
+    const shards = await fs.list(ASSETS_DIR);
+    for (const shard of shards) {
+      if (shard.type !== 'directory') continue;
+      const files = await fs.list(shard.filename);
+      for (const file of files) {
+        if (file.type !== 'file') continue;
+        const path = file.filename;
+        try {
+          const data = await fs.readBinary(path);
+          const hash = await computeBinaryHash(data);
+          entities[path] = { h: hash, u: new Date().toISOString() };
+        } catch {
+          // skip unreadable files
+        }
+      }
+    }
+  } catch {
+    // assets directory may not exist yet
+  }
+}
+
 export async function applyDirtyEntries(
   fs: VaultFs,
   base: SyncLedger,
@@ -90,6 +123,18 @@ export async function applyDirtyEntries(
         };
       } catch {
         delete metaFiles[entry.key];
+      }
+    } else if (entry.type === 'attachment') {
+      if (entry.action === 'upsert') {
+        try {
+          const data = await fs.readBinary(entry.path);
+          const hash = await computeBinaryHash(data);
+          entities[entry.path] = { h: hash, u: new Date().toISOString() };
+        } catch {
+          // skip if file can't be read
+        }
+      } else {
+        delete entities[entry.path];
       }
     } else if (entry.action === 'upsert') {
       try {

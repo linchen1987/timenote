@@ -1,8 +1,18 @@
-import { noteIdFromUrl, parseNotebookId, type VaultStore } from '@timenote/core';
+import {
+  type EditAttachment,
+  extFromFilename,
+  inferMimeFromExt,
+  inferMimeFromPath,
+  noteIdFromUrl,
+  type PendingAttachment,
+  parseNotebookId,
+  type VaultStore,
+} from '@timenote/core';
 import { ArrowUpDown, ChevronLeft, Loader2, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
+import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
 import { PageHeader } from '../page-header';
 import { Button } from '../ui/button';
@@ -27,11 +37,10 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const initialContentRef = useRef('');
-  // Must use currentContentRef instead of editorRef.current?.getMarkdown() in cleanup.
-  // During unmount, TipTap's ProseMirror view/model may be mid-destruction,
-  // causing getMarkdown() to return empty string and overwrite the note with blank content.
-  // This ref is a plain string updated on every editor onChange, immune to editor lifecycle.
+  const initialAttachmentsRef = useRef<EditAttachment[]>([]);
   const currentContentRef = useRef('');
+  const [attachments, setAttachments] = useState<EditAttachment[]>([]);
+  const [removedPaths, setRemovedPaths] = useState<string[]>([]);
   const isSyncing = useStore((s) => s.isSyncing);
 
   useEffect(() => {
@@ -52,6 +61,10 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
           setBody(note.body);
           initialContentRef.current = note.body;
           currentContentRef.current = note.body;
+          const editAtts = attachmentRefToEditAttachment(note.frontmatter.attachments || []);
+          setAttachments(editAtts);
+          initialAttachmentsRef.current = editAtts;
+          setRemovedPaths([]);
         }
       } catch (e) {
         if (!cancelled) toast.error(`Failed to load note: ${(e as Error).message}`);
@@ -68,25 +81,89 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
     setHasUnsavedChanges(content !== initialContentRef.current);
   }, []);
 
+  const handleAddFiles = useCallback(
+    async (files: File[]) => {
+      if (!projectId) return;
+      const svc = useStore.getState().getNoteService();
+      const attSvc = svc.getAttachmentService(projectId);
+      const newAttachments: PendingAttachment[] = [];
+
+      for (const file of files) {
+        const ext = extFromFilename(file.name);
+        const data = await file.arrayBuffer();
+        const { path } = await attSvc.writeIfNew(data, ext);
+        newAttachments.push({
+          type: 'pending',
+          path,
+          data,
+          name: file.name,
+          mime: file.type || inferMimeFromExt(ext),
+          size: file.size,
+        });
+      }
+
+      setAttachments((prev) => [...prev, ...newAttachments]);
+      setHasUnsavedChanges(true);
+    },
+    [projectId, useStore.getState],
+  );
+
+  const handleRemoveAttachment = useCallback((idx: number) => {
+    setAttachments((prev) => {
+      const removed = prev[idx];
+      if (removed.type === 'existing') {
+        setRemovedPaths((rp) => [...rp, removed.path]);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
+    setHasUnsavedChanges(true);
+  }, []);
+
+  const getAttachmentUrl = useCallback(
+    async (path: string): Promise<string> => {
+      if (!projectId) throw new Error('No project');
+      const svc = useStore.getState().getNoteService();
+      const blob = await svc.getAttachmentBlob(projectId, path);
+      const mime = inferMimeFromPath(path);
+      return URL.createObjectURL(new Blob([blob], { type: mime || 'application/octet-stream' }));
+    },
+    [projectId, useStore.getState],
+  );
+
   const handleSave = useCallback(async () => {
     if (!projectId || !nId) return;
-    const content = editorRef.current?.getMarkdown() || '';
-    if (content === initialContentRef.current) return;
+    const content = editorRef.current?.getMarkdown() || currentContentRef.current;
 
     try {
       const svc = useStore.getState().getNoteService();
-      await svc.updateNote(projectId, nId, content);
+      const contentChanged = content !== initialContentRef.current;
+      const attachmentsChanged =
+        attachments !== initialAttachmentsRef.current || removedPaths.length > 0;
+
+      if (contentChanged && !attachmentsChanged) {
+        await svc.updateNote(projectId, nId, content);
+      } else if (attachmentsChanged) {
+        await svc.saveNoteWithAttachments(projectId, nId, {
+          body: content,
+          attachments,
+          removedPaths,
+        });
+      } else {
+        return;
+      }
+
       initialContentRef.current = content;
+      initialAttachmentsRef.current = attachments;
+      setRemovedPaths([]);
       setHasUnsavedChanges(false);
       toast.success('Saved');
-      useStore.getState().notifyNoteChange(projectId, nId, 'update');
+      const attPaths = attachments.map((a) => a.path);
+      useStore.getState().notifyNoteChange(projectId, nId, 'update', attPaths);
     } catch (e) {
       toast.error(`Failed to save: ${(e as Error).message}`);
     }
-  }, [projectId, nId, useStore.getState]);
+  }, [projectId, nId, attachments, removedPaths, useStore.getState]);
 
-  // Auto-save on leave: fires when component unmounts or noteId changes (navigating to another note).
-  // Uses currentContentRef (NOT editorRef) — see comment above for why.
   useEffect(() => {
     return () => {
       const content = currentContentRef.current;
@@ -188,6 +265,14 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
             availableTags={availableTags}
           />
         </div>
+
+        <AttachmentZone
+          attachments={attachments}
+          editable={true}
+          getAttachmentUrl={getAttachmentUrl}
+          onAdd={handleAddFiles}
+          onRemove={handleRemoveAttachment}
+        />
 
         <footer className="mt-8 pt-8 border-t border-muted/20 flex justify-end text-muted-foreground text-sm px-4 pb-12">
           <div>{body.length} characters</div>

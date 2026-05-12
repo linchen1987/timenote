@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AttachmentRefSchema,
   normalizeAliases,
   normalizeTags,
   normalizeTitle,
@@ -274,5 +275,67 @@ describe('normalizeType', () => {
 
   it('uses first from types array', () => {
     expect(normalizeType(undefined, ['canvas', 'todo'])).toBe('canvas');
+  });
+});
+
+describe('AttachmentRefSchema', () => {
+  it('parses attachment with path only', () => {
+    const result = AttachmentRefSchema.parse({ path: 'assets/a1/b2c3d4.png' });
+    expect(result.path).toBe('assets/a1/b2c3d4.png');
+    expect(result.name).toBeUndefined();
+  });
+
+  it('parses attachment with all fields', () => {
+    const result = AttachmentRefSchema.parse({
+      path: 'assets/a1/b2c3d4.png',
+      name: 'photo.png',
+      mime: 'image/png',
+      size: 12345,
+    });
+    expect(result).toEqual({
+      path: 'assets/a1/b2c3d4.png',
+      name: 'photo.png',
+      mime: 'image/png',
+      size: 12345,
+    });
+  });
+
+  it('rejects attachment without path', () => {
+    expect(() => AttachmentRefSchema.parse({ name: 'photo.png' })).toThrow();
+  });
+
+  it('rejects negative size', () => {
+    expect(() => AttachmentRefSchema.parse({ path: 'assets/a1/b2c3d4.png', size: -1 })).toThrow();
+  });
+});
+
+describe('parseNote with attachments', () => {
+  it('parses note with attachments', () => {
+    const raw = `---
+created_at: "2026-04-25T12:10:00Z"
+updated_at: "2026-04-25T12:10:00Z"
+attachments:
+  - path: "assets/a1/b2c3d4e5f6.png"
+    name: "photo.png"
+    mime: "image/png"
+    size: 12345
+---
+Body`;
+
+    const result = parseNote(raw);
+    expect(result.frontmatter.attachments).toHaveLength(1);
+    expect(result.frontmatter.attachments?.[0].path).toBe('assets/a1/b2c3d4e5f6.png');
+  });
+
+  it('round-trips note with attachments', () => {
+    const fm = {
+      created_at: '2026-04-25T12:10:00Z',
+      updated_at: '2026-04-25T12:10:00Z',
+      attachments: [{ path: 'assets/a1/b2c3d4.png', name: 'photo.png' }],
+    };
+
+    const serialized = serializeNote(fm, 'body');
+    const reparsed = parseNote(serialized);
+    expect(reparsed.frontmatter.attachments).toEqual(fm.attachments);
   });
 });

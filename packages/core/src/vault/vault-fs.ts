@@ -4,6 +4,8 @@ import type { OpfsTransport } from '../provider/opfs-transport';
 export interface VaultFs {
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
+  readBinary(path: string): Promise<ArrayBuffer>;
+  writeBinary(path: string, data: ArrayBuffer): Promise<void>;
   remove(path: string): Promise<void>;
   list(path: string): Promise<FsStat[]>;
   exists(path: string): Promise<boolean>;
@@ -17,6 +19,8 @@ export function createOpfsVaultFs(transport: OpfsTransport): VaultFs {
 export function createTransportVaultFs(transport: {
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
+  readBinary(path: string): Promise<ArrayBuffer>;
+  writeBinary(path: string, data: ArrayBuffer): Promise<void>;
   remove(path: string): Promise<void>;
   list(path: string): Promise<FsStat[]>;
   exists(path: string): Promise<boolean>;

@@ -22,6 +22,7 @@ import {
 } from '../storage/notebook-remotes';
 import { migrateLegacyProviders } from '../storage/provider-migration';
 import { getProvider, type ProviderConfig } from '../storage/provider-registry';
+import type { DirtyEntry } from '../vault/build-ledger';
 import { createVaultExportService, type VaultExportService } from '../vault/export-service';
 import {
   createVaultImportService,
@@ -168,6 +169,7 @@ export type VaultStore = {
     projectId: string,
     noteId: string,
     action: 'create' | 'update' | 'delete',
+    attachmentPaths?: string[],
   ) => void;
   scheduleAutoSync: (projectId: string) => void;
 
@@ -501,15 +503,28 @@ export function createVaultStore(resolver: TransportResolver) {
       projectId: string,
       noteId: string,
       action: 'create' | 'update' | 'delete',
+      attachmentPaths?: string[],
     ) => {
       const syncService = get().syncService;
       if (!syncService) return;
       const path = noteFilePath(noteId);
+      const dirtyEntries: DirtyEntry[] = [];
       if (action === 'delete') {
-        syncService.markDirty(projectId, [{ type: 'note', path, action: 'delete' }]);
+        dirtyEntries.push({ type: 'note', path, action: 'delete' });
+        if (attachmentPaths) {
+          for (const ap of attachmentPaths) {
+            dirtyEntries.push({ type: 'attachment', path: ap, action: 'delete' });
+          }
+        }
       } else {
-        syncService.markDirty(projectId, [{ type: 'note', path, action: 'upsert' }]);
+        dirtyEntries.push({ type: 'note', path, action: 'upsert' });
+        if (attachmentPaths) {
+          for (const ap of attachmentPaths) {
+            dirtyEntries.push({ type: 'attachment', path: ap, action: 'upsert' });
+          }
+        }
       }
+      syncService.markDirty(projectId, dirtyEntries);
       get().scheduleAutoSync(projectId);
       set((s) => ({ noteVersion: s.noteVersion + 1 }));
     },

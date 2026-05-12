@@ -17,6 +17,8 @@ export const SYNCABLE_META_FILES: readonly string[] = [
   META_FILES.deleteLog,
 ];
 
+export const ASSETS_DIR = 'assets';
+
 export const VOLUME_PATTERN = /^[0-9]{4}-[0-9]{2}$/;
 
 export const NOTE_FILE_PATTERN = /^[0-9]{8}-[0-9]{6}-[0-9]{4}\.[a-zA-Z0-9]+$/;
@@ -38,6 +40,15 @@ export function noteFilePath(noteId: string, ext = 'md'): string {
   return `${vol}/${noteId}.${ext}`;
 }
 
+export function assetPath(hash: string, ext: string): string {
+  const shard = hash.slice(0, 2);
+  return `${ASSETS_DIR}/${shard}/${hash}.${ext}`;
+}
+
+export function isAssetPath(path: string): boolean {
+  return path === ASSETS_DIR || path.startsWith(`${ASSETS_DIR}/`);
+}
+
 export function isVolume(name: string): boolean {
   return VOLUME_PATTERN.test(name);
 }
@@ -54,12 +65,20 @@ export function isNoteFileEntry(entry: { type: string; basename: string }): bool
   return entry.type === 'file' && isNoteFile(entry.basename);
 }
 
-export type EntryClass = 'meta' | 'manifest' | 'note' | 'syncLedger' | 'unrecognized';
+export type EntryClass =
+  | 'meta'
+  | 'manifest'
+  | 'note'
+  | 'attachment'
+  | 'syncLedger'
+  | 'unrecognized';
 
 export function classifyEntry(path: string): EntryClass {
   if (path === metaPath('manifest')) return 'manifest';
   if (path === metaPath('syncLedger')) return 'syncLedger';
   if (path.startsWith(`${META_DIR}/`)) return 'meta';
+
+  if (path === ASSETS_DIR || path.startsWith(`${ASSETS_DIR}/`)) return 'attachment';
 
   const parts = path.split('/');
   if (parts.length === 2 && isValidVolumeName(parts[0]) && isValidNoteFilename(parts[1])) {

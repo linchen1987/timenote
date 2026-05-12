@@ -106,6 +106,15 @@ export { writeLedger } from './vault/write-ledger';
 
 // ─── Service Layer ───────────────────────────────────────────
 
+export {
+  type AttachmentService,
+  type AttachmentWriteResult,
+  computeAssetPath,
+  createAttachmentService,
+  extFromFilename,
+  inferMimeFromExt,
+  inferMimeFromPath,
+} from './service/attachment-service';
 export { createVaultMenuService, type VaultMenuService } from './service/menu-service';
 export {
   flattenMenuItems,
@@ -114,6 +123,10 @@ export {
 } from './service/menu-transform';
 export {
   createVaultNoteService,
+  type EditAttachment,
+  type PendingAttachment,
+  type SaveNoteOptions,
+  type StagedAttachment,
   type VaultNoteService,
 } from './service/note-service';
 export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
@@ -132,7 +145,7 @@ export {
 // ─── Spec Layer (Persistence Format) ──────────────────────────
 
 export { DELETE_LOG_EXAMPLE, type DeleteLog, DeleteLogSchema } from './spec/delete-log';
-export { computeContentHash } from './spec/hash';
+export { computeBinaryHash, computeContentHash } from './spec/hash';
 export {
   IsoDateString,
   MANIFEST_EXAMPLE,
@@ -148,8 +161,9 @@ export {
   RuntimeMenuItemSchema,
 } from './spec/menu';
 export {
+  type AttachmentRef,
+  AttachmentRefSchema,
   NOTE_EXAMPLE,
-  NoteFilenameSchema,
   type NoteFrontmatter,
   NoteFrontmatterSchema,
   type NoteId,
@@ -188,7 +202,10 @@ export {
   SyncLedgerSchema,
 } from './spec/sync-ledger';
 export {
+  ASSETS_DIR,
+  assetPath,
   classifyEntry,
+  isAssetPath,
   isNoteFile,
   isNoteFileEntry,
   isVolume,

@@ -18,6 +18,8 @@ import { writeLedger } from './write-ledger';
 
 export interface RemoteTransport extends FsTransport {
   remove(path: string): Promise<void>;
+  readBinary(path: string): Promise<ArrayBuffer>;
+  writeBinary(path: string, data: ArrayBuffer): Promise<void>;
 }
 
 export interface SyncResult {
@@ -63,6 +65,8 @@ export function toVaultFs(remote: RemoteTransport): VaultFs {
   return {
     read: (path) => remote.read(path),
     write: (path, content) => remote.write(path, content),
+    readBinary: (path) => remote.readBinary(path),
+    writeBinary: (path, data) => remote.writeBinary(path, data),
     remove: (path) => remote.remove(path),
     list: (path) => remote.list(path),
     exists: (path) => remote.exists(path),
@@ -200,17 +204,21 @@ class VaultSyncServiceImpl implements VaultSyncService {
       direction,
     });
 
-    await writeLedger(localFs, session.mergedLedger);
-    this.ledgerCache.set(projectId, session.mergedLedger);
-    this.dirtyMap.delete(projectId);
+    if (execResult.errors.length === 0) {
+      await writeLedger(localFs, session.mergedLedger);
+      this.ledgerCache.set(projectId, session.mergedLedger);
+      this.dirtyMap.delete(projectId);
 
-    if (options.writeSourceLedger) {
-      try {
-        await source.ensureDir(META_DIR);
-        await writeLedger(source, session.mergedLedger);
-      } catch (e) {
-        execResult.errors.push(`Write source ledger: ${(e as Error).message}`);
+      if (options.writeSourceLedger) {
+        try {
+          await source.ensureDir(META_DIR);
+          await writeLedger(source, session.mergedLedger);
+        } catch (e) {
+          execResult.errors.push(`Write source ledger: ${(e as Error).message}`);
+        }
       }
+    } else {
+      this.ledgerCache.delete(projectId);
     }
 
     if (execResult.pulled > 0) {
@@ -236,6 +244,8 @@ export function createPrefixedTransport(
     list: (path) => transport.list(resolve(path)),
     read: (path) => transport.read(resolve(path)),
     write: (path, content) => transport.write(resolve(path), content),
+    readBinary: (path) => transport.readBinary(resolve(path)),
+    writeBinary: (path, data) => transport.writeBinary(resolve(path), data),
     exists: (path) => transport.exists(resolve(path)),
     ensureDir: (path) => transport.ensureDir(resolve(path)),
     remove: (path) => transport.remove(resolve(path)),

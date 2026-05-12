@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  assetPath,
   classifyEntry,
+  isAssetPath,
   isNoteFile,
   isNoteFileEntry,
   isVolume,
@@ -163,5 +165,41 @@ describe('classifyEntry', () => {
 
   it('classifies deeply nested path as unrecognized', () => {
     expect(classifyEntry('a/b/c.txt')).toBe('unrecognized');
+  });
+
+  it('classifies asset file as attachment', () => {
+    expect(classifyEntry('assets/a1/b2c3d4e5f6.png')).toBe('attachment');
+  });
+
+  it('classifies assets root directory as attachment', () => {
+    expect(classifyEntry('assets')).toBe('attachment');
+  });
+
+  it('classifies assets shard directory as attachment', () => {
+    expect(classifyEntry('assets/a1')).toBe('attachment');
+  });
+});
+
+describe('assetPath', () => {
+  it('builds asset path with hash sharding', () => {
+    expect(assetPath('abcdef123456', 'png')).toBe('assets/ab/abcdef123456.png');
+  });
+
+  it('handles short hash', () => {
+    expect(assetPath('ab', 'pdf')).toBe('assets/ab/ab.pdf');
+  });
+});
+
+describe('isAssetPath', () => {
+  it('returns true for assets path', () => {
+    expect(isAssetPath('assets/a1/b2c3d4.png')).toBe(true);
+  });
+
+  it('returns false for non-assets path', () => {
+    expect(isAssetPath('2026-04/note.md')).toBe(false);
+  });
+
+  it('returns true for assets directory itself', () => {
+    expect(isAssetPath('assets')).toBe(true);
   });
 });

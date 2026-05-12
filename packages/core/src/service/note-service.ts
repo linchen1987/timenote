@@ -2,6 +2,7 @@ import type { NoteIndex } from '../provider/index-service';
 import { createIndexService, type IndexService } from '../provider/index-service';
 import { type SearchProvider, SimpleSearchProvider } from '../provider/search-provider';
 import {
+  type AttachmentRef,
   type NoteFrontmatter,
   normalizeTags,
   type ParsedNote,
@@ -12,7 +13,33 @@ import {
 import { generateNoteId, noteIdFromFilename } from '../spec/note-id';
 import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layout';
 import type { VaultService } from '../vault/vault-service';
+import { type AttachmentService, createAttachmentService } from './attachment-service';
 import { extractTagsFromBody, parseSearchQuery } from './search-query';
+
+export interface StagedAttachment {
+  type: 'existing';
+  path: string;
+  name?: string;
+  mime?: string;
+  size?: number;
+}
+
+export interface PendingAttachment {
+  type: 'pending';
+  path: string;
+  data: ArrayBuffer;
+  name: string;
+  mime?: string;
+  size: number;
+}
+
+export type EditAttachment = StagedAttachment | PendingAttachment;
+
+export interface SaveNoteOptions {
+  body: string;
+  attachments: EditAttachment[];
+  removedPaths: string[];
+}
 
 export interface VaultNoteService {
   createNote(projectId: string, content?: string): Promise<string>;
@@ -21,6 +48,11 @@ export interface VaultNoteService {
   getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>>;
   updateNote(projectId: string, noteId: string, content: string): Promise<void>;
   deleteNote(projectId: string, noteId: string): Promise<void>;
+  saveNoteWithAttachments(
+    projectId: string,
+    noteId: string,
+    options: SaveNoteOptions,
+  ): Promise<void>;
 
   activateVault(projectId: string): Promise<void>;
   deactivateVault(): void;
@@ -32,6 +64,10 @@ export interface VaultNoteService {
   getAllTags(): Promise<string[]>;
   getTagsWithCounts(): Promise<{ name: string; count: number }[]>;
   getNoteIndex(noteId: string): Promise<NoteIndex | undefined>;
+
+  getAttachmentService(projectId: string): AttachmentService;
+  getAttachmentBlob(projectId: string, path: string): Promise<ArrayBuffer>;
+  garbageCollectAttachments(projectId: string): Promise<number>;
 }
 
 export function createVaultNoteService(vaultService: VaultService): VaultNoteService {
@@ -149,6 +185,9 @@ class VaultNoteServiceImpl implements VaultNoteService {
     const exists = await transport.exists(path);
     if (!exists) return;
 
+    const note = await this.readNoteForDelete(projectId, noteId);
+    const attachmentPaths = this.extractAttachmentPaths(note);
+
     await transport.remove(path);
     await this.vaultService.appendDeleteLog(projectId, noteId);
 
@@ -156,6 +195,87 @@ class VaultNoteServiceImpl implements VaultNoteService {
       await this.indexService.removeNoteIndex(noteId);
       this.searchProvider.remove(noteId);
     }
+
+    if (attachmentPaths.length > 0) {
+      await this.deleteOrphanedAttachments(projectId, attachmentPaths);
+    }
+  }
+
+  async saveNoteWithAttachments(
+    projectId: string,
+    noteId: string,
+    options: SaveNoteOptions,
+  ): Promise<void> {
+    const transport = this.vaultService.getTransport(projectId);
+    const path = noteFilePath(noteId);
+    const exists = await transport.exists(path);
+    if (!exists) throw new Error(`Note not found: ${noteId}`);
+
+    const attSvc = createAttachmentService(transport);
+
+    const pendingAttachments = options.attachments.filter(
+      (a): a is PendingAttachment => a.type === 'pending',
+    );
+    for (const pending of pendingAttachments) {
+      await attSvc.write(pending.path, pending.data);
+    }
+
+    const attachments: AttachmentRef[] = options.attachments.map((a) => ({
+      path: a.path,
+      ...(a.name ? { name: a.name } : {}),
+      ...(a.mime ? { mime: a.mime } : {}),
+      ...(a.size != null ? { size: a.size } : {}),
+    }));
+
+    const existing = parseNote(await transport.read(path));
+    const now = new Date().toISOString();
+    const extractedTags = extractTagsFromBody(options.body);
+    const existingTags = normalizeTags(existing.frontmatter.tags);
+    const mergedTags = [...new Set([...existingTags, ...extractedTags])];
+    const updatedFm: NoteFrontmatter = {
+      ...existing.frontmatter,
+      updated_at: now,
+      ...(mergedTags.length > 0 ? { tags: mergedTags } : {}),
+      attachments,
+    };
+    const raw = serializeNote(updatedFm, options.body);
+    await transport.write(path, raw);
+
+    if (options.removedPaths.length > 0) {
+      await this.deleteOrphanedAttachments(projectId, options.removedPaths);
+    }
+
+    if (this.activeProjectId === projectId && this.indexService) {
+      await this.indexService.indexNote(noteId, raw);
+      this.searchProvider.update(noteId, options.body);
+    }
+  }
+
+  getAttachmentService(projectId: string): AttachmentService {
+    const transport = this.vaultService.getTransport(projectId);
+    return createAttachmentService(transport);
+  }
+
+  async getAttachmentBlob(projectId: string, path: string): Promise<ArrayBuffer> {
+    const transport = this.vaultService.getTransport(projectId);
+    return transport.readBinary(path);
+  }
+
+  async garbageCollectAttachments(projectId: string): Promise<number> {
+    const transport = this.vaultService.getTransport(projectId);
+    const attSvc = createAttachmentService(transport);
+
+    const referenced = await this.collectAllReferencedPaths(projectId);
+    const stored = await attSvc.listAll();
+
+    let deleted = 0;
+    for (const path of stored) {
+      if (!referenced.has(path)) {
+        await attSvc.remove(path);
+        deleted++;
+      }
+    }
+    return deleted;
   }
 
   async activateVault(projectId: string): Promise<void> {
@@ -308,6 +428,62 @@ class VaultNoteServiceImpl implements VaultNoteService {
   private ensureActive(): void {
     if (!this.activeProjectId || !this.indexService) {
       throw new Error('No active vault. Call activateVault() first.');
+    }
+  }
+
+  private async readNoteForDelete(projectId: string, noteId: string): Promise<ParsedNote | null> {
+    try {
+      const transport = this.vaultService.getTransport(projectId);
+      const path = noteFilePath(noteId);
+      const raw = await transport.read(path);
+      return parseNote(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  private extractAttachmentPaths(note: ParsedNote | null): string[] {
+    if (!note?.frontmatter.attachments) return [];
+    return note.frontmatter.attachments.map((a) => a.path);
+  }
+
+  private async collectAllReferencedPaths(projectId: string): Promise<Set<string>> {
+    const transport = this.vaultService.getTransport(projectId);
+    const referenced = new Set<string>();
+    const volumes = await transport.list('');
+    for (const vol of volumes) {
+      if (vol.type !== 'directory' || !isVolumeEntry(vol)) continue;
+      const items = await transport.list(vol.basename);
+      for (const item of items) {
+        if (item.type !== 'file' || !isNoteFileEntry(item)) continue;
+        try {
+          const raw = await transport.read(`${vol.basename}/${item.basename}`);
+          const parsed = parseNoteSafe(raw);
+          if (parsed?.frontmatter.attachments) {
+            for (const att of parsed.frontmatter.attachments) {
+              referenced.add(att.path);
+            }
+          }
+        } catch {
+          // skip unreadable notes
+        }
+      }
+    }
+    return referenced;
+  }
+
+  private async deleteOrphanedAttachments(projectId: string, paths: string[]): Promise<void> {
+    if (paths.length === 0) return;
+    const referenced = await this.collectAllReferencedPaths(projectId);
+    const transport = this.vaultService.getTransport(projectId);
+    for (const path of paths) {
+      if (!referenced.has(path)) {
+        try {
+          await transport.remove(path);
+        } catch {
+          // already deleted or inaccessible
+        }
+      }
     }
   }
 }

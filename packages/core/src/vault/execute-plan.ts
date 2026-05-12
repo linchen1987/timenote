@@ -2,6 +2,7 @@ import type { SyncPlan } from './sync-algorithm';
 import type { VaultFs } from './vault-fs';
 
 const META_DIR = '.timenote';
+const ASSETS_DIR = 'assets';
 
 export interface ExecuteResult {
   pulled: number;
@@ -17,9 +18,59 @@ function extractMetaPath(key: string): string {
   return `${META_DIR}/${key.slice(5)}`;
 }
 
+function isAttachmentKey(key: string): boolean {
+  return key.startsWith(`${ASSETS_DIR}/`);
+}
+
+const OPFS_NOT_FOUND =
+  'A requested file or directory could not be found at the time an operation was processed';
+
+function isNotFoundError(e: unknown): boolean {
+  const msg = (e as Error).message || '';
+  if (msg.includes(OPFS_NOT_FOUND)) return true;
+  if (msg.includes('404') || msg.includes('Not Found')) return true;
+  return false;
+}
+
 function splitDir(path: string): string | null {
   const parts = path.split('/');
-  return parts.length > 1 ? parts[0] : null;
+  return parts.length > 1 ? parts.slice(0, -1).join('/') : null;
+}
+
+async function pullEntity(key: string, localFs: VaultFs, remoteFs: VaultFs): Promise<void> {
+  if (isMetaKey(key)) {
+    const content = await remoteFs.read(extractMetaPath(key));
+    await localFs.ensureDir(META_DIR);
+    await localFs.write(extractMetaPath(key), content);
+  } else if (isAttachmentKey(key)) {
+    const data = await remoteFs.readBinary(key);
+    const dir = splitDir(key);
+    if (dir) await localFs.ensureDir(dir);
+    await localFs.writeBinary(key, data);
+  } else {
+    const content = await remoteFs.read(key);
+    const dir = splitDir(key);
+    if (dir) await localFs.ensureDir(dir);
+    await localFs.write(key, content);
+  }
+}
+
+async function pushEntity(key: string, localFs: VaultFs, remoteFs: VaultFs): Promise<void> {
+  if (isMetaKey(key)) {
+    const content = await localFs.read(extractMetaPath(key));
+    await remoteFs.ensureDir(META_DIR);
+    await remoteFs.write(extractMetaPath(key), content);
+  } else if (isAttachmentKey(key)) {
+    const data = await localFs.readBinary(key);
+    const dir = splitDir(key);
+    if (dir) await remoteFs.ensureDir(dir);
+    await remoteFs.writeBinary(key, data);
+  } else {
+    const content = await localFs.read(key);
+    const dir = splitDir(key);
+    if (dir) await remoteFs.ensureDir(dir);
+    await remoteFs.write(key, content);
+  }
 }
 
 export async function executePlan(
@@ -34,18 +85,7 @@ export async function executePlan(
   if (dir !== 'push') {
     for (const key of plan.toPull) {
       try {
-        const content = isMetaKey(key)
-          ? await remoteFs.read(extractMetaPath(key))
-          : await remoteFs.read(key);
-
-        if (isMetaKey(key)) {
-          await localFs.ensureDir(META_DIR);
-          await localFs.write(extractMetaPath(key), content);
-        } else {
-          const dir = splitDir(key);
-          if (dir) await localFs.ensureDir(dir);
-          await localFs.write(key, content);
-        }
+        await pullEntity(key, localFs, remoteFs);
         result.pulled++;
       } catch (e) {
         result.errors.push(`Pull ${key}: ${(e as Error).message}`);
@@ -57,7 +97,9 @@ export async function executePlan(
         const path = isMetaKey(key) ? extractMetaPath(key) : key;
         await localFs.remove(path);
       } catch (e) {
-        result.errors.push(`Delete local ${key}: ${(e as Error).message}`);
+        if (!isNotFoundError(e)) {
+          result.errors.push(`Delete local ${key}: ${(e as Error).message}`);
+        }
       }
     }
   }
@@ -65,18 +107,7 @@ export async function executePlan(
   if (dir !== 'pull') {
     for (const key of plan.toPush) {
       try {
-        const content = isMetaKey(key)
-          ? await localFs.read(extractMetaPath(key))
-          : await localFs.read(key);
-
-        if (isMetaKey(key)) {
-          await remoteFs.ensureDir(META_DIR);
-          await remoteFs.write(extractMetaPath(key), content);
-        } else {
-          const dir = splitDir(key);
-          if (dir) await remoteFs.ensureDir(dir);
-          await remoteFs.write(key, content);
-        }
+        await pushEntity(key, localFs, remoteFs);
         result.pushed++;
       } catch (e) {
         result.errors.push(`Push ${key}: ${(e as Error).message}`);
@@ -88,7 +119,9 @@ export async function executePlan(
         const path = isMetaKey(key) ? extractMetaPath(key) : key;
         await remoteFs.remove(path);
       } catch (e) {
-        result.errors.push(`Delete remote ${key}: ${(e as Error).message}`);
+        if (!isNotFoundError(e)) {
+          result.errors.push(`Delete remote ${key}: ${(e as Error).message}`);
+        }
       }
     }
   }

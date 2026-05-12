@@ -21,4 +21,5 @@ export default [
 
   // API
   route('api/fs', 'routes/api.fs.ts'),
+  route('api/fs/binary', 'routes/api.fs.binary.ts'),
 ] satisfies RouteConfig;

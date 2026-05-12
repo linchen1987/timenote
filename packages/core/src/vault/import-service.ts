@@ -114,6 +114,14 @@ class VaultImportServiceImpl implements VaultImportService {
       async write(): Promise<void> {
         throw new Error('ZipVaultFs is read-only');
       },
+      async readBinary(path: string): Promise<ArrayBuffer> {
+        const entry = zip.file(resolvePath(path));
+        if (!entry) throw new Error(`File not found in ZIP: ${resolvePath(path)}`);
+        return entry.async('arraybuffer');
+      },
+      async writeBinary(): Promise<void> {
+        throw new Error('ZipVaultFs is read-only');
+      },
       async remove(): Promise<void> {
         throw new Error('ZipVaultFs is read-only');
       },

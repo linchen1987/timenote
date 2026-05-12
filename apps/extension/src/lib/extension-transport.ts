@@ -48,6 +48,21 @@ export function createExtensionTransport(provider: ProviderConfig): RemoteTransp
       await sendMessage<null>({ type: 'fs:write', path, content, connection });
     },
 
+    async readBinary(path: string): Promise<ArrayBuffer> {
+      const base64: string = await sendMessage<string>({ type: 'fs:readBinary', path, connection });
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    },
+
+    async writeBinary(path: string, data: ArrayBuffer): Promise<void> {
+      const bytes = new Uint8Array(data);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      await sendMessage<null>({ type: 'fs:writeBinary', path, content: btoa(binary), connection });
+    },
+
     async remove(path: string): Promise<void> {
       await sendMessage<null>({ type: 'fs:delete', path, connection });
     },

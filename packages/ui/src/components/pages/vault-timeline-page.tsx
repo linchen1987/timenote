@@ -1,13 +1,20 @@
 import {
+  type AttachmentRef,
+  type EditAttachment,
+  extFromFilename,
+  inferMimeFromExt,
+  inferMimeFromPath,
   NOTE_LIST_PAGE_SIZE,
   type NoteIndex,
   noteIdToUrl,
+  type PendingAttachment,
   parseNotebookId,
   type VaultStore,
 } from '@timenote/core';
 import {
   ArrowUpDown,
   Calendar,
+  ImagePlus,
   Loader2,
   Maximize2,
   MoreVertical,
@@ -20,6 +27,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
+import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
 import { PageHeader } from '../page-header';
 import {
@@ -81,7 +89,11 @@ export function VaultTimelinePage({
   const [menuName, setMenuName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [vaultName, setVaultName] = useState('');
+  const [attachmentsMap, setAttachmentsMap] = useState<Map<string, AttachmentRef[]>>(new Map());
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<EditAttachment[]>([]);
+  const [editAttachments, setEditAttachments] = useState<EditAttachment[]>([]);
+  const [editRemovedPaths, setEditRemovedPaths] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
   const isSyncing = useStore((s) => s.isSyncing);
   const lastSyncTime = useStore((s) => s.lastSyncTime);
@@ -90,6 +102,7 @@ export function VaultTimelinePage({
   const composerRef = useRef<MarkdownEditorRef>(null);
   const editorRef = useRef<MarkdownEditorRef>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const composerFileInputRef = useRef<HTMLInputElement>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const loadBodies = useCallback(
@@ -103,6 +116,22 @@ export function VaultTimelinePage({
       setBodiesMap((prev) => {
         const next = new Map(prev);
         for (const [k, v] of bodies) next.set(k, v);
+        return next;
+      });
+
+      const attResults = await Promise.all(
+        noteIds.map(async (id) => {
+          try {
+            const note = await svc.getNote(resolvedProjectId, id);
+            return { id, attachments: note?.frontmatter.attachments || [] };
+          } catch {
+            return { id, attachments: [] };
+          }
+        }),
+      );
+      setAttachmentsMap((prev) => {
+        const next = new Map(prev);
+        for (const r of attResults) next.set(r.id, r.attachments);
         return next;
       });
     },
@@ -178,6 +207,23 @@ export function VaultTimelinePage({
           );
           if (cancelled) return;
           setBodiesMap(bodies);
+
+          const attResults = await Promise.all(
+            list.map(async (n) => {
+              try {
+                const parsed = await svc.getNote(resolvedProjectId, n.id);
+                return { id: n.id, attachments: parsed?.frontmatter.attachments || [] };
+              } catch {
+                return { id: n.id, attachments: [] };
+              }
+            }),
+          );
+          if (cancelled) return;
+          setAttachmentsMap((prev) => {
+            const next = new Map(prev);
+            for (const r of attResults) next.set(r.id, r.attachments);
+            return next;
+          });
         }
       } catch (e) {
         if (!cancelled) toast.error(`Failed to activate vault: ${(e as Error).message}`);
@@ -242,12 +288,23 @@ export function VaultTimelinePage({
     try {
       const svc = getNoteService();
       const noteId = await svc.createNote(resolvedProjectId, composerContent);
+
+      if (composerAttachments.length > 0) {
+        await svc.saveNoteWithAttachments(resolvedProjectId, noteId, {
+          body: composerContent,
+          attachments: composerAttachments,
+          removedPaths: [],
+        });
+      }
+
       await syncTagsToMenu(composerContent);
       setComposerContent('');
+      setComposerAttachments([]);
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
       await loadNotes(true);
-      useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'create');
+      const attPaths = composerAttachments.map((a) => a.path);
+      useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'create', attPaths);
     } catch (e) {
       toast.error(`Failed to create note: ${(e as Error).message}`);
     }
@@ -257,11 +314,24 @@ export function VaultTimelinePage({
     if (!resolvedProjectId) return;
     try {
       const svc = getNoteService();
-      await svc.updateNote(resolvedProjectId, noteId, content);
+
+      if (editAttachments.length > 0 || editRemovedPaths.length > 0) {
+        await svc.saveNoteWithAttachments(resolvedProjectId, noteId, {
+          body: content,
+          attachments: editAttachments,
+          removedPaths: editRemovedPaths,
+        });
+      } else {
+        await svc.updateNote(resolvedProjectId, noteId, content);
+      }
+
       await syncTagsToMenu(content);
       setEditingId(null);
+      setEditAttachments([]);
+      setEditRemovedPaths([]);
       await loadNotes(true);
-      useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'update');
+      const attPaths = editAttachments.map((a) => a.path);
+      useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'update', attPaths);
     } catch (e) {
       toast.error(`Failed to update note: ${(e as Error).message}`);
     }
@@ -327,6 +397,83 @@ export function VaultTimelinePage({
       toast.error(`Sync failed: ${(e as Error).message}`);
     }
   };
+
+  const handleComposerAddFiles = useCallback(
+    async (files: File[]) => {
+      if (!resolvedProjectId) return;
+      const svc = useStore.getState().getNoteService();
+      const attSvc = svc.getAttachmentService(resolvedProjectId);
+      const newAttachments: PendingAttachment[] = [];
+
+      for (const file of files) {
+        const ext = extFromFilename(file.name);
+        const data = await file.arrayBuffer();
+        const { path } = await attSvc.writeIfNew(data, ext);
+        newAttachments.push({
+          type: 'pending',
+          path,
+          data,
+          name: file.name,
+          mime: file.type || inferMimeFromExt(ext),
+          size: file.size,
+        });
+      }
+
+      setComposerAttachments((prev) => [...prev, ...newAttachments]);
+    },
+    [resolvedProjectId, useStore.getState],
+  );
+
+  const handleComposerRemoveAttachment = useCallback((idx: number) => {
+    setComposerAttachments((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const handleEditAddFiles = useCallback(
+    async (files: File[]) => {
+      if (!resolvedProjectId) return;
+      const svc = useStore.getState().getNoteService();
+      const attSvc = svc.getAttachmentService(resolvedProjectId);
+      const newAttachments: PendingAttachment[] = [];
+
+      for (const file of files) {
+        const ext = extFromFilename(file.name);
+        const data = await file.arrayBuffer();
+        const { path } = await attSvc.writeIfNew(data, ext);
+        newAttachments.push({
+          type: 'pending',
+          path,
+          data,
+          name: file.name,
+          mime: file.type || inferMimeFromExt(ext),
+          size: file.size,
+        });
+      }
+
+      setEditAttachments((prev) => [...prev, ...newAttachments]);
+    },
+    [resolvedProjectId, useStore.getState],
+  );
+
+  const handleEditRemoveAttachment = useCallback((idx: number) => {
+    setEditAttachments((prev) => {
+      const removed = prev[idx];
+      if (removed.type === 'existing') {
+        setEditRemovedPaths((rp) => [...rp, removed.path]);
+      }
+      return prev.filter((_, i) => i !== idx);
+    });
+  }, []);
+
+  const getAttachmentUrl = useCallback(
+    async (path: string): Promise<string> => {
+      if (!resolvedProjectId) throw new Error('No project');
+      const svc = useStore.getState().getNoteService();
+      const blob = await svc.getAttachmentBlob(resolvedProjectId, path);
+      const mime = inferMimeFromPath(path);
+      return URL.createObjectURL(new Blob([blob], { type: mime || 'application/octet-stream' }));
+    },
+    [resolvedProjectId, useStore.getState],
+  );
 
   if (!ready) {
     return (
@@ -406,6 +553,28 @@ export function VaultTimelinePage({
               />
               <div className="flex justify-end items-center mt-3 pt-3 border-t border-muted/20">
                 <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => composerFileInputRef.current?.click()}
+                  className="text-muted-foreground hover:text-foreground mr-auto"
+                >
+                  <ImagePlus className="w-4 h-4 mr-1" />
+                  <span className="text-xs">Add</span>
+                </Button>
+                <input
+                  ref={composerFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.zip,.txt,.json"
+                  className="hidden"
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (files.length > 0) handleComposerAddFiles(files);
+                    e.target.value = '';
+                  }}
+                />
+                <Button
                   onClick={handleComposerSubmit}
                   disabled={!composerContent.trim()}
                   className="rounded-full w-12"
@@ -414,6 +583,13 @@ export function VaultTimelinePage({
                   <SendHorizontal strokeWidth={3} className="w-4 h-4" />
                 </Button>
               </div>
+              <AttachmentZone
+                attachments={composerAttachments}
+                editable={true}
+                onAdd={handleComposerAddFiles}
+                onRemove={handleComposerRemoveAttachment}
+                getAttachmentUrl={getAttachmentUrl}
+              />
             </div>
           </CardContent>
         </Card>
@@ -425,9 +601,21 @@ export function VaultTimelinePage({
               note={note}
               notebookToken={notebookToken || ''}
               editingId={editingId}
-              setEditingId={setEditingId}
+              setEditingId={(id) => {
+                if (id) {
+                  const existing = attachmentsMap.get(id) || [];
+                  setEditAttachments(attachmentRefToEditAttachment(existing));
+                  setEditRemovedPaths([]);
+                } else {
+                  setEditAttachments([]);
+                  setEditRemovedPaths([]);
+                }
+                setEditingId(id);
+              }}
               editorRef={editorRef}
               initialBody={bodiesMap.get(note.id) ?? null}
+              attachments={attachmentsMap.get(note.id) || []}
+              editAttachments={editAttachments}
               onUpdate={handleUpdate}
               onDelete={(id) => {
                 setNoteToDelete(id);
@@ -440,6 +628,9 @@ export function VaultTimelinePage({
               }}
               linkExtraProps={linkExtraProps}
               availableTags={availableTags}
+              onAddFiles={handleEditAddFiles}
+              onRemoveAttachment={handleEditRemoveAttachment}
+              getAttachmentUrl={getAttachmentUrl}
             />
           ))}
 
@@ -544,11 +735,16 @@ function NoteCard({
   setEditingId,
   editorRef,
   initialBody,
+  attachments,
+  editAttachments,
   onUpdate,
   onDelete,
   onAddToMenu,
   linkExtraProps,
   availableTags: noteAvailableTags,
+  onAddFiles,
+  onRemoveAttachment,
+  getAttachmentUrl,
 }: {
   note: NoteIndex;
   notebookToken: string;
@@ -556,14 +752,20 @@ function NoteCard({
   setEditingId: (id: string | null) => void;
   editorRef: React.RefObject<MarkdownEditorRef | null>;
   initialBody: string | null;
+  attachments: AttachmentRef[];
+  editAttachments: EditAttachment[];
   onUpdate: (id: string, content: string) => Promise<void>;
   onDelete: (id: string) => void;
   onAddToMenu: (id: string) => void;
   linkExtraProps?: Record<string, unknown>;
   availableTags: string[];
+  onAddFiles: (files: File[]) => void;
+  onRemoveAttachment: (idx: number) => void;
+  getAttachmentUrl: (path: string) => Promise<string>;
 }) {
   const [body, setBody] = useState<string | null>(initialBody);
   const isEditing = editingId === note.id;
+  const displayAttachments = attachmentRefToEditAttachment(attachments);
 
   useEffect(() => {
     setBody(initialBody);
@@ -646,6 +848,13 @@ function NoteCard({
                 availableTags={noteAvailableTags}
               />
             )}
+            <AttachmentZone
+              attachments={editAttachments}
+              editable={true}
+              onAdd={onAddFiles}
+              onRemove={onRemoveAttachment}
+              getAttachmentUrl={getAttachmentUrl}
+            />
             <div className="flex justify-between items-center pt-2">
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest flex items-center gap-2">
                 <kbd className="px-1.5 py-0.5 rounded border bg-muted font-sans">⌘</kbd>
@@ -691,6 +900,15 @@ function NoteCard({
               <div className="text-muted-foreground text-sm">Loading...</div>
             )}
           </button>
+        )}
+        {!isEditing && displayAttachments.length > 0 && (
+          <div className="px-5 pb-4">
+            <AttachmentZone
+              attachments={displayAttachments}
+              editable={false}
+              getAttachmentUrl={getAttachmentUrl}
+            />
+          </div>
         )}
       </CardContent>
     </Card>

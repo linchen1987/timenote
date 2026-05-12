@@ -63,6 +63,14 @@ function createZipWriteFs(zip: JSZip) {
       if (path === SYNC_LEDGER_PREFIX) return;
       zip.file(path, content);
     },
+    async readBinary(path: string): Promise<ArrayBuffer> {
+      const entry = zip.file(path);
+      if (!entry) throw new Error(`File not found in ZIP: ${path}`);
+      return entry.async('arraybuffer');
+    },
+    async writeBinary(path: string, data: ArrayBuffer): Promise<void> {
+      zip.file(path, data);
+    },
     async remove(): Promise<void> {},
     async list(): Promise<never[]> {
       return [];

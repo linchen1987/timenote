@@ -128,8 +128,12 @@ class VaultServiceImpl implements VaultService {
 
   async readDeleteLog(projectId: string): Promise<DeleteLog> {
     const transport = await this.getTransportOrThrow(projectId);
-    const raw = await transport.read(metaPath('deleteLog'));
-    return DeleteLogSchema.parse(JSON.parse(raw));
+    try {
+      const raw = await transport.read(metaPath('deleteLog'));
+      return DeleteLogSchema.parse(JSON.parse(raw));
+    } catch {
+      return createEmptyDeleteLog();
+    }
   }
 
   async appendDeleteLog(projectId: string, noteId: string): Promise<void> {
