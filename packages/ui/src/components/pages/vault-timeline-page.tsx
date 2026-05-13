@@ -557,10 +557,10 @@ export function VaultTimelinePage({
                   variant="ghost"
                   size="sm"
                   onClick={() => composerFileInputRef.current?.click()}
-                  className="text-muted-foreground hover:text-foreground mr-auto"
+                  className="text-muted-foreground hover:text-foreground mr-auto min-h-[44px] sm:min-h-0"
                 >
                   <ImagePlus className="w-4 h-4 mr-1" />
-                  <span className="text-xs">Add</span>
+                  <span className="text-sm sm:text-xs">Add</span>
                 </Button>
                 <input
                   ref={composerFileInputRef}

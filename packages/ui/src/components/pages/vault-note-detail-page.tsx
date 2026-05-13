@@ -8,7 +8,7 @@ import {
   parseNotebookId,
   type VaultStore,
 } from '@timenote/core';
-import { ArrowUpDown, ChevronLeft, Loader2, Save } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ImagePlus, Loader2, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -33,6 +33,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const nId = noteIdFromUrl(noteId || '');
 
   const editorRef = useRef<MarkdownEditorRef>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState<string | null>(null);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -212,6 +213,15 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
           <Button
             variant="ghost"
             size="icon"
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-full sm:hidden"
+            title="Add attachment"
+          >
+            <ImagePlus className="w-4 h-4 text-muted-foreground" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={async () => {
               if (!projectId || isSyncing) return;
               try {
@@ -263,6 +273,18 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
             className="text-lg bg-transparent border-none shadow-none p-0"
             showToolbar={true}
             availableTags={availableTags}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.zip,.txt,.json"
+            className="hidden"
+            onChange={(e) => {
+              const files = Array.from(e.target.files || []);
+              if (files.length > 0) handleAddFiles(files);
+              e.target.value = '';
+            }}
           />
         </div>
 

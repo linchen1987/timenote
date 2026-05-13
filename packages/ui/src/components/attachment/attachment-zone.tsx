@@ -92,10 +92,10 @@ function AttachmentPreview({
               <button
                 type="button"
                 onClick={() => setLightboxOpen(true)}
-                className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute inset-0 flex items-center justify-center opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               >
-                <div className="p-1.5 rounded-full bg-black/40 text-white">
-                  <ZoomIn className="w-4 h-4" />
+                <div className="p-2 sm:p-1.5 rounded-full bg-black/40 text-white">
+                  <ZoomIn className="w-5 h-5 sm:w-4 sm:h-4" />
                 </div>
               </button>
             )}
@@ -103,9 +103,9 @@ function AttachmentPreview({
               <button
                 type="button"
                 onClick={onDelete}
-                className="absolute top-1 right-1 p-1 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-1 right-1 p-1.5 sm:p-1 rounded-full bg-black/50 text-white opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               >
-                <X className="w-3 h-3" />
+                <X className="w-4 h-4 sm:w-3 sm:h-3" />
               </button>
             )}
           </div>
@@ -141,9 +141,9 @@ function AttachmentPreview({
           <button
             type="button"
             onClick={onDelete}
-            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-colors"
+            className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground opacity-80 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
           >
-            <X className="w-3 h-3" />
+            <X className="w-4 h-4 sm:w-3 sm:h-3" />
           </button>
         )}
       </div>
@@ -363,10 +363,10 @@ export function AttachmentZone({
             variant="ghost"
             size="sm"
             onClick={() => fileInputRef.current?.click()}
-            className="text-muted-foreground hover:text-foreground h-7"
+            className="text-muted-foreground hover:text-foreground h-9 min-w-[44px] min-h-[44px] sm:h-7 sm:min-w-0 sm:min-h-0"
           >
-            <ImagePlus className="w-3.5 h-3.5 mr-1" />
-            <span className="text-xs">Add</span>
+            <ImagePlus className="w-4 h-4 sm:w-3.5 sm:h-3.5 mr-1" />
+            <span className="text-sm sm:text-xs">Add</span>
           </Button>
           <input
             ref={fileInputRef}
