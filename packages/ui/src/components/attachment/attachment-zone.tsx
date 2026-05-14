@@ -284,18 +284,30 @@ export function AttachmentZone({
 
   if (attachments.length === 0 && editable && onAdd) {
     return (
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept="image/*,.pdf,.zip,.txt,.json"
-        className="hidden"
-        onChange={(e) => {
-          const files = Array.from(e.target.files || []);
-          if (files.length > 0) onAdd(files);
-          e.target.value = '';
-        }}
-      />
+      <div className="mt-2 pt-2 border-t border-muted/20">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => fileInputRef.current?.click()}
+          className="text-muted-foreground hover:text-foreground h-9 min-w-[44px] min-h-[44px] sm:h-7 sm:min-w-0 sm:min-h-0"
+        >
+          <ImagePlus className="w-4 h-4 sm:w-3.5 sm:h-3.5 mr-1" />
+          <span className="text-sm sm:text-xs">Add</span>
+        </Button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="image/*,.pdf,.zip,.txt,.json"
+          className="hidden"
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []);
+            if (files.length > 0) onAdd(files);
+            e.target.value = '';
+          }}
+        />
+      </div>
     );
   }
 

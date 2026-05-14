@@ -14,7 +14,6 @@ import {
 import {
   ArrowUpDown,
   Calendar,
-  ImagePlus,
   Loader2,
   Maximize2,
   MoreVertical,
@@ -102,7 +101,6 @@ export function VaultTimelinePage({
   const composerRef = useRef<MarkdownEditorRef>(null);
   const editorRef = useRef<MarkdownEditorRef>(null);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-  const composerFileInputRef = useRef<HTMLInputElement>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
   const loadBodies = useCallback(
@@ -553,31 +551,9 @@ export function VaultTimelinePage({
               />
               <div className="flex justify-end items-center mt-3 pt-3 border-t border-muted/20">
                 <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => composerFileInputRef.current?.click()}
-                  className="text-muted-foreground hover:text-foreground mr-auto min-h-[44px] sm:min-h-0"
-                >
-                  <ImagePlus className="w-4 h-4 mr-1" />
-                  <span className="text-sm sm:text-xs">Add</span>
-                </Button>
-                <input
-                  ref={composerFileInputRef}
-                  type="file"
-                  multiple
-                  accept="image/*,.pdf,.zip,.txt,.json"
-                  className="hidden"
-                  onChange={(e) => {
-                    const files = Array.from(e.target.files || []);
-                    if (files.length > 0) handleComposerAddFiles(files);
-                    e.target.value = '';
-                  }}
-                />
-                <Button
                   onClick={handleComposerSubmit}
                   disabled={!composerContent.trim()}
-                  className="rounded-full w-12"
+                  className="rounded-full w-12 ml-auto"
                   size="sm"
                 >
                   <SendHorizontal strokeWidth={3} className="w-4 h-4" />
