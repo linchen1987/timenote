@@ -23,12 +23,13 @@ export interface UseProviderScannerReturn {
   setShowManualPull: (v: boolean) => void;
   setManualProviderId: (v: string) => void;
   setManualPath: (v: string) => void;
-  refresh: () => void;
+  refreshProviders: () => void;
 }
 
 export function useProviderScanner(
   useStore: UseVaultStoreHook,
   localVaults: VaultMeta[],
+  onPullSuccess: () => Promise<void>,
 ): UseProviderScannerReturn {
   const [providers, setProviders] = useState<ProviderConfig[]>(() => listProviders());
   const [scanningId, setScanningId] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function useProviderScanner(
     }
   }
 
-  const refresh = useCallback(() => {
+  const refreshProviders = useCallback(() => {
     setProviders(listProviders());
   }, []);
 
@@ -81,13 +82,14 @@ export function useProviderScanner(
       try {
         await useStore.getState().cloneFromProvider(providerId, path);
         toast.success('Vault pulled from remote');
+        await onPullSuccess();
       } catch (e) {
         toast.error(`Pull failed: ${(e as Error).message}`);
       } finally {
         setIsPulling(null);
       }
     },
-    [useStore],
+    [useStore, onPullSuccess],
   );
 
   const handleManualPull = useCallback(async () => {
@@ -99,12 +101,13 @@ export function useProviderScanner(
       setShowManualPull(false);
       setManualProviderId('');
       setManualPath('');
+      await onPullSuccess();
     } catch (e) {
       toast.error(`Pull failed: ${(e as Error).message}`);
     } finally {
       setIsPulling(null);
     }
-  }, [useStore, manualProviderId, manualPath]);
+  }, [useStore, manualProviderId, manualPath, onPullSuccess]);
 
   return {
     providers,
@@ -121,6 +124,6 @@ export function useProviderScanner(
     setShowManualPull,
     setManualProviderId,
     setManualPath,
-    refresh,
+    refreshProviders,
   };
 }

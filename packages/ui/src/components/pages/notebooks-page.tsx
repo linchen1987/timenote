@@ -100,11 +100,13 @@ function ThemeToggle() {
 function ProviderScanner({
   useStore,
   localVaults,
+  onPullSuccess,
 }: {
   useStore: UseVaultStoreHook;
   localVaults: Array<{ projectId: string; name: string }>;
+  onPullSuccess: () => Promise<void>;
 }) {
-  const scanner = useProviderScanner(useStore, localVaults);
+  const scanner = useProviderScanner(useStore, localVaults, onPullSuccess);
 
   if (scanner.providers.length === 0) return null;
 
@@ -273,6 +275,7 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
     handleExport,
     handleImport,
     getNotebookLink,
+    refresh,
   } = useNotebooksPage(useStore, messages ? { messages } : undefined);
 
   return (
@@ -559,7 +562,7 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
             )}
           </div>
 
-          <ProviderScanner useStore={useStore} localVaults={vaults} />
+          <ProviderScanner useStore={useStore} localVaults={vaults} onPullSuccess={refresh} />
         </div>
       </main>
 
