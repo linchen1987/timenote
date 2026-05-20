@@ -13,6 +13,8 @@ export type FsMessage =
   | { type: 'fs:list'; path: string; connection: FsConnection }
   | { type: 'fs:read'; path: string; connection: FsConnection }
   | { type: 'fs:write'; path: string; content: string; connection: FsConnection }
+  | { type: 'fs:readBinary'; path: string; connection: FsConnection }
+  | { type: 'fs:writeBinary'; path: string; content: string; connection: FsConnection }
   | { type: 'fs:delete'; path: string; connection: FsConnection }
   | { type: 'fs:exists'; path: string; connection: FsConnection }
   | { type: 'fs:ensureDir'; path: string; connection: FsConnection }

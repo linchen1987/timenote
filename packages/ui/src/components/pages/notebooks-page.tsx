@@ -230,11 +230,11 @@ function ProviderScanner({
 
               <CardFooter className="p-8 pt-0 flex justify-end items-center">
                 <Button
-                  onClick={() => scanner.handlePull(v.projectId)}
-                  disabled={scanner.isPulling === v.projectId}
+                  onClick={() => scanner.handlePull(v.providerId, v.path)}
+                  disabled={scanner.isPulling === `${v.providerId}:${v.path}`}
                   className="rounded-full font-black bg-blue-500 hover:bg-blue-600 text-white gap-2 px-4"
                 >
-                  {scanner.isPulling === v.projectId ? (
+                  {scanner.isPulling === `${v.providerId}:${v.path}` ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <CloudDownload className="w-4 h-4" />

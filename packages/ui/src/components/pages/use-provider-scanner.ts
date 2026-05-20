@@ -3,17 +3,22 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
+export interface RemoteVaultMeta extends VaultMeta {
+  providerId: string;
+  path: string;
+}
+
 export interface UseProviderScannerReturn {
   providers: ProviderConfig[];
   scanResults: Map<string, VaultMeta[]>;
-  remoteOnlyVaults: VaultMeta[];
+  remoteOnlyVaults: RemoteVaultMeta[];
   scanningId: string | null;
   isPulling: string | null;
   showManualPull: boolean;
   manualProviderId: string;
   manualPath: string;
   handleScan: (providerId: string) => Promise<void>;
-  handlePull: (projectId: string) => Promise<void>;
+  handlePull: (providerId: string, path: string) => Promise<void>;
   handleManualPull: () => Promise<void>;
   setShowManualPull: (v: boolean) => void;
   setManualProviderId: (v: string) => void;
@@ -34,8 +39,18 @@ export function useProviderScanner(
   const [manualPath, setManualPath] = useState('');
 
   const localIds = new Set(localVaults.map((v) => v.projectId));
-  const allRemoteVaults = Array.from(scanResults.values()).flat();
-  const remoteOnlyVaults = allRemoteVaults.filter((v) => !localIds.has(v.projectId));
+  const remoteOnlyVaults: RemoteVaultMeta[] = [];
+  for (const [providerId, vaults] of scanResults) {
+    for (const v of vaults) {
+      if (!localIds.has(v.projectId)) {
+        remoteOnlyVaults.push({
+          ...v,
+          providerId,
+          path: `timenote/vaults/${v.projectId}`,
+        });
+      }
+    }
+  }
 
   const refresh = useCallback(() => {
     setProviders(listProviders());
@@ -61,10 +76,10 @@ export function useProviderScanner(
   );
 
   const handlePull = useCallback(
-    async (projectId: string) => {
-      setIsPulling(projectId);
+    async (providerId: string, path: string) => {
+      setIsPulling(`${providerId}:${path}`);
       try {
-        await useStore.getState().cloneVault(projectId);
+        await useStore.getState().cloneFromProvider(providerId, path);
         toast.success('Vault pulled from remote');
       } catch (e) {
         toast.error(`Pull failed: ${(e as Error).message}`);

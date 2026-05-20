@@ -289,6 +289,20 @@ async function handleFsMessage(message: FsMessage): Promise<MessageResponse> {
         await client.writeFile(message.path, message.content);
         return { success: true, data: null };
       }
+      case 'fs:readBinary': {
+        const buffer = await client.readFile(message.path);
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        return { success: true, data: btoa(binary) };
+      }
+      case 'fs:writeBinary': {
+        const binary = atob(message.content);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        await client.writeFile(message.path, bytes.buffer);
+        return { success: true, data: null };
+      }
       case 'fs:exists': {
         try {
           await client.stat(message.path);

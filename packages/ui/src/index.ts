@@ -25,6 +25,7 @@ export {
   useNotebooksPage,
 } from './components/pages/use-notebooks-page';
 export {
+  type RemoteVaultMeta,
   type UseProviderScannerReturn,
   useProviderScanner,
 } from './components/pages/use-provider-scanner';
