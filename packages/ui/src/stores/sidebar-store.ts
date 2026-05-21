@@ -10,13 +10,8 @@ interface SidebarState {
   setMobileSidebarOpen: (open: boolean) => void;
 }
 
-const getInitialDesktopState = () => {
-  if (typeof window === 'undefined') return true;
-  return localStorage.getItem(STORAGE_KEYS.DESKTOP_SIDEBAR_OPEN) !== 'false';
-};
-
 export const useSidebarStore = create<SidebarState>((set) => ({
-  isDesktopSidebarOpen: getInitialDesktopState(),
+  isDesktopSidebarOpen: true,
   isMobileSidebarOpen: false,
   toggleDesktopSidebar: () =>
     set((state) => {

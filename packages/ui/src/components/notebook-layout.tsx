@@ -73,7 +73,11 @@ export function NotebookLayout({
     if (savedWidth) {
       setSidebarWidth(Number(savedWidth));
     }
-  }, []);
+    const savedOpen = localStorage.getItem(STORAGE_KEYS.DESKTOP_SIDEBAR_OPEN);
+    if (savedOpen === 'false') {
+      setDesktopSidebarOpen(false);
+    }
+  }, [setDesktopSidebarOpen]);
 
   const handleMouseDown = () => {
     setIsResizing(true);

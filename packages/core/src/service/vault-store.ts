@@ -555,6 +555,9 @@ export function createVaultStore(resolver: TransportResolver) {
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         await get().loadMenu(projectId);
+        if (result.pulled > 0) {
+          set((s) => ({ noteVersion: s.noteVersion + 1 }));
+        }
         set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
         return result;
       } catch (e) {
@@ -574,6 +577,9 @@ export function createVaultStore(resolver: TransportResolver) {
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         await get().loadMenu(projectId);
+        if (result.pulled > 0) {
+          set((s) => ({ noteVersion: s.noteVersion + 1 }));
+        }
         set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
         return result;
       } catch (e) {
