@@ -5,6 +5,7 @@ import {
   type ProviderConfig,
   parseNotebookId,
 } from '@timenote/core';
+import { ArrowLeft, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -12,6 +13,7 @@ import { PageHeader } from '../page-header';
 import { RemoteConfigCard } from '../remote-config-card';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { useExportVault } from './use-export-vault';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
 export interface NotebookSettingsPageProps {
@@ -46,6 +48,8 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
   }, [projectId, defaultPath]);
 
   const store = useVaultStore;
+
+  const { isExporting, handleExport } = useExportVault(useVaultStore, projectId);
 
   const handleSave = () => {
     if (!projectId || !selectedProviderId) return;
@@ -88,7 +92,16 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
 
   return (
     <>
-      <PageHeader title="Settings" />
+      <PageHeader
+        title="Settings"
+        leftActions={
+          <Button variant="ghost" size="icon" asChild>
+            <Link to={`/s/${notebookToken}`}>
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+        }
+      />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8">
         <div className="space-y-6">
@@ -118,9 +131,14 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
                 Tools for maintaining and managing this notebook's data.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <Button variant="outline" asChild className="w-full sm:w-auto">
-                <Link to={`/s/${notebookToken}`}>Back to Notebook</Link>
+            <CardContent>
+              <Button
+                variant="outline"
+                onClick={handleExport}
+                disabled={isExporting || !projectId}
+              >
+                <Download className="w-4 h-4" />
+                {isExporting ? 'Exporting...' : 'Export'}
               </Button>
             </CardContent>
           </Card>
