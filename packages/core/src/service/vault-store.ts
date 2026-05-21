@@ -1,13 +1,6 @@
 import { nanoid } from 'nanoid';
 import { create } from 'zustand';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import {
-  createMigrationService,
-  type LegacyNotebookInfo,
-  type MigrationProgress,
-  type MigrationResult,
-  type MigrationService,
-} from '../migration/migration-service';
 import { deleteVaultIndexDatabase } from '../provider/index-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
@@ -105,7 +98,6 @@ export type VaultStore = {
   syncService: VaultSyncService | null;
   exportService: VaultExportService | null;
   importService: VaultImportService | null;
-  migrationService: MigrationService | null;
   menuItems: RuntimeMenuItem[];
   vaults: VaultMeta[];
   activeProjectId: string | null;
@@ -113,10 +105,6 @@ export type VaultStore = {
   syncSuccess: boolean;
   lastSyncTime: string | null;
   noteVersion: number;
-  needsMigration: boolean;
-  legacyNotebooks: LegacyNotebookInfo[];
-  migrationStatus: 'idle' | 'migrating' | 'done';
-  migrationProgress: MigrationProgress | null;
 
   init: () => Promise<void>;
   listVaults: () => Promise<VaultMeta[]>;
@@ -176,11 +164,6 @@ export type VaultStore = {
 
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
-
-  checkMigration: () => Promise<boolean>;
-  listLegacyNotebooks: () => Promise<LegacyNotebookInfo[]>;
-  migrateLegacyNotebook: (notebookId: string) => Promise<MigrationResult>;
-  clearLegacyData: () => Promise<void>;
 };
 
 const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -209,7 +192,6 @@ export function createVaultStore(resolver: TransportResolver) {
     syncService: null,
     exportService: null,
     importService: null,
-    migrationService: null,
     menuItems: [],
     vaults: [],
     activeProjectId: null,
@@ -217,10 +199,6 @@ export function createVaultStore(resolver: TransportResolver) {
     syncSuccess: false,
     lastSyncTime: null,
     noteVersion: 0,
-    needsMigration: false,
-    legacyNotebooks: [],
-    migrationStatus: 'idle',
-    migrationProgress: null,
 
     init: async () => {
       if (get().vaultService) return;
@@ -231,7 +209,6 @@ export function createVaultStore(resolver: TransportResolver) {
       const syncService = createVaultSyncService(vaultService, noteService);
       const exportService = createVaultExportService(vaultService, syncService);
       const importService = createVaultImportService(vaultService, noteService, syncService);
-      const migrationService = createMigrationService();
       set({
         vaultService,
         noteService,
@@ -239,7 +216,6 @@ export function createVaultStore(resolver: TransportResolver) {
         syncService,
         exportService,
         importService,
-        migrationService,
       });
     },
 
@@ -618,60 +594,6 @@ export function createVaultStore(resolver: TransportResolver) {
       const result = await importService.importVault(file);
       await get().listVaults();
       return result;
-    },
-
-    checkMigration: async () => {
-      await get().init();
-      const svc = get().migrationService;
-      if (!svc) return false;
-      const needs = await svc.needsMigration();
-      set({ needsMigration: needs });
-      return needs;
-    },
-
-    listLegacyNotebooks: async () => {
-      await get().init();
-      const svc = get().migrationService;
-      if (!svc) return [];
-      const notebooks = await svc.listLegacyNotebooks();
-      set({ legacyNotebooks: notebooks });
-      return notebooks;
-    },
-
-    migrateLegacyNotebook: async (notebookId: string) => {
-      const svc = get().migrationService;
-      if (!svc) throw new Error('MigrationService not initialized');
-      set({ migrationStatus: 'migrating' });
-      try {
-        const result = await svc.exportNotebook(notebookId, (p) => {
-          set({ migrationProgress: p });
-        });
-
-        const url = URL.createObjectURL(result.zipBlob);
-        const a = document.createElement('a');
-        a.href = url;
-        const d = new Date();
-        const pad = (n: number) => String(n).padStart(2, '0');
-        const ts = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
-        a.download = `${result.notebookName}_${ts}.zip`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        set({ migrationStatus: 'done' });
-        return result;
-      } catch (e) {
-        set({ migrationStatus: 'idle' });
-        throw e;
-      }
-    },
-
-    clearLegacyData: async () => {
-      const svc = get().migrationService;
-      if (!svc) throw new Error('MigrationService not initialized');
-      await svc.clearLegacyData();
-      set({ needsMigration: false, legacyNotebooks: [] });
     },
   }));
 }

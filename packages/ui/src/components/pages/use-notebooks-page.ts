@@ -24,7 +24,6 @@ export interface UseNotebooksPageReturn {
   setVaultToDelete: (v: string | null) => void;
   isExporting: string | null;
   isImporting: boolean;
-  hasLegacyData: boolean;
   importInputRef: React.RefObject<HTMLInputElement | null>;
   handleCreate: () => Promise<void>;
   handleDelete: () => Promise<void>;
@@ -61,15 +60,7 @@ export function useNotebooksPage(
     pulled: options?.messages?.pulled ?? 'Vault pulled from remote',
   };
 
-  const {
-    listVaults,
-    cloneVault,
-    createVault,
-    deleteVault,
-    exportVault,
-    importVault,
-    checkMigration,
-  } = useStore();
+  const { listVaults, cloneVault, createVault, deleteVault, exportVault, importVault } = useStore();
   const [vaults, setVaults] = useState<VaultMeta[]>([]);
   const [, setIsPulling] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -80,7 +71,6 @@ export function useNotebooksPage(
   const [vaultToDelete, setVaultToDelete] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [hasLegacyData, setHasLegacyData] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const refresh = useCallback(async () => {
@@ -95,12 +85,6 @@ export function useNotebooksPage(
   useEffect(() => {
     refresh();
   }, [refresh]);
-
-  useEffect(() => {
-    checkMigration()
-      .then(setHasLegacyData)
-      .catch(() => {});
-  }, [checkMigration]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -190,7 +174,6 @@ export function useNotebooksPage(
     setVaultToDelete,
     isExporting,
     isImporting,
-    hasLegacyData,
     importInputRef,
     handleCreate,
     handleDelete,

@@ -49,7 +49,7 @@
     - `spec/` - 持久化格式定义 (Zod schemas: manifest, menu, note, note-id, sync-ledger, delete-log, hash, vault-layout)
     - `provider/` - 底层 adapter (OPFS transport, IndexedDB index, full-text search)
     - `core/` - 核心数据层：同步引擎 + vault 生命周期 (vault-fs, vault-service, sync-algorithm, build-ledger, execute-plan, write-ledger, sync-service, import-service, export-service)
-    - `service/` - 业务服务 (vault-store, note-service, menu-service, menu-transform, search-query, migration-service)
+    - `service/` - 业务服务 (vault-store, note-service, menu-service, menu-transform, search-query)
   - `src/hooks/` - Shared React hooks
 - `packages/ui/` - Shared UI package (`@timenote/ui`)
   - `src/components/ui/` - Shadcn UI components

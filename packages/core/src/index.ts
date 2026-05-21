@@ -132,16 +132,6 @@ export {
 export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
 export { createVaultStore, type TransportResolver, type VaultStore } from './service/vault-store';
 
-// ─── Migration (v1.x → v2.0) ────────────────────────────────
-
-export {
-  createMigrationService,
-  type LegacyNotebookInfo,
-  type MigrationProgress,
-  type MigrationResult,
-  type MigrationService,
-} from './migration/migration-service';
-
 // ─── Spec Layer (Persistence Format) ──────────────────────────
 
 export { DELETE_LOG_EXAMPLE, type DeleteLog, DeleteLogSchema } from './spec/delete-log';

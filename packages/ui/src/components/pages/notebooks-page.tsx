@@ -1,7 +1,6 @@
 import { CONTACT_EMAIL } from '@timenote/core';
 import {
   ArrowRight,
-  ArrowRightLeft,
   Cloud,
   CloudDownload,
   Download,
@@ -268,7 +267,6 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
     setVaultToDelete,
     isExporting,
     isImporting,
-    hasLegacyData,
     importInputRef,
     handleCreate,
     handleDelete,
@@ -355,16 +353,6 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
 
       <main className="relative z-10 pt-32 pb-20 px-6 flex-1">
         <div className="max-w-7xl mx-auto space-y-12">
-          {hasLegacyData && (
-            <Link
-              to="/migration"
-              className="flex items-center gap-3 px-5 py-4 rounded-2xl bg-primary/10 border border-primary/20 text-primary hover:bg-primary/15 transition-colors"
-            >
-              <ArrowRightLeft className="w-5 h-5 shrink-0" />
-              <span className="text-sm font-bold">发现旧版笔记本，点击迁移到新架构</span>
-              <ArrowRight className="w-4 h-4 ml-auto shrink-0" />
-            </Link>
-          )}
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 animate-fade-in">
             <div className="space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black tracking-widest uppercase">

@@ -132,11 +132,7 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button
-                variant="outline"
-                onClick={handleExport}
-                disabled={isExporting || !projectId}
-              >
+              <Button variant="outline" onClick={handleExport} disabled={isExporting || !projectId}>
                 <Download className="w-4 h-4" />
                 {isExporting ? 'Exporting...' : 'Export'}
               </Button>
