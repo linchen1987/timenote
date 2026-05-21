@@ -12,9 +12,7 @@ import {
   type VaultStore,
 } from '@timenote/core';
 import {
-  ArrowUpDown,
   Calendar,
-  Loader2,
   Maximize2,
   MoreVertical,
   PlusSquare,
@@ -50,6 +48,7 @@ import {
 } from '../ui/dropdown-menu';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { useSyncButton } from './use-sync-button';
 
 type UseVaultStoreHook = {
   (): VaultStore;
@@ -94,7 +93,6 @@ export function VaultTimelinePage({
   const [editAttachments, setEditAttachments] = useState<EditAttachment[]>([]);
   const [editRemovedPaths, setEditRemovedPaths] = useState<string[]>([]);
   const [ready, setReady] = useState(false);
-  const isSyncing = useStore((s) => s.isSyncing);
   const lastSyncTime = useStore((s) => s.lastSyncTime);
   const noteVersion = useStore((s) => s.noteVersion);
 
@@ -170,6 +168,14 @@ export function VaultTimelinePage({
       }
     },
     [searchQuery, resolvedProjectId, loadBodies, useStore.getState],
+  );
+
+  const { handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(
+    useStore,
+    resolvedProjectId,
+    useCallback(async () => {
+      await loadNotes(true);
+    }, [loadNotes]),
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: noteVersion intentionally triggers re-fetch
@@ -378,24 +384,6 @@ export function VaultTimelinePage({
     }
   };
 
-  const handleSync = async () => {
-    if (!resolvedProjectId || isSyncing) return;
-    try {
-      const result = await useStore.getState().sync(resolvedProjectId);
-      await loadNotes(true);
-      if (result.pushed > 0 || result.pulled > 0) {
-        toast.success(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
-      } else {
-        toast.success('Already up to date');
-      }
-      if (result.errors.length > 0) {
-        toast.error(`Sync errors: ${result.errors.join('; ')}`);
-      }
-    } catch (e) {
-      toast.error(`Sync failed: ${(e as Error).message}`);
-    }
-  };
-
   const handleComposerAddFiles = useCallback(
     async (files: File[]) => {
       if (!resolvedProjectId) return;
@@ -498,15 +486,11 @@ export function VaultTimelinePage({
                 ? 'Syncing...'
                 : lastSyncTime
                   ? `Last sync: ${new Date(lastSyncTime).toLocaleString()}`
-                  : 'Sync'
+                  : syncTitle
             }
             className="shrink-0 rounded-full"
           >
-            {isSyncing ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            ) : (
-              <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-            )}
+            {syncIcon}
           </Button>
           <form onSubmit={handleSearchSubmit} className="relative group w-full">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />

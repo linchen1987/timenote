@@ -1,4 +1,6 @@
 ## TODO (MARK)
+- provider setting ui 修改：支持查看和修改配置（查看所有配置，修改非id相关的配置）
+
 ### md 增强
 - 数据库表格 (mini notion)
 - 图片笔记（展示为图片/相册等形式）

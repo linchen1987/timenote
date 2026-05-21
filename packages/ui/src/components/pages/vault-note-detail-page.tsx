@@ -8,7 +8,7 @@ import {
   parseNotebookId,
   type VaultStore,
 } from '@timenote/core';
-import { ArrowUpDown, ChevronLeft, ImagePlus, Loader2, Save } from 'lucide-react';
+import { ChevronLeft, ImagePlus, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/att
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
 import { PageHeader } from '../page-header';
 import { Button } from '../ui/button';
+import { useSyncButton } from './use-sync-button';
 
 type UseVaultStoreHook = {
   (): VaultStore;
@@ -42,7 +43,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const currentContentRef = useRef('');
   const [attachments, setAttachments] = useState<EditAttachment[]>([]);
   const [removedPaths, setRemovedPaths] = useState<string[]>([]);
-  const isSyncing = useStore((s) => s.isSyncing);
+  const { handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(useStore, projectId);
 
   useEffect(() => {
     if (!projectId || !nId) return;
@@ -157,7 +158,6 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
       initialAttachmentsRef.current = attachments;
       setRemovedPaths([]);
       setHasUnsavedChanges(false);
-      toast.success('Saved');
       const attPaths = attachments.map((a) => a.path);
       useStore.getState().notifyNoteChange(projectId, nId, 'update', attPaths);
     } catch (e) {
@@ -222,31 +222,12 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
           <Button
             variant="ghost"
             size="icon"
-            onClick={async () => {
-              if (!projectId || isSyncing) return;
-              try {
-                const result = await useStore.getState().sync(projectId);
-                if (result.pushed > 0 || result.pulled > 0) {
-                  toast.success(`Synced: ${result.pushed} pushed, ${result.pulled} pulled`);
-                } else {
-                  toast.success('Already up to date');
-                }
-                if (result.errors.length > 0) {
-                  toast.error(`Sync errors: ${result.errors.join('; ')}`);
-                }
-              } catch (e) {
-                toast.error(`Sync failed: ${(e as Error).message}`);
-              }
-            }}
+            onClick={handleSync}
             disabled={isSyncing}
-            title={isSyncing ? 'Syncing...' : 'Sync'}
+            title={syncTitle}
             className="rounded-full"
           >
-            {isSyncing ? (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            ) : (
-              <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
-            )}
+            {syncIcon}
           </Button>
           {hasUnsavedChanges && (
             <Button

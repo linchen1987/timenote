@@ -110,6 +110,7 @@ export type VaultStore = {
   vaults: VaultMeta[];
   activeProjectId: string | null;
   isSyncing: boolean;
+  syncSuccess: boolean;
   lastSyncTime: string | null;
   noteVersion: number;
   needsMigration: boolean;
@@ -213,6 +214,7 @@ export function createVaultStore(resolver: TransportResolver) {
     vaults: [],
     activeProjectId: null,
     isSyncing: false,
+    syncSuccess: false,
     lastSyncTime: null,
     noteVersion: 0,
     needsMigration: false,
@@ -545,7 +547,7 @@ export function createVaultStore(resolver: TransportResolver) {
     sync: async (projectId: string) => {
       const resolved = resolveTransport(projectId, resolver);
       if (!resolved) return EMPTY_SYNC_RESULT;
-      set({ isSyncing: true });
+      set({ isSyncing: true, syncSuccess: false });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
@@ -553,16 +555,18 @@ export function createVaultStore(resolver: TransportResolver) {
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         await get().loadMenu(projectId);
+        set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
         return result;
-      } finally {
-        set({ isSyncing: false });
+      } catch (e) {
+        set({ isSyncing: false, syncSuccess: false });
+        throw e;
       }
     },
 
     pull: async (projectId: string) => {
       const resolved = resolveTransport(projectId, resolver);
       if (!resolved) return EMPTY_SYNC_RESULT;
-      set({ isSyncing: true });
+      set({ isSyncing: true, syncSuccess: false });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
@@ -570,25 +574,29 @@ export function createVaultStore(resolver: TransportResolver) {
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
         await get().loadMenu(projectId);
+        set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
         return result;
-      } finally {
-        set({ isSyncing: false });
+      } catch (e) {
+        set({ isSyncing: false, syncSuccess: false });
+        throw e;
       }
     },
 
     push: async (projectId: string) => {
       const resolved = resolveTransport(projectId, resolver);
       if (!resolved) return EMPTY_SYNC_RESULT;
-      set({ isSyncing: true });
+      set({ isSyncing: true, syncSuccess: false });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
         const result = await syncService.push(projectId, resolved.transport);
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
+        set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
         return result;
-      } finally {
-        set({ isSyncing: false });
+      } catch (e) {
+        set({ isSyncing: false, syncSuccess: false });
+        throw e;
       }
     },
 
