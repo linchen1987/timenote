@@ -299,7 +299,6 @@ export function AttachmentZone({
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,.pdf,.zip,.txt,.json"
           className="hidden"
           onChange={(e) => {
             const files = Array.from(e.target.files || []);
@@ -384,7 +383,6 @@ export function AttachmentZone({
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.zip,.txt,.json"
             className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files || []);

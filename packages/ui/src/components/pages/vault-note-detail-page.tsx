@@ -260,7 +260,6 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
             ref={fileInputRef}
             type="file"
             multiple
-            accept="image/*,.pdf,.zip,.txt,.json"
             className="hidden"
             onChange={(e) => {
               const files = Array.from(e.target.files || []);
