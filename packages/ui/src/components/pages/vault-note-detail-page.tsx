@@ -10,7 +10,7 @@ import {
 } from '@timenote/core';
 import { ChevronLeft, ImagePlus, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
@@ -30,6 +30,7 @@ export interface VaultNoteDetailPageProps {
 
 export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const { notebookToken, noteId } = useParams();
+  const navigate = useNavigate();
   const projectId = parseNotebookId(notebookToken || '');
   const nId = noteIdFromUrl(noteId || '');
 
@@ -203,9 +204,9 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
       <PageHeader
         leftActions={
           <Button variant="ghost" size="icon" asChild className="rounded-full">
-            <Link to={`/s/${notebookToken}`} title="Back to Timeline">
+            <button type="button" onClick={() => navigate(-1)} title="Back to Timeline">
               <ChevronLeft className="w-5 h-5" />
-            </Link>
+            </button>
           </Button>
         }
       >
