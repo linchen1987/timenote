@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter @timenote/web dev",
     "dev:ext": "pnpm --filter @timenote/extension dev",
+    "dev:cli": "pnpm tsx apps/cli/src/main.ts",
     "build": "pnpm --filter @timenote/web build",
     "build:ext": "pnpm --filter @timenote/extension build",
     "deploy:web": "pnpm --filter @timenote/web run deploy",

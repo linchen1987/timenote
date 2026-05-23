@@ -1,4 +1,4 @@
-import type { UseStorage } from '@timenote/core';
+import type { UseStorage } from '@timenote/core/hooks';
 import { useEffect, useState } from 'react';
 
 export const useChromeStorage: UseStorage = (key, initialValue) => {

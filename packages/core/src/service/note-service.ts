@@ -10,10 +10,11 @@ import {
   parseNoteSafe,
   serializeNote,
 } from '../spec/note';
-import { generateNoteId, noteIdFromFilename } from '../spec/note-id';
+import { noteIdFromFilename } from '../spec/note-id';
 import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layout';
 import type { VaultService } from '../vault/vault-service';
 import { type AttachmentService, createAttachmentService } from './attachment-service';
+import { createNoteOp, deleteNoteOp, updateNoteOp } from './note-ops';
 import { extractTagsFromBody, parseSearchQuery } from './search-query';
 
 export interface StagedAttachment {
@@ -87,21 +88,13 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async createNote(projectId: string, content?: string): Promise<string> {
-    const noteId = generateNoteId();
-    const now = new Date().toISOString();
-    const body = content ?? '';
-    const extractedTags = extractTagsFromBody(body);
-    const fm: NoteFrontmatter = {
-      created_at: now,
-      updated_at: now,
-      ...(extractedTags.length > 0 ? { tags: extractedTags } : {}),
-    };
-    const raw = serializeNote(fm, body);
-
     const transport = this.vaultService.getTransport(projectId);
-    await transport.write(noteFilePath(noteId), raw);
+    const body = content ?? '';
+    const noteId = await createNoteOp(transport, body);
 
     if (this.activeProjectId === projectId && this.indexService) {
+      const path = noteFilePath(noteId);
+      const raw = await transport.read(path);
       await this.indexService.indexNote(noteId, raw);
       this.searchProvider.add(noteId, body);
     }
@@ -156,24 +149,10 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
   async updateNote(projectId: string, noteId: string, content: string): Promise<void> {
     const transport = this.vaultService.getTransport(projectId);
-    const path = noteFilePath(noteId);
-    const exists = await transport.exists(path);
-    if (!exists) throw new Error(`Note not found: ${noteId}`);
-
-    const existing = parseNote(await transport.read(path));
-    const now = new Date().toISOString();
-    const extractedTags = extractTagsFromBody(content);
-    const existingTags = normalizeTags(existing.frontmatter.tags);
-    const mergedTags = [...new Set([...existingTags, ...extractedTags])];
-    const updatedFm: NoteFrontmatter = {
-      ...existing.frontmatter,
-      updated_at: now,
-      ...(mergedTags.length > 0 ? { tags: mergedTags } : {}),
-    };
-    const raw = serializeNote(updatedFm, content);
-    await transport.write(path, raw);
+    await updateNoteOp(transport, noteId, content);
 
     if (this.activeProjectId === projectId && this.indexService) {
+      const raw = await transport.read(noteFilePath(noteId));
       await this.indexService.indexNote(noteId, raw);
       this.searchProvider.update(noteId, content);
     }
@@ -181,15 +160,11 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
   async deleteNote(projectId: string, noteId: string): Promise<void> {
     const transport = this.vaultService.getTransport(projectId);
-    const path = noteFilePath(noteId);
-    const exists = await transport.exists(path);
-    if (!exists) return;
 
     const note = await this.readNoteForDelete(projectId, noteId);
     const attachmentPaths = this.extractAttachmentPaths(note);
 
-    await transport.remove(path);
-    await this.vaultService.appendDeleteLog(projectId, noteId);
+    await deleteNoteOp(transport, (id) => this.vaultService.appendDeleteLog(projectId, id), noteId);
 
     if (this.activeProjectId === projectId && this.indexService) {
       await this.indexService.removeNoteIndex(noteId);

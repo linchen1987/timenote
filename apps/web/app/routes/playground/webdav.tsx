@@ -1,4 +1,5 @@
-import { STORAGE_KEYS, useLocalStorage } from '@timenote/core';
+import { STORAGE_KEYS } from '@timenote/core';
+import { useLocalStorage } from '@timenote/core/hooks';
 import {
   Button,
   Card,

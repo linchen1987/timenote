@@ -1,0 +1,4 @@
+- timenote cli (供 agent 和 human 使用)
+- 通过 agent 使用 timenote
+- 支持 pc 端和移动端
+- 支持更多 note 形式，比如 table/db, chart, diagram(mindmap), board, html 等等

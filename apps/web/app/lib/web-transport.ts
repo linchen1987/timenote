@@ -1,5 +1,5 @@
 import type { ProviderConfig } from '@timenote/core';
-import type { FsConnection } from './services/fs-client';
+import type { FsConnection } from '~/services/fs-client';
 
 export function connectionFromProvider(provider: ProviderConfig): FsConnection {
   if (provider.type === 'webdav' && provider.webdav) {

@@ -1,8 +1,6 @@
 // ─── General Utilities ────────────────────────────────────────
 
 export { CONTACT_EMAIL, NOTE_LIST_PAGE_SIZE, STORAGE_KEYS } from './constants';
-export { useLocalStorage } from './hooks/use-local-storage';
-export type { UseStorage } from './hooks/use-storage';
 export { cn } from './utils/cn';
 export {
   createNotebookToken,
@@ -14,6 +12,12 @@ export {
 
 // ─── Provider Layer ──────────────────────────────────────────
 
+export {
+  createFsClient,
+  type FsClient,
+  type FsConnection,
+  type FsStat,
+} from './provider/fs-client';
 export {
   createIndexService,
   deleteVaultIndexDatabase,
@@ -121,6 +125,7 @@ export {
   nestifyMenuItems,
   updateMenuNoteId,
 } from './service/menu-transform';
+export { createNoteOp, deleteNoteOp, updateNoteOp } from './service/note-ops';
 export {
   createVaultNoteService,
   type EditAttachment,
@@ -134,15 +139,22 @@ export { createVaultStore, type TransportResolver, type VaultStore } from './ser
 
 // ─── Spec Layer (Persistence Format) ──────────────────────────
 
-export { DELETE_LOG_EXAMPLE, type DeleteLog, DeleteLogSchema } from './spec/delete-log';
+export {
+  createEmptyDeleteLog,
+  DELETE_LOG_EXAMPLE,
+  type DeleteLog,
+  DeleteLogSchema,
+} from './spec/delete-log';
 export { computeBinaryHash, computeContentHash } from './spec/hash';
 export {
+  createManifest,
   IsoDateString,
   MANIFEST_EXAMPLE,
   type Manifest,
   ManifestSchema,
 } from './spec/manifest';
 export {
+  createMenuData,
   MENU_EXAMPLE,
   type MenuData,
   MenuDataSchema,
@@ -185,6 +197,7 @@ export {
 } from './spec/note-id';
 export { generateProjectId } from './spec/project-id';
 export {
+  createEmptySyncLedger,
   SYNC_LEDGER_EXAMPLE,
   type SyncEntity,
   SyncEntitySchema,
