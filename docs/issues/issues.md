@@ -1,5 +1,6 @@
 ## TODO
 - #cli review code
+    - 远程存储 sdk core (fs-client) : fs-client 命名不好
 - #cli #desktop provider 设计
 
 ## Feature
