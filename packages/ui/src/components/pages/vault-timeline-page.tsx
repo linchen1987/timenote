@@ -9,7 +9,6 @@ import {
   noteIdToUrl,
   type PendingAttachment,
   parseNotebookId,
-  type VaultStore,
 } from '@timenote/core';
 import {
   Calendar,
@@ -24,6 +23,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
+import type { VaultStore } from '../../stores/vault-store';
 import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
 import { PageHeader } from '../page-header';

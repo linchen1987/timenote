@@ -119,3 +119,7 @@ export {
   SheetTrigger,
 } from './components/ui/sheet';
 export { Toaster } from './components/ui/sonner';
+export {
+  createBoundVaultStore,
+  type VaultStore,
+} from './stores/vault-store';

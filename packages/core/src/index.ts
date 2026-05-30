@@ -174,7 +174,13 @@ export {
   SimpleSearchProvider,
 } from './service/search-provider';
 export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
-export { createVaultStore, type VaultStore } from './service/vault-store';
+export {
+  type MenuItemInput,
+  type MenuItemUpdate,
+  type ReorderUpdate,
+  type SyncOutcome,
+  VaultOrchestrator,
+} from './vault/vault-orchestrator';
 
 // ─── Spec Layer (Persistence Format) ──────────────────────────
 

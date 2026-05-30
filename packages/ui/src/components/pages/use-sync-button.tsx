@@ -1,9 +1,9 @@
-import type { VaultStore } from '@timenote/core';
 import { getEnabledRemotes } from '@timenote/core';
 import { ArrowUpDown, Check, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import type { VaultStore } from '../../stores/vault-store';
 
 type UseVaultStoreHook = {
   (): VaultStore;

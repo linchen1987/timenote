@@ -1,4 +1,6 @@
-import { createOpfsVaultStorage, createVaultStore } from '@timenote/core';
+import { createOpfsVaultStorage, VaultOrchestrator } from '@timenote/core';
+import { createBoundVaultStore } from '@timenote/ui';
 import { createRemoteTransport } from './web-transport';
 
-export const useVaultStore = createVaultStore(createRemoteTransport, createOpfsVaultStorage);
+const orchestrator = new VaultOrchestrator(createRemoteTransport, createOpfsVaultStorage);
+export const useVaultStore = createBoundVaultStore(orchestrator);

@@ -1,6 +1,7 @@
-import { parseNotebookId, type RuntimeMenuItem, type VaultStore } from '@timenote/core';
+import { parseNotebookId, type RuntimeMenuItem } from '@timenote/core';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router';
+import type { VaultStore } from '../../stores/vault-store';
 
 type UseVaultStoreHook = {
   (): VaultStore;
