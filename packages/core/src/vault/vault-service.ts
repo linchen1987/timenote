@@ -1,5 +1,5 @@
 import type { FsTransport } from '../fs/transport';
-import type { VaultStorage } from '../fs/vault-storage';
+import type { VaultRegistry } from './vault-registry';
 import { ManifestSchema } from '../spec/manifest';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';
@@ -18,14 +18,14 @@ export interface VaultService {
   getTransport(projectId: string): Promise<FsTransport>;
 }
 
-export function createVaultService(storage: VaultStorage): VaultService {
-  return new VaultServiceImpl(storage);
+export function createVaultService(registry: VaultRegistry): VaultService {
+  return new VaultServiceImpl(registry);
 }
 
 class VaultServiceImpl implements VaultService {
   private transports = new Map<string, FsTransport>();
 
-  constructor(private storage: VaultStorage) {}
+  constructor(private registry: VaultRegistry) {}
 
   async createVault(name: string): Promise<string> {
     const projectId = generateProjectId();
@@ -34,25 +34,25 @@ class VaultServiceImpl implements VaultService {
   }
 
   async createVaultWithId(projectId: string, name: string): Promise<void> {
-    const transport = await this.storage.getTransport(projectId);
+    const transport = await this.registry.getTransport(projectId);
     this.transports.set(projectId, transport);
     await initVault(transport, projectId, name);
   }
 
   async deleteVault(projectId: string): Promise<void> {
-    await this.storage.remove(projectId);
+    await this.registry.remove(projectId);
     this.transports.delete(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
     const vaults: VaultMeta[] = [];
-    const dirNames = await this.storage.list();
+    const dirNames = await this.registry.list();
 
     for (const projectId of dirNames) {
       try {
         let transport = this.transports.get(projectId);
         if (!transport) {
-          transport = await this.storage.getTransport(projectId);
+          transport = await this.registry.getTransport(projectId);
           this.transports.set(projectId, transport);
         }
         const raw = await transport.read(metaPath('manifest'));

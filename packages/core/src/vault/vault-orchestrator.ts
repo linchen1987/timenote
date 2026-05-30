@@ -3,7 +3,7 @@ import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
 import { getProvider, type StorageProviderConfig as ProviderConfig } from '../fs/config/store';
 import { createPrefixedTransport } from '../fs/prefixed';
 import type { FsTransport } from '../fs/transport';
-import type { VaultStorage } from '../fs/vault-storage';
+import type { VaultRegistry } from './vault-registry';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -127,13 +127,13 @@ export class VaultOrchestrator {
 
   constructor(
     private readonly createRemoteTransport: (provider: ProviderConfig) => FsTransport,
-    private readonly createLocalStorage: () => Promise<VaultStorage>,
+    private readonly createLocalRegistry: () => Promise<VaultRegistry>,
   ) {}
 
   async init(): Promise<void> {
     if (this.initialized) return;
-    const storage = await this.createLocalStorage();
-    this.vaultService = createVaultService(storage);
+    const registry = await this.createLocalRegistry();
+    this.vaultService = createVaultService(registry);
     this.noteService = createVaultNoteService(this.vaultService, {
       onDeleteNote: async (projectId, noteId) => {
         const transport = await this.vaultService!.getTransport(projectId);

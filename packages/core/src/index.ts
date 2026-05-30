@@ -12,11 +12,12 @@ export {
 
 // ─── FS Transport ────────────────────────────────────────────
 
-export { createOpfsTransport, createOpfsVaultStorage } from './fs/opfs';
+export { createOpfsTransport } from './fs/opfs';
 export { createPrefixedTransport } from './fs/prefixed';
 export { createS3Transport } from './fs/s3';
 export type { FsStat, FsTransport } from './fs/transport';
-export type { VaultStorage } from './fs/vault-storage';
+export type { VaultRegistry } from './vault/vault-registry';
+export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
 export { createWebdavTransport } from './fs/webdav';
 
 // NodeFS transport not exported from barrel (node:fs breaks browser builds)

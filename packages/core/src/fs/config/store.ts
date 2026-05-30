@@ -1,5 +1,4 @@
 import { STORAGE_KEYS } from '../../constants';
-import { updateProviderIdReferences } from '../../vault/notebook-remotes';
 import { normalizeLegacyEntry } from './legacy-compat';
 import type { StorageProviderConfig } from './providers';
 import { generateProviderId } from './providers';
@@ -18,9 +17,6 @@ type RawEntry = Record<string, unknown>;
 function parseEntry(raw: RawEntry): StorageProviderEntry | null {
   const result = normalizeLegacyEntry(raw);
   if (!result) return null;
-  if (result.oldId) {
-    updateProviderIdReferences(result.oldId, result.entry.id);
-  }
   return result.entry;
 }
 
