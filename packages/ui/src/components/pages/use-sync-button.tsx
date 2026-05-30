@@ -1,4 +1,3 @@
-import { getEnabledRemotes } from '@timenote/core';
 import { ArrowUpDown, Check, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
@@ -29,17 +28,25 @@ export function useSyncButton(
   const syncSuccess = useStore((s) => s.syncSuccess);
   const lastSyncError = useStore((s) => s.lastSyncError);
   const noteVersion = useStore((s) => s.noteVersion);
+  const activeProjectId = useStore((s) => s.activeProjectId);
 
   const [hasRemote, setHasRemote] = useState(false);
 
   useEffect(() => {
-    if (!projectId) {
+    if (!projectId || activeProjectId !== projectId) {
       setHasRemote(false);
       return;
     }
-    const remotes = getEnabledRemotes(projectId);
-    setHasRemote(Object.keys(remotes).length > 0);
-  }, [projectId, noteVersion]);
+    useStore
+      .getState()
+      .getRemoteConfig(projectId)
+      .then((entry) => {
+        setHasRemote(!!entry?.url);
+      })
+      .catch(() => {
+        setHasRemote(false);
+      });
+  }, [projectId, activeProjectId, noteVersion, useStore]);
 
   useEffect(() => {
     if (!lastSyncError) return;

@@ -1,13 +1,19 @@
-import type { ProviderConfig, RemoteEntry } from '@timenote/core';
+import type { ProviderConfig } from '@timenote/core';
 import { Check, Cloud, CloudOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
+export interface RemoteDisplayConfig {
+  providerId: string;
+  path: string;
+  enabled: boolean;
+}
+
 export interface RemoteConfigCardProps {
   providers: ProviderConfig[];
-  remoteConfig: RemoteEntry | null;
+  remoteConfig: RemoteDisplayConfig | null;
   selectedProviderId: string;
   customPath: string;
   defaultPath: string;

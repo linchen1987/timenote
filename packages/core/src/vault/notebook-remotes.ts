@@ -1,3 +1,8 @@
+/**
+ * @deprecated Use RemoteConfigService (config.local.json) instead.
+ * This module reads/writes localStorage directly and will be removed.
+ */
+
 import { STORAGE_KEYS } from '../constants';
 
 export interface RemoteEntry {

@@ -1,9 +1,10 @@
 import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import { getProvider, type StorageProviderConfig as ProviderConfig } from '../fs/config/store';
+import type { StorageProviderConfig as ProviderConfig } from '../fs/config/providers';
+import { generateProviderId, parseSourceUrl } from '../fs/config/providers';
+import { getProvider } from '../fs/config/store';
 import { createPrefixedTransport } from '../fs/prefixed';
 import type { FsTransport } from '../fs/transport';
-import type { VaultRegistry } from './vault-registry';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -13,27 +14,25 @@ import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
 import { metaPath, noteFilePath } from '../spec/vault-layout';
 import type { DirtyEntry } from '../vault/build-ledger';
-import { appendDeleteLog } from '../vault/vault-ops';
 import { createVaultExportService, type VaultExportService } from '../vault/export-service';
 import {
   createVaultImportService,
   type ImportResult,
   type VaultImportService,
 } from '../vault/import-service';
-import {
-  getDefaultRemotePath,
-  getEnabledRemotes,
-  getRemote,
-  type RemoteEntry,
-  removeRemote as removeRemoteConfig,
-  setRemote,
-} from '../vault/notebook-remotes';
+import { createRemoteConfigService } from '../vault/remote-config';
+
+export function getDefaultRemotePath(projectId: string): string {
+  return `timenote/vaults/${projectId}`;
+}
 import {
   createVaultSyncService,
   type SyncResult,
   type VaultSyncService,
 } from '../vault/sync-service';
+import { appendDeleteLog } from '../vault/vault-ops';
 import { createVaultService, type VaultMeta, type VaultService } from '../vault/vault-service';
+import type { VaultRegistry } from './vault-registry';
 
 const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
 const DEFAULT_REMOTE_NAME = 'origin';
@@ -96,26 +95,6 @@ function isSyncCacheValid(projectId: string): boolean {
   return ts !== null && Date.now() - ts < SYNC_TTL_MS;
 }
 
-function resolveTransport(
-  projectId: string,
-  createRemoteTransport: (provider: ProviderConfig) => FsTransport,
-): ResolvedTransport | null {
-  const enabledRemotes = getEnabledRemotes(projectId);
-  const remoteNames = Object.keys(enabledRemotes);
-  const remoteName = remoteNames[0];
-  if (!remoteName) return null;
-
-  const entry = getRemote(projectId, remoteName);
-  if (!entry || !entry.enabled) return null;
-
-  const provider = getProvider(entry.providerId);
-  if (!provider) return null;
-
-  const transport = createRemoteTransport(provider);
-  const prefixed = createPrefixedTransport(entry.path, transport);
-  return { transport: prefixed, remoteName, providerId: provider.id, path: entry.path };
-}
-
 export class VaultOrchestrator {
   private vaultService: VaultService | null = null;
   private noteService: VaultNoteService | null = null;
@@ -145,10 +124,7 @@ export class VaultOrchestrator {
       onPullComplete: (projectId) => this.noteService!.rebuildIndex(projectId),
     });
     this.exportService = createVaultExportService(this.vaultService, this.syncService);
-    this.importService = createVaultImportService(
-      this.vaultService,
-      this.syncService,
-    );
+    this.importService = createVaultImportService(this.vaultService, this.syncService);
     this.initialized = true;
   }
 
@@ -172,8 +148,16 @@ export class VaultOrchestrator {
     return this.menuService;
   }
 
+  private getRemoteConfigService(projectId: string) {
+    return createRemoteConfigService(() => this.requireVaultService().getTransport(projectId));
+  }
+
   getNoteService(): VaultNoteService {
     return this.requireNoteService();
+  }
+
+  async getVaultTransport(projectId: string): Promise<FsTransport> {
+    return this.requireVaultService().getTransport(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
@@ -191,7 +175,6 @@ export class VaultOrchestrator {
     await this.init();
     await this.requireVaultService().deleteVault(projectId);
     await deleteVaultIndexDatabase(projectId);
-    removeRemoteConfig(projectId);
   }
 
   async activateVault(projectId: string): Promise<void> {
@@ -298,28 +281,40 @@ export class VaultOrchestrator {
     return svc.getTagsWithCounts();
   }
 
-  configureRemote(projectId: string, providerId: string, path?: string): void {
-    setRemote(projectId, DEFAULT_REMOTE_NAME, {
-      providerId,
-      path: path ?? getDefaultRemotePath(projectId),
-      enabled: true,
+  async configureRemote(projectId: string, providerId: string, path?: string): Promise<void> {
+    const service = this.getRemoteConfigService(projectId);
+    const url = path ? `${providerId}/${path}` : providerId;
+    await service.setRemote({
+      url,
+      name: DEFAULT_REMOTE_NAME,
+      default: true,
     });
   }
 
-  removeRemote(projectId: string, remoteName?: string): void {
-    removeRemoteConfig(projectId, remoteName ?? DEFAULT_REMOTE_NAME);
+  async removeRemote(projectId: string, remoteName?: string): Promise<void> {
+    const service = this.getRemoteConfigService(projectId);
+    await service.removeRemote(remoteName ?? DEFAULT_REMOTE_NAME);
   }
 
-  toggleRemote(projectId: string, remoteName?: string): void {
+  async toggleRemote(projectId: string, remoteName?: string): Promise<void> {
     const name = remoteName ?? DEFAULT_REMOTE_NAME;
-    const entry = getRemote(projectId, name);
+    const service = this.getRemoteConfigService(projectId);
+    const entry = await service.getRemote(name);
     if (entry) {
-      setRemote(projectId, name, { ...entry, enabled: !entry.enabled });
+      const isDefault = entry.default === true;
+      await service.setRemote({ ...entry, default: !isDefault });
     }
   }
 
-  getRemoteConfig(projectId: string, remoteName?: string): RemoteEntry | null {
-    return getRemote(projectId, remoteName ?? DEFAULT_REMOTE_NAME) as RemoteEntry | null;
+  async getRemoteConfig(
+    projectId: string,
+    remoteName?: string,
+  ): Promise<{ url: string; name?: string; default?: boolean } | null> {
+    const service = this.getRemoteConfigService(projectId);
+    const remote = remoteName
+      ? await service.getRemote(remoteName)
+      : await service.getDefaultRemote();
+    return remote;
   }
 
   async listRemoteVaults(providerId: string): Promise<VaultMeta[]> {
@@ -352,7 +347,7 @@ export class VaultOrchestrator {
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
 
-    const resolved = resolveTransport(projectId, this.createRemoteTransport);
+    const resolved = await this.resolveTransport(projectId);
     if (!resolved) throw new Error('No remote configured for this notebook');
 
     const remote = resolved.transport;
@@ -397,10 +392,11 @@ export class VaultOrchestrator {
       await vaultService.createVaultWithId(projectId, manifest.name);
     }
 
-    setRemote(projectId, DEFAULT_REMOTE_NAME, {
-      providerId,
-      path,
-      enabled: true,
+    const service = this.getRemoteConfigService(projectId);
+    await service.setRemote({
+      url: `${providerId}/${path}`,
+      name: DEFAULT_REMOTE_NAME,
+      default: true,
     });
 
     await syncService.initFromSource(projectId, transport, {
@@ -444,7 +440,7 @@ export class VaultOrchestrator {
 
   async tryEntrySync(projectId: string): Promise<SyncOutcome | null> {
     if (isSyncCacheValid(projectId)) return null;
-    const resolved = resolveTransport(projectId, this.createRemoteTransport);
+    const resolved = await this.resolveTransport(projectId);
     if (!resolved) return null;
     try {
       return await this.sync(projectId);
@@ -453,11 +449,30 @@ export class VaultOrchestrator {
     }
   }
 
+  private async resolveTransport(projectId: string): Promise<ResolvedTransport | null> {
+    const service = this.getRemoteConfigService(projectId);
+    const remote = await service.getDefaultRemote();
+    if (!remote?.url) return null;
+
+    const parsed = parseSourceUrl(remote.url);
+    const providerId = generateProviderId(parsed);
+    const provider = getProvider(providerId);
+    if (!provider) return null;
+
+    const transport = createPrefixedTransport(parsed.path, this.createRemoteTransport(provider));
+    return {
+      transport,
+      remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
+      providerId,
+      path: parsed.path,
+    };
+  }
+
   private async executeSync(
     projectId: string,
     direction: 'sync' | 'pull' | 'push',
   ): Promise<SyncOutcome> {
-    const resolved = resolveTransport(projectId, this.createRemoteTransport);
+    const resolved = await this.resolveTransport(projectId);
     if (!resolved) {
       return { result: EMPTY_SYNC_RESULT, menuItems: [], noteChanged: false };
     }

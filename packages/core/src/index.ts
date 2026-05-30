@@ -16,9 +16,9 @@ export { createOpfsTransport } from './fs/opfs';
 export { createPrefixedTransport } from './fs/prefixed';
 export { createS3Transport } from './fs/s3';
 export type { FsStat, FsTransport } from './fs/transport';
+export { createWebdavTransport } from './fs/webdav';
 export type { VaultRegistry } from './vault/vault-registry';
 export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
-export { createWebdavTransport } from './fs/webdav';
 
 // NodeFS transport not exported from barrel (node:fs breaks browser builds)
 // CLI imports directly: import { createNodeFsTransport } from '@timenote/core/fs/node-fs'
@@ -77,9 +77,12 @@ export {
   type RemoteConfig,
   RemoteConfigSchema,
 } from './spec/config-local';
+/**
+ * @deprecated Use RemoteConfigService via config.local.json instead.
+ * These functions read/write localStorage directly and will be removed.
+ */
 export {
   getAllRemotes,
-  getDefaultRemotePath,
   getEnabledRemotes,
   getRemote,
   listAllRemotes,
@@ -89,6 +92,11 @@ export {
   setRemote,
   updateProviderIdReferences,
 } from './vault/notebook-remotes';
+export {
+  createRemoteConfigService,
+  type RemoteConfigService,
+} from './vault/remote-config';
+export { getDefaultRemotePath } from './vault/vault-orchestrator';
 
 // ─── Sync Engine + Vault Lifecycle ────────────────────────────
 

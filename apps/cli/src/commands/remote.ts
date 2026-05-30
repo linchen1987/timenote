@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
-import { readRemotes, resolveVaultDir, writeRemotes } from '../lib/vault.js';
+import { createRemoteConfigServiceForVault, resolveVaultDir } from '../lib/vault.js';
 
 export function registerRemoteCommand(program: Command) {
   const remote = program.command('remote').description('Manage vault remote configuration');
@@ -23,18 +23,8 @@ export function registerRemoteCommand(program: Command) {
       }
 
       const url = remotePathStr ? `${provider.id}/${remotePathStr}` : provider.id;
-
-      const config = readRemotes(vaultDir);
-      const existingIdx = config.remotes.findIndex((r) => r.name === name);
-      const entry = { url, name, default: name === 'origin' };
-
-      if (existingIdx >= 0) {
-        config.remotes[existingIdx] = entry;
-      } else {
-        config.remotes.push(entry);
-      }
-
-      writeRemotes(vaultDir, config);
+      const service = createRemoteConfigServiceForVault(vaultDir);
+      await service.setRemote({ url, name, default: name === 'origin' });
       console.log(`Remote "${name}" set.`);
     });
 
@@ -45,14 +35,13 @@ export function registerRemoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (name: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const config = readRemotes(vaultDir);
-      const idx = config.remotes.findIndex((r) => r.name === name);
-      if (idx < 0) {
+      const service = createRemoteConfigServiceForVault(vaultDir);
+      const existing = await service.getRemote(name);
+      if (!existing) {
         console.error(`Remote "${name}" not found.`);
         process.exit(1);
       }
-      config.remotes.splice(idx, 1);
-      writeRemotes(vaultDir, config);
+      await service.removeRemote(name);
       console.log(`Remote "${name}" removed.`);
     });
 
@@ -62,12 +51,13 @@ export function registerRemoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const config = readRemotes(vaultDir);
-      if (config.remotes.length === 0) {
+      const service = createRemoteConfigServiceForVault(vaultDir);
+      const remotes = await service.listRemotes();
+      if (remotes.length === 0) {
         console.log('No remotes configured.');
         return;
       }
-      for (const r of config.remotes) {
+      for (const r of remotes) {
         const flag = r.default ? ' (default)' : '';
         console.log(`${r.name || '(unnamed)'}  ${r.url}${flag}`);
       }

@@ -1,9 +1,9 @@
 import type { FsTransport } from '../fs/transport';
-import type { VaultRegistry } from './vault-registry';
 import { ManifestSchema } from '../spec/manifest';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';
 import { initVault } from './vault-ops';
+import type { VaultRegistry } from './vault-registry';
 
 export interface VaultMeta {
   projectId: string;

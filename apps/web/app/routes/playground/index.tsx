@@ -1,5 +1,5 @@
 import { Card, CardDescription, CardHeader, CardTitle } from '@timenote/ui';
-import { ChevronRight, Globe, HardDrive } from 'lucide-react';
+import { ChevronRight, FlaskConical, Globe, HardDrive } from 'lucide-react';
 import { Link } from 'react-router';
 
 export default function PlaygroundIndex() {

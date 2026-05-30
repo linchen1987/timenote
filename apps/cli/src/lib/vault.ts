@@ -1,38 +1,20 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  type ConfigLocal,
-  ConfigLocalSchema,
   createPrefixedTransport,
+  createRemoteConfigService,
   createTransportFromConfig,
   createVaultSyncService,
   type FsTransport,
   type Manifest,
   ManifestSchema,
   type StorageProviderEntry as ProviderEntry,
+  type RemoteConfigService,
   type SyncResult,
 } from '@timenote/core';
 import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
 
 const META_DIR = '.timenote';
-
-function configLocalPath(vaultDir: string): string {
-  return path.join(vaultDir, META_DIR, 'config.local.json');
-}
-
-export function readRemotes(vaultDir: string): ConfigLocal {
-  try {
-    const raw = readFileSync(configLocalPath(vaultDir), 'utf-8');
-    return ConfigLocalSchema.parse(JSON.parse(raw));
-  } catch {
-    return { remotes: [] };
-  }
-}
-
-export function writeRemotes(vaultDir: string, config: ConfigLocal): void {
-  mkdirSync(path.join(vaultDir, META_DIR), { recursive: true });
-  writeFileSync(configLocalPath(vaultDir), JSON.stringify(config, null, 2));
-}
 
 export function readManifest(vaultDir: string): Manifest {
   const raw = readFileSync(path.join(vaultDir, META_DIR, 'manifest.json'), 'utf-8');
@@ -66,6 +48,18 @@ export function createRemoteTransport(provider: ProviderEntry, remotePath: strin
   const config = provider as unknown as import('@timenote/core').StorageProviderConfig;
   const base = createTransportFromConfig(config);
   return createPrefixedTransport(remotePath, base);
+}
+
+export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfigService {
+  const transport = createNodeFsTransport(vaultDir);
+  return createRemoteConfigService(() => transport);
+}
+
+export function buildRemoteUrl(providerId: string, remotePath: string): string {
+  if (remotePath) {
+    return `${providerId}/${remotePath}`;
+  }
+  return providerId;
 }
 
 export function createSyncService(vaultDir: string) {

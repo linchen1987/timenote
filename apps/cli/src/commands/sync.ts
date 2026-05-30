@@ -1,10 +1,10 @@
-import { generateProviderId, parseRemoteUrl } from '@timenote/core';
+import { generateProviderId, parseSourceUrl } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
+  createRemoteConfigServiceForVault,
   createRemoteTransport,
   createSyncService,
-  readRemotes,
   resolveVaultDir,
 } from '../lib/vault.js';
 
@@ -71,16 +71,14 @@ export function registerSyncCommand(program: Command) {
 }
 
 async function resolveRemote(vaultDir: string) {
-  const config = readRemotes(vaultDir);
-  const remotes = config.remotes;
-  if (remotes.length === 0) {
+  const service = createRemoteConfigServiceForVault(vaultDir);
+  const entry = await service.getDefaultRemote();
+  if (!entry) {
     throw new Error('No remote configured. Use "timenote remote set" to add one.');
   }
 
-  const entry = remotes[0];
   const remoteName = entry.name || 'origin';
-
-  const parsed = parseRemoteUrl(entry.url);
+  const parsed = parseSourceUrl(entry.url);
   const providerId = generateProviderId(parsed);
   const provider = await configStore.getProvider(providerId);
   if (!provider) {

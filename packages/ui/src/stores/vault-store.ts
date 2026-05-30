@@ -1,6 +1,6 @@
 import type {
   ImportResult,
-  RemoteEntry,
+  RemoteConfig,
   RuntimeMenuItem,
   SyncResult,
   VaultMeta,
@@ -59,10 +59,10 @@ export type VaultStore = {
 
   getTagsWithCounts: () => Promise<{ name: string; count: number }[]>;
 
-  configureRemote: (projectId: string, providerId: string, path?: string) => void;
-  removeRemote: (projectId: string, remoteName?: string) => void;
-  toggleRemote: (projectId: string, remoteName?: string) => void;
-  getRemoteConfig: (projectId: string, remoteName?: string) => RemoteEntry | null;
+  configureRemote: (projectId: string, providerId: string, path?: string) => Promise<void>;
+  removeRemote: (projectId: string, remoteName?: string) => Promise<void>;
+  toggleRemote: (projectId: string, remoteName?: string) => Promise<void>;
+  getRemoteConfig: (projectId: string, remoteName?: string) => Promise<RemoteConfig | null>;
 
   listRemoteVaults: (providerId: string) => Promise<VaultMeta[]>;
   cloneVault: (projectId: string) => Promise<void>;
@@ -85,6 +85,8 @@ export type VaultStore = {
   importVault: (file: File) => Promise<ImportResult>;
 };
 
+import { migrateRemotesFromLocalStorage } from '../lib/remote-config-migration';
+
 export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
   const syncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -106,6 +108,14 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
 
     init: async () => {
       await orchestrator.init();
+      try {
+        await migrateRemotesFromLocalStorage(
+          (projectId) => orchestrator.getVaultTransport(projectId),
+          async () => (await orchestrator.listVaults()).map((v) => v.projectId),
+        );
+      } catch (e) {
+        console.error('[init] remote config migration failed:', e);
+      }
     },
 
     listVaults: async () => {
@@ -174,19 +184,19 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       return orchestrator.getTagsWithCounts();
     },
 
-    configureRemote: (projectId: string, providerId: string, path?: string) => {
-      orchestrator.configureRemote(projectId, providerId, path);
+    configureRemote: async (projectId: string, providerId: string, path?: string) => {
+      await orchestrator.configureRemote(projectId, providerId, path);
     },
 
-    removeRemote: (projectId: string, remoteName?: string) => {
-      orchestrator.removeRemote(projectId, remoteName);
+    removeRemote: async (projectId: string, remoteName?: string) => {
+      await orchestrator.removeRemote(projectId, remoteName);
     },
 
-    toggleRemote: (projectId: string, remoteName?: string) => {
-      orchestrator.toggleRemote(projectId, remoteName);
+    toggleRemote: async (projectId: string, remoteName?: string) => {
+      await orchestrator.toggleRemote(projectId, remoteName);
     },
 
-    getRemoteConfig: (projectId: string, remoteName?: string) => {
+    getRemoteConfig: async (projectId: string, remoteName?: string) => {
       return orchestrator.getRemoteConfig(projectId, remoteName);
     },
 

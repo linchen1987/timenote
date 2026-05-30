@@ -1,13 +1,13 @@
 import path from 'node:path';
-import { type ConfigLocal, type FsTransport, initVault, metaPath } from '@timenote/core';
+import { initVault, metaPath } from '@timenote/core';
 import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
+  buildRemoteUrl,
+  createRemoteConfigServiceForVault,
   createRemoteTransport,
   createSyncService,
-  readManifest,
-  writeRemotes,
 } from '../lib/vault.js';
 
 export function registerCloneCommand(program: Command) {
@@ -39,27 +39,23 @@ export function registerCloneCommand(program: Command) {
         process.exit(1);
       }
 
-      const localDir = dir || manifest.name || manifest.project_id;
+      const localDir = dir || (manifest.name as string) || (manifest.project_id as string);
       const vaultDir = path.resolve(localDir);
 
       const transport = createNodeFsTransport(vaultDir);
-      await initVault(transport, manifest.project_id, manifest.name);
+      await initVault(transport, manifest.project_id as string, manifest.name as string);
 
-      const remoteConfig: ConfigLocal = {
-        remotes: [
-          {
-            url: buildRemoteUrl(provider.id, remotePath),
-            name: 'origin',
-            default: true,
-          },
-        ],
-      };
-      writeRemotes(vaultDir, remoteConfig);
+      const service = createRemoteConfigServiceForVault(vaultDir);
+      await service.setRemote({
+        url: buildRemoteUrl(provider.id, remotePath),
+        name: 'origin',
+        default: true,
+      });
 
       const sync = createSyncService(vaultDir);
       const result = await sync.initFromSource(remote);
 
-      console.log(`Cloned to ${localDir}/ (${manifest.name})`);
+      console.log(`Cloned to ${localDir}/ (${manifest.name as string})`);
       if (result.pulled > 0) {
         console.log(`  Pulled ${result.pulled} file(s).`);
       }
@@ -69,11 +65,4 @@ export function registerCloneCommand(program: Command) {
         }
       }
     });
-}
-
-function buildRemoteUrl(providerId: string, remotePath: string): string {
-  if (remotePath) {
-    return `${providerId}/${remotePath}`;
-  }
-  return providerId;
 }

@@ -1,4 +1,4 @@
-import { listProviders, type ProviderConfig, type VaultMeta } from '@timenote/core';
+import { getDefaultRemotePath, listProviders, type ProviderConfig, type VaultMeta } from '@timenote/core';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { UseVaultStoreHook } from './use-notebooks-page';
@@ -47,7 +47,7 @@ export function useProviderScanner(
         remoteOnlyVaults.push({
           ...v,
           providerId,
-          path: `timenote/vaults/${v.projectId}`,
+          path: getDefaultRemotePath(v.projectId),
         });
       }
     }

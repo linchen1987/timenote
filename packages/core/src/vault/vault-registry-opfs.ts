@@ -1,5 +1,5 @@
-import type { FsTransport } from '../fs/transport';
 import { createOpfsTransport } from '../fs/opfs';
+import type { FsTransport } from '../fs/transport';
 import type { VaultRegistry } from './vault-registry';
 
 export async function createOpfsVaultRegistry(): Promise<VaultRegistry> {

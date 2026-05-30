@@ -7,7 +7,7 @@ export const META_FILES = {
   menu: 'menu.json',
   deleteLog: 'delete-log.json',
   syncLedger: 'sync-ledger.json',
-  remotes: 'remotes.json',
+  configLocal: 'config.local.json',
 } as const;
 
 export type MetaFileName = keyof typeof META_FILES;

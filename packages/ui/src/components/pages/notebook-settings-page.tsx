@@ -1,9 +1,10 @@
 import {
+  generateProviderId,
   getDefaultRemotePath,
-  getRemote as getRemoteConfig,
   listProviders,
   type ProviderConfig,
   parseNotebookId,
+  parseSourceUrl,
 } from '@timenote/core';
 import { ArrowLeft, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -37,24 +38,34 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
 
   useEffect(() => {
     if (!projectId) return;
-    const entry = getRemoteConfig(projectId);
-    if (entry) {
-      setRemoteConfig({ providerId: entry.providerId, path: entry.path, enabled: entry.enabled });
-      setSelectedProviderId(entry.providerId);
-      setCustomPath(entry.path);
-    } else {
-      setCustomPath(defaultPath);
-    }
-  }, [projectId, defaultPath]);
+    const store = useVaultStore.getState();
+    store.getRemoteConfig(projectId).then((entry) => {
+      if (entry?.url) {
+        try {
+          const parsed = parseSourceUrl(entry.url);
+          const providerId = generateProviderId(parsed);
+          setRemoteConfig({ providerId, path: parsed.path, enabled: entry.default === true });
+          setSelectedProviderId(providerId);
+          setCustomPath(parsed.path);
+        } catch {
+          setCustomPath(defaultPath);
+        }
+      } else {
+        setCustomPath(defaultPath);
+      }
+    });
+  }, [projectId, defaultPath, useVaultStore]);
 
   const store = useVaultStore;
 
   const { isExporting, handleExport } = useExportVault(useVaultStore, projectId);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!projectId || !selectedProviderId) return;
     try {
-      store.getState().configureRemote(projectId, selectedProviderId, customPath || undefined);
+      await store
+        .getState()
+        .configureRemote(projectId, selectedProviderId, customPath || undefined);
       setRemoteConfig({
         providerId: selectedProviderId,
         path: customPath || defaultPath,
@@ -66,10 +77,10 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
     }
   };
 
-  const handleToggle = () => {
+  const handleToggle = async () => {
     if (!projectId || !remoteConfig) return;
     try {
-      store.getState().toggleRemote(projectId);
+      await store.getState().toggleRemote(projectId);
       setRemoteConfig({ ...remoteConfig, enabled: !remoteConfig.enabled });
       toast.success(remoteConfig.enabled ? 'Remote disabled' : 'Remote enabled');
     } catch (e) {
@@ -77,10 +88,10 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
     }
   };
 
-  const handleDisconnect = () => {
+  const handleDisconnect = async () => {
     if (!projectId) return;
     try {
-      store.getState().removeRemote(projectId);
+      await store.getState().removeRemote(projectId);
       setRemoteConfig(null);
       setSelectedProviderId('');
       setCustomPath(defaultPath);
@@ -113,7 +124,7 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
             defaultPath={defaultPath}
             onSelectedProviderChange={(id) => {
               setSelectedProviderId(id);
-              if (!customPath || customPath.startsWith('timenote/vaults/')) {
+              if (!customPath || customPath === getDefaultRemotePath(notebookToken)) {
                 setCustomPath(defaultPath);
               }
             }}

@@ -1,6 +1,4 @@
 import type { FsStat } from '@timenote/core';
-import { STORAGE_KEYS } from '@timenote/core';
-import { useLocalStorage } from '@timenote/core/hooks';
 import {
   Button,
   Card,
@@ -12,13 +10,35 @@ import {
   Label,
 } from '@timenote/ui';
 import { ArrowLeft, FileText, Folder, Globe, Plus, Save, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 
+// TODO: 将来改造 playground 为从 providers 中读取配置
+const SESSION_KEY_URL = '@timenote/playground_webdav_url';
+const SESSION_KEY_USERNAME = '@timenote/playground_webdav_username';
+const SESSION_KEY_PASSWORD = '@timenote/playground_webdav_password';
+
+function useSessionState(key: string, initialValue: string) {
+  const [value, setValue] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem(key) ?? initialValue;
+    }
+    return initialValue;
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem(key, value);
+    }
+  }, [key, value]);
+
+  return [value, setValue] as const;
+}
+
 export default function WebDAVPlayground() {
-  const [url, setUrl] = useLocalStorage(STORAGE_KEYS.WEBDAV_URL, 'https://dav.jianguoyun.com/dav/');
-  const [username, setUsername] = useLocalStorage(STORAGE_KEYS.WEBDAV_USERNAME, '');
-  const [password, setPassword] = useLocalStorage(STORAGE_KEYS.WEBDAV_PASSWORD, '');
+  const [url, setUrl] = useSessionState(SESSION_KEY_URL, 'https://dav.jianguoyun.com/dav/');
+  const [username, setUsername] = useSessionState(SESSION_KEY_USERNAME, '');
+  const [password, setPassword] = useSessionState(SESSION_KEY_PASSWORD, '');
 
   const [currentPath, setCurrentPath] = useState('/');
 
