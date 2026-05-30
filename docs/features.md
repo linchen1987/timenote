@@ -115,65 +115,64 @@ vault 内所有持久化格式的 schema 与校验。格式定义详见 [vault.m
 | S6 | 单向拉取 `pull` | 从远程单向拉取 | 所有端 | 统一实现（组合 S1-S4） |
 | S7 | 单向推送 `push` | 向远程单向推送 | 所有端 | 统一实现（组合 S1-S4） |
 | S8 | 全量初始化 `initFromSource` | 从空本地 vault 全量拉取 source 数据（无需 ledger 对比） | 所有端 | 统一实现（组合 S1-S4） |
-| S9 | Clone | 从任意 provider 创建本地 vault（V1）并全量拉取（S8） | 所有端 | 统一实现（组合 V1 + S8） |
-| S10 | 导入 | 从任意 source 导入 vault 数据；vault 不存在时走 S9（Clone），vault 已存在时走 S6（Pull） | 所有端 | 统一实现（组合 S9 或 S6） |
-| S11 | 导出 | 推送全量数据到任意 target provider（S7） | 所有端 | 统一实现（组合 S7） |
-| S12 | 从 ZIP 导入 | S10 的特化：source = ZIP provider（T1.5） | Web, Extension, Desktop | 统一实现（组合 S10 + T1.5） |
-| S13 | 导出到 ZIP | S11 的特化：target = ZIP provider（T1.5） | Web, Extension, Desktop | 统一实现（组合 S11 + T1.5） |
+| S9 | Clone | 从任意存储创建本地 vault（V1）并全量拉取（S8） | 所有端 | 统一实现（组合 V1 + S8） |
+| S10 | 导入 | 从任意存储导入 vault 数据；vault 不存在时走 S9（Clone），vault 已存在时走 S6（Pull） | 所有端 | 统一实现（组合 S9 或 S6） |
+| S10.1 | 从 ZIP 导入 | S10 的特化：source = ZIP 存储（T1.5） | Web, Extension, Desktop | 统一实现（组合 S10 + T1.5） |
+| S11 | 导出 | 推送全量数据到任意存储（S7） | 所有端 | 统一实现（组合 S7） |
+| S11.1 | 导出到 ZIP | S11 的特化：target = ZIP 存储（T1.5） | Web, Extension, Desktop | 统一实现（组合 S11 + T1.5） |
 | S14 | 扫描远程 vault | 扫描远程存储发现已有 vault | Web, Extension, Desktop | 统一实现 |
 
 ---
 
 ## 五、数据存储
 
-### Provider
+统一的文件系统抽象层。所有 Storage Provider 实现同一套接口，上层代码不感知具体存储方式。
+
+每个 notebook 有一个"本地"存储，零或多个"远程"存储（通过远程绑定配置，用于同步/备份）。"本地"和"远程"是逻辑角色，不是物理区别 — 理论上任何 Storage Provider 都可以承担任一角色。
 
 | # | 功能点 | 说明 | 客户端 | 实现 |
 |---|--------|------|--------|------|
-| T1 | 文件读写 | 统一接口（read / write / list / remove / exists / ensureDir） | 所有端 | 统一接口 |
-| T1.1 | OPFS provider | | Web, Extension | 统一实现 |
-| T1.2 | Node.js fs provider | | CLI, Desktop | 统一实现 |
-| T1.3 | WebDAV provider | | 所有端 | 统一接口（Web: HTTP API 中转, Extension: Chrome Message 中转, CLI/Desktop: 直连） |
-| T1.4 | S3 provider | | 所有端 | 统一接口（传输方式同 T1.3） |
-| T1.5 | ZIP provider | | Web, Extension, Desktop | 统一实现 |
-| T2 | 连接测试 | 创建 provider → 探测路径 → 返回结果 | 所有端 | 统一实现 |
-
-### 存储角色
-
-| # | 功能点 | 说明 | 客户端 | 实现 |
-|---|--------|------|--------|------|
-| T3 | 本地存储 | vault 直接读写的 provider 角色，由用户或系统指定具体 provider | 所有端 | 统一实现（组合 T1） |
-| T4 | 远程存储 | 用于同步/备份的 provider 角色，由用户配置具体 provider + 路径 | 所有端 | 统一实现（组合 T1） |
+| T1 | 文件系统接口 + OPFS Provider | 统一接口（read / write / readBinary / writeBinary / list / remove / exists / ensureDir）+ OPFS 实现 | Web, Extension | 统一实现 |
+| T1.2 | Node.js fs Provider | 本地文件系统 | CLI, Desktop | 统一实现 |
+| T1.3 | WebDAV Provider | WebDAV 协议 | 所有端 | 统一接口（Web: HTTP API 中转, Extension: Chrome Message 中转, CLI/Desktop: 直连） |
+| T1.4 | S3 Provider | S3 协议 | 所有端 | 统一接口（传输方式同 T1.3） |
+| T1.5 | ZIP Provider | ZIP 文件读写 | Web, Extension, Desktop | 统一实现 |
 
 ---
 
-## 六、配置管理
+## 六、存储连接配置
 
-### Provider 管理
+管理 Storage Provider 的连接凭证和远程绑定。
+
+### Storage Provider 凭证管理
+
+全局管理 Storage Provider 的连接凭证（per-device，非 per-vault）。
+凭证包括：身份标识、连接参数、密钥/密码。同一 Storage Provider 凭证可被多个 vault 的远程绑定复用。
 
 | # | 功能点 | 说明 | 客户端 | 实现 |
 |---|--------|------|--------|------|
-| C1 | Provider 配置格式 | 远程存储凭证结构定义 | 所有端 | 统一实现 |
-| C2 | 添加 Provider | 添加远程存储凭证 | 所有端 | 统一接口（Web/Extension: localStorage, CLI/Desktop: 文件） |
-| C3 | 删除 Provider | 删除远程存储凭证 | 所有端 | 统一接口（存储后端同 C2） |
-| C4 | 列出 Providers | 查看已配置的所有远程存储 | 所有端 | 统一接口（存储后端同 C2） |
+| C1 | Storage Provider 凭证格式 | 各类型 Storage Provider 的凭证结构定义及 URL 编址规则 | 所有端 | 统一实现 |
+| C2 | 添加 Storage Provider 凭证 | 保存一个 Storage Provider 的连接凭证 | 所有端 | 统一接口 |
+| C3 | 删除 Storage Provider 凭证 | 删除 Storage Provider 凭证 | 所有端 | 统一接口 |
+| C4 | 列出 Storage Provider 凭证 | 查看已保存的所有 Storage Provider | 所有端 | 统一接口 |
+| C5 | 连接测试 | 用 Storage Provider 凭证创建连接 → 探测可用性 → 返回结果 | 所有端 | 统一实现 |
 
 ### 远程绑定管理
 
-管理 vault 与远程存储的绑定关系。
+管理 vault 与远程存储的绑定关系（per-vault）。每个绑定指定一个 Storage Provider 凭证 + 远程路径。
 
 | # | 功能点 | 说明 | 客户端 | 实现 |
 |---|--------|------|--------|------|
-| C5 | 设置远程绑定 | 为 vault 绑定远程存储地址（provider URL + path） | 所有端 | 统一接口（config.local.json） |
-| C6 | 移除远程绑定 | 解除 vault 的远程存储绑定 | 所有端 | 统一接口（config.local.json） |
-| C7 | 列出远程绑定 | 查看 vault 的所有远程绑定 | 所有端 | 统一接口（config.local.json） |
-| C8 | 设置默认远程 | 指定默认远程（`default`），自动操作使用此 remote。可不设（不执行自动操作） | 所有端 | 统一接口（config.local.json） |
+| C6 | 设置远程绑定 | 为 vault 绑定远程存储（Storage Provider + 路径） | 所有端 | 统一接口 |
+| C7 | 移除远程绑定 | 解除 vault 的远程存储绑定 | 所有端 | 统一接口 |
+| C8 | 列出远程绑定 | 查看 vault 的所有远程绑定 | 所有端 | 统一接口 |
+| C9 | 设置默认远程 | 指定默认远程，自动操作使用此 remote。可不设（不执行自动操作） | 所有端 | 统一接口 |
 
 ---
 
 ## Tip
 
 - **S10（导入）vs 当前实现**：设计要求 Import vault 不存在时应调用 S9（Clone），当前 `import-service.ts` 直接调用 V1 + S8，未复用 Clone。实现应对齐设计。
-- **S10（导入）source 泛化**：设计要求 Import 支持任意 T1 provider 作为 source，当前实现仅支持 ZIP provider（T1.5）。实现应对齐设计，将 ZIP 作为 source 的特化调用。
-- **S11（导出）泛化**：设计要求 Export 支持任意 T1 provider 作为 target，当前实现仅支持 ZIP provider（T1.5）。S12/S13 是 ZIP 场景的特化调用，当前已有实现。
-- **M8（Remote 配置格式）存储位置**：设计要求 config.local.json 存在 vault 内部（`.timenote/config.local.json`），当前 CLI 使用 `.timenote/remotes.json`，Web/Extension 使用 localStorage，需统一迁移。详见 [remotes.md](specs/remotes.md)。
+- **S10（导入）source 泛化**：设计要求 Import 支持任意 T1 存储作为 source，当前实现仅支持 ZIP 存储（T1.5）。实现应对齐设计，将 ZIP 作为 source 的特化调用。
+- **S11（导出）泛化**：设计要求 Export 支持任意 T1 存储作为 target，当前实现仅支持 ZIP 存储（T1.5）。S11.1 是 ZIP 场景的特化调用，当前已有实现。
+- **M8（Remote 配置格式）存储位置**：设计要求远程绑定配置存在 vault 内部，当前 CLI 使用 `.timenote/remotes.json`，Web/Extension 使用 localStorage，需统一迁移。详见 [remotes.md](specs/remotes.md)。

@@ -1,10 +1,9 @@
 import JSZip from 'jszip';
-import type { FsStat } from '../fs/types';
+import type { FsStat, FsTransport } from '../fs/transport';
 import type { VaultNoteService } from '../service/note-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import { MAX_ZIP_SIZE, metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
-import type { VaultFs } from './vault-fs';
 import type { VaultService } from './vault-service';
 
 export interface ImportResult {
@@ -101,7 +100,7 @@ class VaultImportServiceImpl implements VaultImportService {
     };
   }
 
-  private createZipVaultFs(zip: JSZip, rootPrefix: string): VaultFs {
+  private createZipVaultFs(zip: JSZip, rootPrefix: string): FsTransport {
     const prefix = rootPrefix;
     const resolvePath = (path: string) => (prefix ? `${prefix}${path}` : path);
 
@@ -167,6 +166,9 @@ class VaultImportServiceImpl implements VaultImportService {
         return zip.file(resolvePath(path)) !== null;
       },
       async ensureDir(): Promise<void> {},
+      isConfigured(): boolean {
+        return true;
+      },
     };
   }
 

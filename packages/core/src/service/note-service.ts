@@ -1,6 +1,6 @@
-import type { NoteIndex } from '../provider/index-service';
-import { createIndexService, type IndexService } from '../provider/index-service';
-import { type SearchProvider, SimpleSearchProvider } from '../provider/search-provider';
+import type { NoteIndex } from './index-service';
+import { createIndexService, type IndexService } from './index-service';
+import { type SearchProvider, SimpleSearchProvider } from './search-provider';
 import {
   type AttachmentRef,
   type NoteFrontmatter,
@@ -12,6 +12,7 @@ import {
 } from '../spec/note';
 import { noteIdFromFilename } from '../spec/note-id';
 import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layout';
+import { appendDeleteLog } from '../vault/vault-ops';
 import type { VaultService } from '../vault/vault-service';
 import { type AttachmentService, createAttachmentService } from './attachment-service';
 import { createNoteOp, deleteNoteOp, updateNoteOp } from './note-ops';
@@ -164,7 +165,13 @@ class VaultNoteServiceImpl implements VaultNoteService {
     const note = await this.readNoteForDelete(projectId, noteId);
     const attachmentPaths = this.extractAttachmentPaths(note);
 
-    await deleteNoteOp(transport, (id) => this.vaultService.appendDeleteLog(projectId, id), noteId);
+    await deleteNoteOp(
+      transport,
+      async (id) => {
+        await appendDeleteLog(transport, id);
+      },
+      noteId,
+    );
 
     if (this.activeProjectId === projectId && this.indexService) {
       await this.indexService.removeNoteIndex(noteId);

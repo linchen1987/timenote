@@ -1,16 +1,8 @@
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import {
-  createEmptyDeleteLog,
-  createEmptySyncLedger,
-  createManifest,
-  createMenuData,
-  META_DIR,
-  metaPath,
-} from '@timenote/core';
+import { type ConfigLocal, type FsTransport, initVault, metaPath } from '@timenote/core';
+import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
-import { createNodeFsTransport } from '../lib/node-fs-transport.js';
 import {
   createRemoteTransport,
   createSyncService,
@@ -28,7 +20,7 @@ export function registerCloneCommand(program: Command) {
     )
     .argument('[dir]', 'Local directory name (defaults to notebook name)')
     .action(async (providerPath: string, dir?: string) => {
-      let provider, remotePath;
+      let provider: import('@timenote/core').ProviderEntry, remotePath: string;
       try {
         ({ provider, remotePath } = await configStore.resolveProviderPath(providerPath));
       } catch (e: any) {
@@ -38,7 +30,7 @@ export function registerCloneCommand(program: Command) {
 
       const remote = createRemoteTransport(provider, remotePath);
 
-      let manifest;
+      let manifest: Record<string, unknown>;
       try {
         const raw = await remote.read(metaPath('manifest'));
         manifest = JSON.parse(raw);
@@ -50,15 +42,22 @@ export function registerCloneCommand(program: Command) {
       const localDir = dir || manifest.name || manifest.project_id;
       const vaultDir = path.resolve(localDir);
 
-      await initVaultDir(vaultDir, manifest.project_id, manifest.name);
+      const transport = createNodeFsTransport(vaultDir);
+      await initVault(transport, manifest.project_id, manifest.name);
 
-      writeRemotes(vaultDir, {
-        origin: { providerId: provider.id, path: remotePath, enabled: true },
-      });
+      const remoteConfig: ConfigLocal = {
+        remotes: [
+          {
+            url: buildRemoteUrl(provider.id, remotePath),
+            name: 'origin',
+            default: true,
+          },
+        ],
+      };
+      writeRemotes(vaultDir, remoteConfig);
 
       const sync = createSyncService(vaultDir);
-      const sourceFs = toVaultFsFromRemote(remote);
-      const result = await sync.initFromSource(sourceFs);
+      const result = await sync.initFromSource(remote);
 
       console.log(`Cloned to ${localDir}/ (${manifest.name})`);
       if (result.pulled > 0) {
@@ -72,34 +71,9 @@ export function registerCloneCommand(program: Command) {
     });
 }
 
-async function initVaultDir(vaultDir: string, projectId: string, name: string): Promise<void> {
-  const transport = createNodeFsTransport(vaultDir);
-  const now = new Date().toISOString();
-
-  await transport.ensureDir(META_DIR);
-
-  const manifest = createManifest({
-    project_id: projectId,
-    name,
-    created_at: now,
-    updated_at: now,
-  });
-
-  await transport.write(metaPath('manifest'), JSON.stringify(manifest, null, 2));
-  await transport.write(metaPath('menu'), JSON.stringify(createMenuData([], now), null, 2));
-  await transport.write(metaPath('deleteLog'), JSON.stringify(createEmptyDeleteLog(now), null, 2));
-  await transport.write(metaPath('syncLedger'), JSON.stringify(createEmptySyncLedger(), null, 2));
-}
-
-function toVaultFsFromRemote(remote: ReturnType<typeof createRemoteTransport>) {
-  return {
-    read: (p: string) => remote.read(p),
-    write: (p: string, c: string) => remote.write(p, c),
-    readBinary: (p: string) => remote.readBinary(p),
-    writeBinary: (p: string, d: ArrayBuffer) => remote.writeBinary(p, d),
-    remove: (p: string) => remote.remove(p),
-    list: (p: string) => remote.list(p),
-    exists: (p: string) => remote.exists(p),
-    ensureDir: (p: string) => remote.ensureDir(p),
-  };
+function buildRemoteUrl(providerId: string, remotePath: string): string {
+  if (remotePath) {
+    return `${providerId}/${remotePath}`;
+  }
+  return providerId;
 }

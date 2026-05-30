@@ -1,7 +1,11 @@
 import { nanoid } from 'nanoid';
 import { create } from 'zustand';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import { deleteVaultIndexDatabase } from '../provider/index-service';
+import type { FsTransport } from '../fs/transport';
+import { createPrefixedTransport } from '../fs/prefixed';
+import {
+} from '../fs/config/connection';
+import { deleteVaultIndexDatabase } from './index-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
 import { metaPath, noteFilePath } from '../spec/vault-layout';
@@ -12,9 +16,11 @@ import {
   type RemoteEntry,
   removeRemote as removeRemoteConfig,
   setRemote,
-} from '../storage/notebook-remotes';
-import { migrateLegacyProviders } from '../storage/provider-migration';
-import { getProvider, type ProviderConfig } from '../storage/provider-registry';
+} from '../vault/notebook-remotes';
+import {
+  getProvider,
+  type StorageProviderConfig as ProviderConfig,
+} from '../fs/config/store';
 import type { DirtyEntry } from '../vault/build-ledger';
 import { createVaultExportService, type VaultExportService } from '../vault/export-service';
 import {
@@ -23,11 +29,8 @@ import {
   type VaultImportService,
 } from '../vault/import-service';
 import {
-  createPrefixedTransport,
   createVaultSyncService,
-  type RemoteTransport,
   type SyncResult,
-  toVaultFs,
   type VaultSyncService,
 } from '../vault/sync-service';
 import { createVaultService, type VaultMeta, type VaultService } from '../vault/vault-service';
@@ -62,11 +65,11 @@ const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
 const DEFAULT_REMOTE_NAME = 'origin';
 
 export interface TransportResolver {
-  createTransport(provider: ProviderConfig): RemoteTransport;
+  createTransport(provider: ProviderConfig): FsTransport;
 }
 
 export interface ResolvedTransport {
-  transport: RemoteTransport;
+  transport: FsTransport;
   remoteName: string;
   providerId: string;
   path: string;
@@ -76,7 +79,8 @@ function resolveTransport(
   projectId: string,
   resolver: TransportResolver,
 ): ResolvedTransport | null {
-  const remoteNames = Object.keys(getEnabledRemotes(projectId));
+  const enabledRemotes = getEnabledRemotes(projectId);
+  const remoteNames = Object.keys(enabledRemotes);
   const remoteName = remoteNames[0];
   if (!remoteName) return null;
 
@@ -103,6 +107,7 @@ export type VaultStore = {
   activeProjectId: string | null;
   isSyncing: boolean;
   syncSuccess: boolean;
+  lastSyncError: string | null;
   lastSyncTime: string | null;
   noteVersion: number;
 
@@ -197,12 +202,12 @@ export function createVaultStore(resolver: TransportResolver) {
     activeProjectId: null,
     isSyncing: false,
     syncSuccess: false,
+    lastSyncError: null,
     lastSyncTime: null,
     noteVersion: 0,
 
     init: async () => {
       if (get().vaultService) return;
-      migrateLegacyProviders();
       const vaultService = await createVaultService();
       const noteService = createVaultNoteService(vaultService);
       const menuService = createVaultMenuService(vaultService);
@@ -381,8 +386,8 @@ export function createVaultStore(resolver: TransportResolver) {
       }
     },
 
-    getRemoteConfig: (projectId: string, remoteName?: string): RemoteEntry | null => {
-      return getRemote(projectId, remoteName ?? DEFAULT_REMOTE_NAME);
+    getRemoteConfig: (projectId: string, remoteName?: string) => {
+      return getRemote(projectId, remoteName ?? DEFAULT_REMOTE_NAME) as RemoteEntry | null;
     },
 
     listRemoteVaults: async (providerId: string): Promise<VaultMeta[]> => {
@@ -434,7 +439,7 @@ export function createVaultStore(resolver: TransportResolver) {
         await vaultService.createVaultWithId(projectId, manifest.name);
       }
 
-      await syncService.initFromSource(projectId, toVaultFs(remote), {
+      await syncService.initFromSource(projectId, remote, {
         writeSourceLedger: true,
       });
       await get().listVaults();
@@ -471,7 +476,7 @@ export function createVaultStore(resolver: TransportResolver) {
         enabled: true,
       });
 
-      await syncService.initFromSource(projectId, toVaultFs(transport), {
+      await syncService.initFromSource(projectId, transport, {
         writeSourceLedger: true,
       });
       await get().listVaults();
@@ -523,7 +528,7 @@ export function createVaultStore(resolver: TransportResolver) {
     sync: async (projectId: string) => {
       const resolved = resolveTransport(projectId, resolver);
       if (!resolved) return EMPTY_SYNC_RESULT;
-      set({ isSyncing: true, syncSuccess: false });
+      set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
@@ -534,10 +539,12 @@ export function createVaultStore(resolver: TransportResolver) {
         if (result.pulled > 0) {
           set((s) => ({ noteVersion: s.noteVersion + 1 }));
         }
-        set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
+        const errorMsg = result.errors.length > 0 ? result.errors.join('; ') : null;
+        set({ isSyncing: false, syncSuccess: result.errors.length === 0, lastSyncError: errorMsg });
         return result;
       } catch (e) {
-        set({ isSyncing: false, syncSuccess: false });
+        const msg = (e as Error).message;
+        set({ isSyncing: false, syncSuccess: false, lastSyncError: msg });
         throw e;
       }
     },
@@ -545,7 +552,7 @@ export function createVaultStore(resolver: TransportResolver) {
     pull: async (projectId: string) => {
       const resolved = resolveTransport(projectId, resolver);
       if (!resolved) return EMPTY_SYNC_RESULT;
-      set({ isSyncing: true, syncSuccess: false });
+      set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
@@ -556,10 +563,12 @@ export function createVaultStore(resolver: TransportResolver) {
         if (result.pulled > 0) {
           set((s) => ({ noteVersion: s.noteVersion + 1 }));
         }
-        set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
+        const errorMsg = result.errors.length > 0 ? result.errors.join('; ') : null;
+        set({ isSyncing: false, syncSuccess: result.errors.length === 0, lastSyncError: errorMsg });
         return result;
       } catch (e) {
-        set({ isSyncing: false, syncSuccess: false });
+        const msg = (e as Error).message;
+        set({ isSyncing: false, syncSuccess: false, lastSyncError: msg });
         throw e;
       }
     },
@@ -567,17 +576,19 @@ export function createVaultStore(resolver: TransportResolver) {
     push: async (projectId: string) => {
       const resolved = resolveTransport(projectId, resolver);
       if (!resolved) return EMPTY_SYNC_RESULT;
-      set({ isSyncing: true, syncSuccess: false });
+      set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
       try {
         const syncService = get().syncService;
         if (!syncService) throw new Error('SyncService not initialized');
         const result = await syncService.push(projectId, resolved.transport);
         set({ lastSyncTime: new Date().toISOString() });
         touchSyncCache(projectId);
-        set({ isSyncing: false, syncSuccess: result.errors.length === 0 });
+        const errorMsg = result.errors.length > 0 ? result.errors.join('; ') : null;
+        set({ isSyncing: false, syncSuccess: result.errors.length === 0, lastSyncError: errorMsg });
         return result;
       } catch (e) {
-        set({ isSyncing: false, syncSuccess: false });
+        const msg = (e as Error).message;
+        set({ isSyncing: false, syncSuccess: false, lastSyncError: msg });
         throw e;
       }
     },

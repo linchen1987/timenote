@@ -1,10 +1,10 @@
-import { createOpfsTransport, type OpfsTransport } from '../provider/opfs-transport';
-import { createEmptyDeleteLog, type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
-import { createManifest, type Manifest, ManifestSchema } from '../spec/manifest';
+import type { FsTransport } from '../fs/transport';
+import { createOpfsTransport, type OpfsTransport } from '../fs/opfs';
+import { type Manifest, ManifestSchema } from '../spec/manifest';
 import { createMenuData, type MenuData } from '../spec/menu';
 import { generateProjectId } from '../spec/project-id';
-import { createEmptySyncLedger } from '../spec/sync-ledger';
-import { META_DIR, metaPath } from '../spec/vault-layout';
+import { metaPath } from '../spec/vault-layout';
+import { initVault } from './vault-ops';
 
 export interface VaultTransport extends OpfsTransport {}
 
@@ -26,8 +26,6 @@ export interface VaultService {
   readManifest(projectId: string): Promise<Manifest>;
   readMenu(projectId: string): Promise<MenuData>;
   writeMenu(projectId: string, menu: MenuData): Promise<void>;
-  readDeleteLog(projectId: string): Promise<DeleteLog>;
-  appendDeleteLog(projectId: string, noteId: string): Promise<void>;
 }
 
 export async function createVaultService(): Promise<VaultService> {
@@ -43,35 +41,15 @@ class VaultServiceImpl implements VaultService {
 
   async createVault(name: string): Promise<string> {
     const projectId = generateProjectId();
-    await this.initVault(projectId, name);
+    await this.createVaultWithId(projectId, name);
     return projectId;
   }
 
   async createVaultWithId(projectId: string, name: string): Promise<void> {
-    await this.initVault(projectId, name);
-  }
-
-  private async initVault(projectId: string, name: string): Promise<void> {
     const vaultDir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
     const transport = createOpfsTransport(vaultDir);
     this.transports.set(projectId, transport);
-
-    const now = new Date().toISOString();
-    const manifest = createManifest({
-      project_id: projectId,
-      name,
-      created_at: now,
-      updated_at: now,
-    });
-
-    await transport.ensureDir(META_DIR);
-    await transport.write(metaPath('manifest'), JSON.stringify(manifest, null, 2));
-    await transport.write(metaPath('menu'), JSON.stringify(createMenuData([], now), null, 2));
-    await transport.write(
-      metaPath('deleteLog'),
-      JSON.stringify(createEmptyDeleteLog(now), null, 2),
-    );
-    await transport.write(metaPath('syncLedger'), JSON.stringify(createEmptySyncLedger(), null, 2));
+    await initVault(transport, projectId, name);
   }
 
   async deleteVault(projectId: string): Promise<void> {
@@ -90,9 +68,7 @@ class VaultServiceImpl implements VaultService {
         const manifest = ManifestSchema.parse(JSON.parse(raw));
         this.transports.set(manifest.project_id, transport);
         vaults.push({ projectId: manifest.project_id, name: manifest.name });
-      } catch {
-        // skip invalid vault directories
-      }
+      } catch {}
     }
 
     return vaults;
@@ -124,25 +100,6 @@ class VaultServiceImpl implements VaultService {
     const transport = await this.getTransportOrThrow(projectId);
     menu.updated_at = new Date().toISOString();
     await transport.write(metaPath('menu'), JSON.stringify(menu, null, 2));
-  }
-
-  async readDeleteLog(projectId: string): Promise<DeleteLog> {
-    const transport = await this.getTransportOrThrow(projectId);
-    try {
-      const raw = await transport.read(metaPath('deleteLog'));
-      return DeleteLogSchema.parse(JSON.parse(raw));
-    } catch {
-      return createEmptyDeleteLog();
-    }
-  }
-
-  async appendDeleteLog(projectId: string, noteId: string): Promise<void> {
-    const log = await this.readDeleteLog(projectId);
-    const now = new Date().toISOString();
-    log.records[noteId] = now;
-    log.updated_at = now;
-    const transport = await this.getTransportOrThrow(projectId);
-    await transport.write(metaPath('deleteLog'), JSON.stringify(log, null, 2));
   }
 
   private async getTransportOrThrow(projectId: string): Promise<VaultTransport> {

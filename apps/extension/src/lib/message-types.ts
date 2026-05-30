@@ -1,13 +1,6 @@
-export type FsConnection =
-  | { type: 'webdav'; url: string; username?: string; password?: string; token?: string }
-  | {
-      type: 's3';
-      bucket: string;
-      endpoint?: string;
-      accessKeyId: string;
-      secretAccessKey: string;
-      region?: string;
-    };
+import type { FsConnection } from '@timenote/core';
+
+export type { FsConnection };
 
 export type FsMessage =
   | { type: 'fs:list'; path: string; connection: FsConnection }

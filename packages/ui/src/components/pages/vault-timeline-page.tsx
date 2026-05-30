@@ -170,7 +170,7 @@ export function VaultTimelinePage({
     [searchQuery, resolvedProjectId, loadBodies, useStore.getState],
   );
 
-  const { handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(
+  const { hasRemote, handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(
     useStore,
     resolvedProjectId,
     useCallback(async () => {
@@ -476,22 +476,24 @@ export function VaultTimelinePage({
           className="flex items-center gap-1 w-full justify-end"
           style={{ maxWidth: headerMaxWidth }}
         >
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSync}
-            disabled={isSyncing}
-            title={
-              isSyncing
-                ? 'Syncing...'
-                : lastSyncTime
-                  ? `Last sync: ${new Date(lastSyncTime).toLocaleString()}`
-                  : syncTitle
-            }
-            className="shrink-0 rounded-full"
-          >
-            {syncIcon}
-          </Button>
+          {hasRemote && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSync}
+              disabled={isSyncing}
+              title={
+                isSyncing
+                  ? 'Syncing...'
+                  : lastSyncTime
+                    ? `Last sync: ${new Date(lastSyncTime).toLocaleString()}`
+                    : syncTitle
+              }
+              className="shrink-0 rounded-full"
+            >
+              {syncIcon}
+            </Button>
+          )}
           <form onSubmit={handleSearchSubmit} className="relative group w-full">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
             <Input

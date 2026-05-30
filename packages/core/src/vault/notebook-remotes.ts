@@ -12,6 +12,7 @@ const DEFAULT_REMOTE_NAME = 'origin';
 
 function readConfig(): NotebookRemoteConfig {
   try {
+    if (typeof localStorage === 'undefined') return {};
     const raw = localStorage.getItem(STORAGE_KEYS.NOTEBOOK_REMOTES);
     return raw ? JSON.parse(raw) : {};
   } catch {
@@ -20,6 +21,7 @@ function readConfig(): NotebookRemoteConfig {
 }
 
 function writeConfig(config: NotebookRemoteConfig): void {
+  if (typeof localStorage === 'undefined') return;
   localStorage.setItem(STORAGE_KEYS.NOTEBOOK_REMOTES, JSON.stringify(config));
 }
 
@@ -63,6 +65,20 @@ export function getEnabledRemotes(projectId: string): Record<string, RemoteEntry
     if (entry.enabled) enabled[name] = entry;
   }
   return enabled;
+}
+
+export function updateProviderIdReferences(oldId: string, newId: string): void {
+  const config = readConfig();
+  let changed = false;
+  for (const remotes of Object.values(config)) {
+    for (const entry of Object.values(remotes)) {
+      if (entry.providerId === oldId) {
+        entry.providerId = newId;
+        changed = true;
+      }
+    }
+  }
+  if (changed) writeConfig(config);
 }
 
 export function getDefaultRemotePath(projectId: string): string {

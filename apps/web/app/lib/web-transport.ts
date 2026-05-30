@@ -1,27 +1,5 @@
-import type { ProviderConfig } from '@timenote/core';
-import type { FsConnection } from '~/services/fs-client';
-
-export function connectionFromProvider(provider: ProviderConfig): FsConnection {
-  if (provider.type === 'webdav' && provider.webdav) {
-    return {
-      type: 'webdav',
-      url: provider.webdav.url,
-      username: provider.webdav.username,
-      password: provider.webdav.password,
-    };
-  }
-  if (provider.type === 's3' && provider.s3) {
-    return {
-      type: 's3',
-      bucket: provider.s3.bucket,
-      endpoint: provider.s3.endpoint,
-      accessKeyId: provider.s3.accessKeyId,
-      secretAccessKey: provider.s3.secretAccessKey,
-      region: provider.s3.region,
-    };
-  }
-  throw new Error(`Invalid provider: ${provider.id}`);
-}
+import type { FsStat, FsTransport, ProviderConfig } from '@timenote/core';
+import { connectionFromProvider, type FsConnection } from '@timenote/core';
 
 async function callApiWithConnection<T = unknown>(
   connection: FsConnection,
@@ -40,12 +18,12 @@ async function callApiWithConnection<T = unknown>(
   return data.result as T;
 }
 
-export function createTransportForProvider(provider: ProviderConfig) {
+export function createTransportForProvider(provider: ProviderConfig): FsTransport {
   const connection = connectionFromProvider(provider);
 
   return {
     async list(path: string) {
-      const result = await callApiWithConnection(connection, 'list', path);
+      const result = await callApiWithConnection<FsStat[]>(connection, 'list', path);
       return Array.isArray(result) ? result : [result];
     },
 
@@ -94,7 +72,7 @@ export function createTransportForProvider(provider: ProviderConfig) {
 
     async exists(path: string): Promise<boolean> {
       try {
-        await callApiWithConnection(connection, 'stat', path);
+        await callApiWithConnection(connection, 'exists', path);
         return true;
       } catch {
         return false;
@@ -106,7 +84,7 @@ export function createTransportForProvider(provider: ProviderConfig) {
     },
 
     async remove(path: string) {
-      await callApiWithConnection(connection, 'delete', path);
+      await callApiWithConnection(connection, 'remove', path);
     },
 
     isConfigured(): boolean {

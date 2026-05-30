@@ -44,7 +44,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const currentContentRef = useRef('');
   const [attachments, setAttachments] = useState<EditAttachment[]>([]);
   const [removedPaths, setRemovedPaths] = useState<string[]>([]);
-  const { handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(useStore, projectId);
+  const { hasRemote, handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(useStore, projectId);
 
   useEffect(() => {
     if (!projectId || !nId) return;
@@ -220,16 +220,18 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
           >
             <ImagePlus className="w-4 h-4 text-muted-foreground" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleSync}
-            disabled={isSyncing}
-            title={syncTitle}
-            className="rounded-full"
-          >
-            {syncIcon}
-          </Button>
+          {hasRemote && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleSync}
+              disabled={isSyncing}
+              title={syncTitle}
+              className="rounded-full"
+            >
+              {syncIcon}
+            </Button>
+          )}
           {hasUnsavedChanges && (
             <Button
               variant="ghost"

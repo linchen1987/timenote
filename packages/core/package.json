@@ -8,7 +8,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./fs": "./src/fs/index.ts",
-    "./hooks": "./src/hooks/index.ts"
+    "./hooks": "./src/hooks/index.ts",
+    "./fs/node-fs": "./src/fs/node-fs.ts"
   },
   "dependencies": {
     "@bradenmacdonald/s3-lite-client": "jsr:^0.9.4",

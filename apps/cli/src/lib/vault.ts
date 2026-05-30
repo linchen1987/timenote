@@ -1,43 +1,37 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import {
-  createFsClient,
+  type ConfigLocal,
+  ConfigLocalSchema,
   createPrefixedTransport,
+  createTransportFromConfig,
   createVaultSyncService,
+  type FsTransport,
   type Manifest,
   ManifestSchema,
-  type ProviderConfig,
-  type RemoteEntry,
-  type RemoteTransport,
+  type StorageProviderEntry as ProviderEntry,
   type SyncResult,
-  toVaultFs,
-  type VaultFs,
 } from '@timenote/core';
-import { createNodeFsTransport } from './node-fs-transport.js';
+import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
 
 const META_DIR = '.timenote';
 
-export interface VaultRemotes {
-  [name: string]: RemoteEntry;
+function configLocalPath(vaultDir: string): string {
+  return path.join(vaultDir, META_DIR, 'config.local.json');
 }
 
-function remotesPath(vaultDir: string): string {
-  return path.join(vaultDir, META_DIR, 'remotes.json');
-}
-
-export function readRemotes(vaultDir: string): VaultRemotes {
+export function readRemotes(vaultDir: string): ConfigLocal {
   try {
-    const raw = readFileSync(remotesPath(vaultDir), 'utf-8');
-    return JSON.parse(raw);
+    const raw = readFileSync(configLocalPath(vaultDir), 'utf-8');
+    return ConfigLocalSchema.parse(JSON.parse(raw));
   } catch {
-    return {};
+    return { remotes: [] };
   }
 }
 
-export function writeRemotes(vaultDir: string, remotes: VaultRemotes): void {
+export function writeRemotes(vaultDir: string, config: ConfigLocal): void {
   mkdirSync(path.join(vaultDir, META_DIR), { recursive: true });
-  writeFileSync(remotesPath(vaultDir), JSON.stringify(remotes, null, 2));
+  writeFileSync(configLocalPath(vaultDir), JSON.stringify(config, null, 2));
 }
 
 export function readManifest(vaultDir: string): Manifest {
@@ -68,78 +62,10 @@ export function resolveVaultDir(explicit?: string): string {
   throw new Error('Not a timenote vault (or any parent). Use --dir to specify a vault directory.');
 }
 
-export function createRemoteTransport(
-  provider: ProviderConfig,
-  remotePath: string,
-): RemoteTransport {
-  const client = createFsClient(providerToConnection(provider));
-  return fsClientToRemoteTransport(client, remotePath);
-}
-
-function providerToConnection(provider: ProviderConfig) {
-  if (provider.type === 'webdav' && provider.webdav) {
-    return {
-      type: 'webdav' as const,
-      url: provider.webdav.url,
-      username: provider.webdav.username,
-      password: provider.webdav.password,
-    };
-  }
-  if (provider.type === 's3' && provider.s3) {
-    return {
-      type: 's3' as const,
-      bucket: provider.s3.bucket,
-      endpoint: provider.s3.endpoint,
-      accessKeyId: provider.s3.accessKeyId,
-      secretAccessKey: provider.s3.secretAccessKey,
-      region: provider.s3.region,
-    };
-  }
-  throw new Error(`Invalid provider: ${provider.id}`);
-}
-
-function fsClientToRemoteTransport(
-  client: ReturnType<typeof createFsClient>,
-  prefix: string,
-): RemoteTransport {
-  const transport: RemoteTransport = {
-    async list(p: string) {
-      return client.readdir(p);
-    },
-    async read(p: string): Promise<string> {
-      const buf = await client.readFile(p);
-      return typeof buf === 'string' ? buf : new TextDecoder().decode(buf);
-    },
-    async write(p: string, content: string) {
-      await client.writeFile(p, content);
-    },
-    async readBinary(p: string): Promise<ArrayBuffer> {
-      const buf = await client.readFile(p);
-      return typeof buf === 'string' ? (new TextEncoder().encode(buf).buffer as ArrayBuffer) : buf;
-    },
-    async writeBinary(p: string, data: ArrayBuffer) {
-      await client.writeFile(p, data);
-    },
-    async remove(p: string) {
-      await client.unlink(p);
-    },
-    async exists(p: string): Promise<boolean> {
-      try {
-        await client.stat(p);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    async ensureDir(p: string) {
-      await client.ensureDir(p);
-    },
-    isConfigured(): boolean {
-      return true;
-    },
-  };
-
-  return createPrefixedTransport(prefix, transport);
+export function createRemoteTransport(provider: ProviderEntry, remotePath: string): FsTransport {
+  const config = provider as unknown as import('@timenote/core').StorageProviderConfig;
+  const base = createTransportFromConfig(config);
+  return createPrefixedTransport(remotePath, base);
 }
 
 export function createSyncService(vaultDir: string) {
@@ -147,7 +73,7 @@ export function createSyncService(vaultDir: string) {
 
   const vaultServiceLike = {
     getTransport(_projectId: string) {
-      return transport as unknown as import('@timenote/core').OpfsTransport;
+      return transport as any;
     },
   };
 
@@ -158,15 +84,19 @@ export function createSyncService(vaultDir: string) {
   const syncSvc = createVaultSyncService(vaultServiceLike as any, noteServiceLike as any);
 
   return {
-    async sync(remote: RemoteTransport): Promise<SyncResult> {
+    async sync(remote: FsTransport): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.sync(manifest.project_id, remote);
     },
-    async pull(remote: RemoteTransport): Promise<SyncResult> {
+    async pull(remote: FsTransport): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.pull(manifest.project_id, remote);
     },
-    async initFromSource(source: VaultFs): Promise<SyncResult> {
+    async push(remote: FsTransport): Promise<SyncResult> {
+      const manifest = readManifest(vaultDir);
+      return syncSvc.push(manifest.project_id, remote);
+    },
+    async initFromSource(source: FsTransport): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       await syncSvc.loadLedgerCache(manifest.project_id);
       return syncSvc.initFromSource(manifest.project_id, source);

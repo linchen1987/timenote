@@ -1,8 +1,8 @@
-import { createVaultStore, type TransportResolver } from '@timenote/core';
+import { createVaultStore, type FsTransport, type TransportResolver } from '@timenote/core';
 import { createTransportForProvider } from './web-transport';
 
 const resolver: TransportResolver = {
-  createTransport(provider) {
+  createTransport(provider): FsTransport {
     return createTransportForProvider(provider);
   },
 };

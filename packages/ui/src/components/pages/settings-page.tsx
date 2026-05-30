@@ -28,7 +28,13 @@ export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
           toast.error('URL and Username are required');
           return;
         }
-        saveProvider({ type: 'webdav', webdav: form.webdav });
+        saveProvider({
+          type: 'webdav',
+          host: form.webdav.url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
+          username: form.webdav.username,
+          password: form.webdav.password,
+          tls: form.webdav.url.startsWith('https'),
+        });
       } else {
         if (!form.s3.bucket || !form.s3.accessKeyId) {
           toast.error('Bucket and Access Key ID are required');
@@ -36,11 +42,11 @@ export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
         }
         saveProvider({
           type: 's3',
-          s3: {
-            ...form.s3,
-            endpoint: form.s3.endpoint || undefined,
-            region: form.s3.region || undefined,
-          },
+          endpoint: form.s3.endpoint || '',
+          region: form.s3.region || undefined,
+          bucket: form.s3.bucket,
+          accessKeyId: form.s3.accessKeyId,
+          secretAccessKey: form.s3.secretAccessKey,
         });
       }
       refreshList();
@@ -62,18 +68,24 @@ export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
   const handleTest = async () => {
     setConnectionStatus('testing');
     try {
-      const config: Omit<ProviderConfig, 'id'> =
+      const config: ProviderConfig =
         form.type === 'webdav'
-          ? { type: 'webdav', webdav: form.webdav }
+          ? {
+              type: 'webdav',
+              host: form.webdav.url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
+              username: form.webdav.username,
+              password: form.webdav.password,
+              tls: form.webdav.url.startsWith('https'),
+            }
           : {
               type: 's3',
-              s3: {
-                ...form.s3,
-                endpoint: form.s3.endpoint || undefined,
-                region: form.s3.region || undefined,
-              },
+              endpoint: form.s3.endpoint || '',
+              region: form.s3.region || undefined,
+              bucket: form.s3.bucket,
+              accessKeyId: form.s3.accessKeyId,
+              secretAccessKey: form.s3.secretAccessKey,
             };
-      const ok = await testProviderConnection(config as ProviderConfig);
+      const ok = await testProviderConnection(config);
       if (ok) {
         setConnectionStatus('success');
         toast.success('Connection successful!');

@@ -11,6 +11,6 @@ export default defineConfig({
   banner: {
     js: '#!/usr/bin/env node',
   },
-  noExternal: ['@timenote/core'],
+  noExternal: ['@timenote/core', '@timenote/core/fs/node-fs'],
   external: ['react', 'react-dom', 'dexie', 'zustand', 'jszip'],
 });

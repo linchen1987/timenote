@@ -1,7 +1,8 @@
 import type { VaultStore } from '@timenote/core';
+import { getEnabledRemotes } from '@timenote/core';
 import { ArrowUpDown, Check, Loader2 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
 type UseVaultStoreHook = {
@@ -11,6 +12,7 @@ type UseVaultStoreHook = {
 };
 
 export interface UseSyncButtonReturn {
+  hasRemote: boolean;
   isSyncing: boolean;
   syncSuccess: boolean;
   handleSync: () => Promise<void>;
@@ -25,6 +27,26 @@ export function useSyncButton(
 ): UseSyncButtonReturn {
   const isSyncing = useStore((s) => s.isSyncing);
   const syncSuccess = useStore((s) => s.syncSuccess);
+  const lastSyncError = useStore((s) => s.lastSyncError);
+  const noteVersion = useStore((s) => s.noteVersion);
+
+  const [hasRemote, setHasRemote] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) {
+      setHasRemote(false);
+      return;
+    }
+    const remotes = getEnabledRemotes(projectId);
+    setHasRemote(Object.keys(remotes).length > 0);
+  }, [projectId, noteVersion]);
+
+  useEffect(() => {
+    if (!lastSyncError) return;
+    toast.error(`Sync failed: ${lastSyncError}`);
+    const timer = setTimeout(() => useStore.setState({ lastSyncError: null }), 3000);
+    return () => clearTimeout(timer);
+  }, [lastSyncError, useStore]);
 
   useEffect(() => {
     if (!syncSuccess) return;
@@ -33,15 +55,16 @@ export function useSyncButton(
   }, [syncSuccess, useStore]);
 
   const handleSync = useCallback(async () => {
-    if (!projectId || isSyncing) return;
+    if (!projectId) return;
+    if (isSyncing) return;
     try {
       const result = await useStore.getState().sync(projectId);
-      if (result.errors.length > 0) {
-        toast.error(`Sync errors: ${result.errors.join('; ')}`);
+      if (result && typeof result === 'object' && 'errors' in result && (result as any).errors?.length > 0) {
+        // errors shown via lastSyncError toast
       }
       await onSuccess?.();
-    } catch (e) {
-      toast.error(`Sync failed: ${(e as Error).message}`);
+    } catch {
+      // lastSyncError is set in store, toast shown by useEffect
     }
   }, [projectId, isSyncing, useStore, onSuccess]);
 
@@ -54,6 +77,7 @@ export function useSyncButton(
   );
 
   return {
+    hasRemote,
     isSyncing,
     syncSuccess,
     handleSync,

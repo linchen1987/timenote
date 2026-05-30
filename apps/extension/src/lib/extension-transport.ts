@@ -1,28 +1,6 @@
-import type { ProviderConfig, RemoteTransport } from '@timenote/core';
-import type { FsStat } from '@timenote/core/fs';
-import type { FsConnection, FsMessage, MessageResponse } from './message-types';
-
-function connectionFromProvider(provider: ProviderConfig): FsConnection {
-  if (provider.type === 'webdav' && provider.webdav) {
-    return {
-      type: 'webdav',
-      url: provider.webdav.url,
-      username: provider.webdav.username,
-      password: provider.webdav.password,
-    };
-  }
-  if (provider.type === 's3' && provider.s3) {
-    return {
-      type: 's3',
-      bucket: provider.s3.bucket,
-      endpoint: provider.s3.endpoint,
-      accessKeyId: provider.s3.accessKeyId,
-      secretAccessKey: provider.s3.secretAccessKey,
-      region: provider.s3.region,
-    };
-  }
-  throw new Error(`Invalid provider: ${provider.id}`);
-}
+import type { FsStat, FsTransport, ProviderConfig } from '@timenote/core';
+import { connectionFromProvider, type FsConnection } from '@timenote/core';
+import type { FsMessage, MessageResponse } from './message-types';
 
 async function sendMessage<T>(message: FsMessage): Promise<T> {
   const response: MessageResponse<T> = await chrome.runtime.sendMessage(message);
@@ -32,8 +10,8 @@ async function sendMessage<T>(message: FsMessage): Promise<T> {
   return response.data as T;
 }
 
-export function createExtensionTransport(provider: ProviderConfig): RemoteTransport {
-  const connection = connectionFromProvider(provider);
+export function createExtensionTransport(provider: ProviderConfig): FsTransport {
+  const connection: FsConnection = connectionFromProvider(provider);
 
   return {
     async list(path: string): Promise<FsStat[]> {

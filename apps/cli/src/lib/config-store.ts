@@ -4,9 +4,8 @@ import path from 'node:path';
 import {
   generateProviderId,
   type ProviderConfig,
+  type ProviderEntry,
   type ProviderType,
-  type S3Provider,
-  type WebdavProvider,
 } from '@timenote/core';
 
 function configDir(): string {
@@ -23,7 +22,7 @@ async function ensureConfigDir(): Promise<void> {
   await fs.mkdir(configDir(), { recursive: true });
 }
 
-async function readProviders(): Promise<ProviderConfig[]> {
+async function readProviders(): Promise<ProviderEntry[]> {
   try {
     const raw = await fs.readFile(providersPath(), 'utf-8');
     return JSON.parse(raw);
@@ -32,23 +31,23 @@ async function readProviders(): Promise<ProviderConfig[]> {
   }
 }
 
-async function writeProviders(providers: ProviderConfig[]): Promise<void> {
+async function writeProviders(providers: ProviderEntry[]): Promise<void> {
   await ensureConfigDir();
   await fs.writeFile(providersPath(), JSON.stringify(providers, null, 2));
 }
 
-export async function listProviders(): Promise<ProviderConfig[]> {
+export async function listProviders(): Promise<ProviderEntry[]> {
   return readProviders();
 }
 
-export async function getProvider(id: string): Promise<ProviderConfig | null> {
+export async function getProvider(id: string): Promise<ProviderEntry | null> {
   const providers = await readProviders();
   return providers.find((p) => p.id === id) ?? null;
 }
 
 export async function resolveProviderPath(
   providerPath: string,
-): Promise<{ provider: ProviderConfig; remotePath: string }> {
+): Promise<{ provider: ProviderEntry; remotePath: string }> {
   const providers = await readProviders();
   const sorted = [...providers].sort((a, b) => b.id.length - a.id.length);
   for (const p of sorted) {
@@ -64,29 +63,10 @@ export async function resolveProviderPath(
 
 export async function saveProvider(
   type: ProviderType,
-  options: {
-    webdav?: { url: string; username: string; password: string };
-    s3?: {
-      bucket: string;
-      endpoint?: string;
-      accessKeyId: string;
-      secretAccessKey: string;
-      region?: string;
-    };
-  },
-): Promise<ProviderConfig> {
-  const config: Omit<ProviderConfig, 'id'> & { id?: string } = { type };
-
-  if (type === 'webdav' && options.webdav) {
-    config.webdav = options.webdav;
-  } else if (type === 's3' && options.s3) {
-    config.s3 = options.s3;
-  } else {
-    throw new Error(`Missing configuration for provider type: ${type}`);
-  }
-
-  const id = generateProviderId(config);
-  const entry: ProviderConfig = { ...config, id };
+  options: ProviderConfig,
+): Promise<ProviderEntry> {
+  const id = generateProviderId(options);
+  const entry: ProviderEntry = { ...options, id };
   const providers = await readProviders();
   const idx = providers.findIndex((p) => p.id === id);
   if (idx >= 0) {

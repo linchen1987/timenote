@@ -1,5 +1,5 @@
+import { createTransportFromConnection, type FsConnection } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
-import { createFsClient, type FsConnection } from '~/services/fs-client';
 
 type BinaryReadRequest = {
   connection: FsConnection;
@@ -31,8 +31,8 @@ async function handleRead(request: Request) {
     if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
     if (!path) return data({ error: 'Missing path' }, { status: 400 });
 
-    const client = createFsClient(connection);
-    const buffer = await client.readFile(path);
+    const transport = createTransportFromConnection(connection);
+    const buffer = await transport.readBinary(path);
 
     return new Response(buffer, {
       status: 200,
@@ -64,9 +64,9 @@ async function handleWrite(request: Request) {
     if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
     if (!path) return data({ error: 'Missing path' }, { status: 400 });
 
-    const client = createFsClient(connection);
+    const transport = createTransportFromConnection(connection);
     const buffer = await file.arrayBuffer();
-    await client.writeFile(path, buffer);
+    await transport.writeBinary(path, buffer);
 
     return data({ result: { success: true } });
   } catch (error) {

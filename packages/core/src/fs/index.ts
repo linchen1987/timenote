@@ -1,2 +1,5 @@
-export { createFsService, type FsService } from './fs-service';
-export type { FsStat, FsTransport } from './types';
+export type { FsStat, FsTransport } from './transport';
+export { createPrefixedTransport } from './prefixed';
+export { createOpfsTransport, type OpfsTransport } from './opfs';
+export { createS3Transport } from './s3';
+export { createWebdavTransport } from './webdav';

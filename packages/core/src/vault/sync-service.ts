@@ -1,4 +1,4 @@
-import type { FsTransport } from '../fs/types';
+import type { FsTransport } from '../fs/transport';
 import type { VaultNoteService } from '../service/note-service';
 import type { SyncLedger } from '../spec/sync-ledger';
 import { META_DIR } from '../spec/vault-layout';
@@ -12,15 +12,8 @@ import {
 import type { ExecuteResult } from './execute-plan';
 import { executePlan } from './execute-plan';
 import { resolve, type SyncDirection } from './sync-algorithm';
-import { createOpfsVaultFs, type VaultFs } from './vault-fs';
 import type { VaultService } from './vault-service';
 import { writeLedger } from './write-ledger';
-
-export interface RemoteTransport extends FsTransport {
-  remove(path: string): Promise<void>;
-  readBinary(path: string): Promise<ArrayBuffer>;
-  writeBinary(path: string, data: ArrayBuffer): Promise<void>;
-}
 
 export interface SyncResult {
   pulled: number;
@@ -40,15 +33,19 @@ export interface SyncOptions {
 }
 
 export interface VaultSyncService {
-  sync(projectId: string, remote: RemoteTransport): Promise<SyncResult>;
-  pull(projectId: string, remote: RemoteTransport): Promise<SyncResult>;
-  push(projectId: string, remote: RemoteTransport): Promise<SyncResult>;
+  sync(projectId: string, remote: FsTransport): Promise<SyncResult>;
+  pull(projectId: string, remote: FsTransport): Promise<SyncResult>;
+  push(projectId: string, remote: FsTransport): Promise<SyncResult>;
   initFromSource(
     projectId: string,
-    source: VaultFs,
+    source: FsTransport,
     options?: { writeSourceLedger?: boolean },
   ): Promise<SyncResult>;
-  syncWithSource(projectId: string, source: VaultFs, options?: SyncOptions): Promise<SyncResult>;
+  syncWithSource(
+    projectId: string,
+    source: FsTransport,
+    options?: SyncOptions,
+  ): Promise<SyncResult>;
   getSyncStatus(projectId: string): Promise<SyncStatus>;
   loadLedgerCache(projectId: string): Promise<void>;
   markDirty(projectId: string, entries: DirtyEntry[]): void;
@@ -61,20 +58,7 @@ export function createVaultSyncService(
   return new VaultSyncServiceImpl(vaultService, noteService);
 }
 
-export function toVaultFs(remote: RemoteTransport): VaultFs {
-  return {
-    read: (path) => remote.read(path),
-    write: (path, content) => remote.write(path, content),
-    readBinary: (path) => remote.readBinary(path),
-    writeBinary: (path, data) => remote.writeBinary(path, data),
-    remove: (path) => remote.remove(path),
-    list: (path) => remote.list(path),
-    exists: (path) => remote.exists(path),
-    ensureDir: (path) => remote.ensureDir(path),
-  };
-}
-
-async function buildSourceLedger(source: VaultFs): Promise<SyncLedger> {
+async function buildSourceLedger(source: FsTransport): Promise<SyncLedger> {
   try {
     return await buildLedgerFromFile(source);
   } catch {
@@ -91,24 +75,24 @@ class VaultSyncServiceImpl implements VaultSyncService {
     private noteService: VaultNoteService,
   ) {}
 
-  async sync(projectId: string, remote: RemoteTransport): Promise<SyncResult> {
-    return this.doSync(projectId, toVaultFs(remote), {
+  async sync(projectId: string, remote: FsTransport): Promise<SyncResult> {
+    return this.doSync(projectId, remote, {
       direction: 'both',
       writeSourceLedger: true,
       localLedgerMode: 'incremental',
     });
   }
 
-  async pull(projectId: string, remote: RemoteTransport): Promise<SyncResult> {
-    return this.doSync(projectId, toVaultFs(remote), {
+  async pull(projectId: string, remote: FsTransport): Promise<SyncResult> {
+    return this.doSync(projectId, remote, {
       direction: 'pull',
       writeSourceLedger: true,
       localLedgerMode: 'incremental',
     });
   }
 
-  async push(projectId: string, remote: RemoteTransport): Promise<SyncResult> {
-    return this.doSync(projectId, toVaultFs(remote), {
+  async push(projectId: string, remote: FsTransport): Promise<SyncResult> {
+    return this.doSync(projectId, remote, {
       direction: 'push',
       writeSourceLedger: true,
       localLedgerMode: 'incremental',
@@ -117,7 +101,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   async initFromSource(
     projectId: string,
-    source: VaultFs,
+    source: FsTransport,
     options?: { writeSourceLedger?: boolean },
   ): Promise<SyncResult> {
     return this.doSync(projectId, source, {
@@ -129,7 +113,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   async syncWithSource(
     projectId: string,
-    source: VaultFs,
+    source: FsTransport,
     options?: SyncOptions,
   ): Promise<SyncResult> {
     return this.doSync(projectId, source, {
@@ -145,7 +129,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   async loadLedgerCache(projectId: string): Promise<void> {
     try {
-      const fs = createOpfsVaultFs(this.vaultService.getTransport(projectId));
+      const fs = this.vaultService.getTransport(projectId);
       const ledger = await buildLedgerFromFile(fs);
       this.ledgerCache.set(projectId, ledger);
     } catch {
@@ -166,7 +150,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
   private async buildIncrementalLedger(projectId: string): Promise<SyncLedger> {
     const cached = this.ledgerCache.get(projectId);
     if (!cached) {
-      const fs = createOpfsVaultFs(this.vaultService.getTransport(projectId));
+      const fs = this.vaultService.getTransport(projectId);
       const ledger = await buildLedgerFromFs(fs);
       this.ledgerCache.set(projectId, ledger);
       return ledger;
@@ -175,7 +159,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
     const dirty = this.dirtyMap.get(projectId);
     if (!dirty || dirty.length === 0) return cached;
 
-    const fs = createOpfsVaultFs(this.vaultService.getTransport(projectId));
+    const fs = this.vaultService.getTransport(projectId);
     const updated = await applyDirtyEntries(fs, cached, dirty);
     this.dirtyMap.delete(projectId);
     this.ledgerCache.set(projectId, updated);
@@ -184,7 +168,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   private async doSync(
     projectId: string,
-    source: VaultFs,
+    source: FsTransport,
     options: SyncOptions & { writeSourceLedger: boolean; localLedgerMode: string },
   ): Promise<SyncResult> {
     const direction = options.direction ?? 'both';
@@ -198,7 +182,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
     const session = resolve(localLedger, sourceLedger, direction);
 
-    const localFs = createOpfsVaultFs(this.vaultService.getTransport(projectId));
+    const localFs = this.vaultService.getTransport(projectId);
 
     const execResult: ExecuteResult = await executePlan(session.plan, localFs, source, {
       direction,
@@ -232,23 +216,4 @@ class VaultSyncServiceImpl implements VaultSyncService {
       errors: execResult.errors,
     };
   }
-}
-
-export function createPrefixedTransport(
-  prefix: string,
-  transport: RemoteTransport,
-): RemoteTransport {
-  const p = prefix.replace(/\/+$/, '');
-  const resolve = (path: string) => (path ? `${p}/${path}` : p);
-  return {
-    list: (path) => transport.list(resolve(path)),
-    read: (path) => transport.read(resolve(path)),
-    write: (path, content) => transport.write(resolve(path), content),
-    readBinary: (path) => transport.readBinary(resolve(path)),
-    writeBinary: (path, data) => transport.writeBinary(resolve(path), data),
-    exists: (path) => transport.exists(resolve(path)),
-    ensureDir: (path) => transport.ensureDir(resolve(path)),
-    remove: (path) => transport.remove(resolve(path)),
-    isConfigured: () => transport.isConfigured(),
-  };
 }

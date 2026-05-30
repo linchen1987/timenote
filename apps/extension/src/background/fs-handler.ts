@@ -1,256 +1,7 @@
-import { S3Client } from '@bradenmacdonald/s3-lite-client';
-import { createClient, type FileStat, type WebDAVClient, type WebDAVClientOptions } from 'webdav';
-import type { FsConnection, FsMessage, MessageResponse } from '../lib/message-types';
+import { createTransportFromConnection, type FsConnection } from '@timenote/core';
+import type { FsMessage, MessageResponse } from '../lib/message-types';
 
 export type { FsConnection };
-
-type FsStat = {
-  filename: string;
-  basename: string;
-  lastmod: string;
-  size: number;
-  type: 'file' | 'directory';
-  mime?: string;
-  etag?: string | null;
-};
-
-interface FsClient {
-  readdir(path: string): Promise<FsStat[]>;
-  readFile(path: string): Promise<ArrayBuffer>;
-  writeFile(path: string, content: string | ArrayBuffer): Promise<void>;
-  unlink(path: string): Promise<void>;
-  stat(path: string): Promise<FsStat>;
-  ensureDir(path: string): Promise<void>;
-}
-
-function createFsClient(connection: FsConnection): FsClient {
-  if (connection.type === 'webdav') {
-    return new WebDavFsClient(connection);
-  }
-  if (connection.type === 's3') {
-    return new S3FsClient(connection);
-  }
-  throw new Error(`Unsupported connection type`);
-}
-
-class WebDavFsClient implements FsClient {
-  private client: WebDAVClient;
-
-  constructor(config: { url: string; username?: string; password?: string; token?: string }) {
-    const options: WebDAVClientOptions = {
-      headers: {
-        'User-Agent': 'Microsoft-WebDAV-MiniRedir/10.0.19043',
-        Accept: '*/*',
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-      },
-    };
-
-    if (config.username) options.username = config.username;
-    if (config.password) options.password = config.password;
-    if (config.token) options.token = { access_token: config.token, token_type: 'Bearer' };
-
-    this.client = createClient(config.url, options);
-  }
-
-  async readdir(path: string): Promise<FsStat[]> {
-    const result = (await this.client.getDirectoryContents(path)) as FileStat[] | FileStat;
-    const items: FileStat[] = Array.isArray(result) ? result : [result];
-    return items.map((item) => ({
-      filename: item.filename,
-      basename: item.basename,
-      lastmod: item.lastmod,
-      size: item.size,
-      type: item.type === 'directory' ? 'directory' : 'file',
-      mime: item.mime,
-      etag: item.etag,
-    }));
-  }
-
-  async readFile(path: string): Promise<ArrayBuffer> {
-    const result = await this.client.getFileContents(path, { format: 'binary' });
-    return result as ArrayBuffer;
-  }
-
-  async writeFile(path: string, content: string | ArrayBuffer): Promise<void> {
-    const parentDir = path.split('/').slice(0, -1).join('/');
-    if (parentDir) {
-      await this.ensureDir(parentDir);
-    }
-    await this.client.putFileContents(path, content);
-  }
-
-  async stat(path: string): Promise<FsStat> {
-    const item = (await this.client.stat(path)) as FileStat;
-    return {
-      filename: item.filename,
-      basename: item.basename,
-      lastmod: item.lastmod,
-      size: item.size,
-      type: item.type === 'directory' ? 'directory' : 'file',
-      mime: item.mime,
-      etag: item.etag,
-    };
-  }
-
-  async ensureDir(path: string): Promise<void> {
-    const parts = path.split('/').filter((p) => p);
-    let current = '';
-    for (const part of parts) {
-      current += `/${part}`;
-      try {
-        await this.client.stat(current);
-      } catch {
-        await this.client.createDirectory(current);
-      }
-    }
-  }
-
-  async unlink(path: string): Promise<void> {
-    await this.client.deleteFile(path);
-  }
-}
-
-function normalizePath(path: string): string {
-  return path.replace(/^\/+/, '').replace(/\/+$/, '');
-}
-
-class S3FsClient implements FsClient {
-  private client: S3Client;
-
-  constructor(config: {
-    bucket: string;
-    endpoint?: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-    region?: string;
-  }) {
-    this.client = new S3Client({
-      endPoint: config.endpoint || '',
-      region: config.region || 'auto',
-      bucket: config.bucket,
-      accessKey: config.accessKeyId,
-      secretKey: config.secretAccessKey,
-      pathStyle: false,
-    });
-  }
-
-  async readdir(path: string): Promise<FsStat[]> {
-    const prefix = normalizePath(path);
-    const prefixWithSlash = prefix ? `${prefix}/` : '';
-    const items: FsStat[] = [];
-
-    const grouped = this.client.listObjectsGrouped({
-      prefix: prefixWithSlash,
-      delimiter: '/',
-    });
-
-    for await (const entry of grouped) {
-      if (entry.type === 'CommonPrefix') {
-        const dirPath = entry.prefix || '';
-        const basename = dirPath.replace(/\/$/, '').split('/').pop() || '';
-        items.push({
-          filename: `/${dirPath}`,
-          basename,
-          lastmod: new Date().toISOString(),
-          size: 0,
-          type: 'directory',
-        });
-      } else if (entry.type === 'Object') {
-        const key = entry.key || '';
-        if (key === prefixWithSlash) continue;
-        const basename = key.split('/').pop() || '';
-        items.push({
-          filename: `/${key}`,
-          basename,
-          lastmod: entry.lastModified?.toISOString() || new Date().toISOString(),
-          size: entry.size || 0,
-          type: 'file',
-          etag: entry.etag?.replace(/"/g, ''),
-        });
-      }
-    }
-
-    return items;
-  }
-
-  async readFile(path: string): Promise<ArrayBuffer> {
-    const key = normalizePath(path);
-    const response = await this.client.getObject(key);
-    if (!response.body) {
-      throw new Error('Empty response body');
-    }
-    return await response.arrayBuffer();
-  }
-
-  async writeFile(path: string, content: string | ArrayBuffer): Promise<void> {
-    const key = normalizePath(path);
-    let body: string | Uint8Array;
-    if (typeof content === 'string') {
-      body = content;
-    } else {
-      body = new Uint8Array(content);
-    }
-    await this.client.putObject(key, body);
-  }
-
-  async stat(path: string): Promise<FsStat> {
-    const key = normalizePath(path);
-
-    if (!key) {
-      const list = this.client.listObjects({ maxResults: 1 });
-      const first = await list.next();
-      if (first.done) {
-        return {
-          filename: '/',
-          basename: '',
-          lastmod: new Date().toISOString(),
-          size: 0,
-          type: 'directory',
-        };
-      }
-    }
-
-    try {
-      const info = await this.client.statObject(key);
-      const basename = key.split('/').pop() || '';
-      return {
-        filename: `/${key}`,
-        basename,
-        lastmod: info.lastModified?.toISOString() || new Date().toISOString(),
-        size: info.size || 0,
-        type: 'file',
-        etag: info.etag?.replace(/"/g, ''),
-      };
-    } catch (error) {
-      const err = error as Error & { statusCode?: number };
-      if (err.statusCode === 404 || err.message?.includes('404')) {
-        try {
-          const list = this.client.listObjects({ prefix: `${key}/`, maxResults: 1 });
-          const first = await list.next();
-          if (!first.done && first.value) {
-            const basename = key.split('/').pop() || '';
-            return {
-              filename: `/${key}`,
-              basename,
-              lastmod: new Date().toISOString(),
-              size: 0,
-              type: 'directory',
-            };
-          }
-        } catch {}
-      }
-      throw error;
-    }
-  }
-
-  async ensureDir(_path: string): Promise<void> {}
-
-  async unlink(path: string): Promise<void> {
-    const key = normalizePath(path);
-    await this.client.deleteObject(key);
-  }
-}
 
 chrome.runtime.onMessage.addListener((message: FsMessage, _sender, sendResponse) => {
   if (message.type?.startsWith('fs:')) {
@@ -273,24 +24,23 @@ async function handleFsMessage(message: FsMessage): Promise<MessageResponse> {
       return { success: false, error: 'Storage not configured' };
     }
 
-    const client = createFsClient(connection);
+    const transport = createTransportFromConnection(connection);
 
     switch (message.type) {
       case 'fs:list': {
-        const result = await client.readdir(message.path);
+        const result = await transport.list(message.path);
         return { success: true, data: result };
       }
       case 'fs:read': {
-        const buffer = await client.readFile(message.path);
-        const content = new TextDecoder().decode(buffer);
+        const content = await transport.read(message.path);
         return { success: true, data: content };
       }
       case 'fs:write': {
-        await client.writeFile(message.path, message.content);
+        await transport.write(message.path, message.content);
         return { success: true, data: null };
       }
       case 'fs:readBinary': {
-        const buffer = await client.readFile(message.path);
+        const buffer = await transport.readBinary(message.path);
         const bytes = new Uint8Array(buffer);
         let binary = '';
         for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
@@ -300,28 +50,20 @@ async function handleFsMessage(message: FsMessage): Promise<MessageResponse> {
         const binary = atob(message.content);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        await client.writeFile(message.path, bytes.buffer);
+        await transport.writeBinary(message.path, bytes.buffer);
         return { success: true, data: null };
       }
       case 'fs:exists': {
-        try {
-          await client.stat(message.path);
-          return { success: true, data: true };
-        } catch {
-          return { success: true, data: false };
-        }
+        const result = await transport.exists(message.path);
+        return { success: true, data: result };
       }
       case 'fs:ensureDir': {
-        await client.ensureDir(message.path);
+        await transport.ensureDir(message.path);
         return { success: true, data: null };
       }
       case 'fs:delete': {
-        await client.unlink(message.path);
+        await transport.remove(message.path);
         return { success: true, data: null };
-      }
-      case 'fs:stat': {
-        const result = await client.stat(message.path);
-        return { success: true, data: result };
       }
       default:
         return { success: false, error: `Unknown message type: ${message.type}` };

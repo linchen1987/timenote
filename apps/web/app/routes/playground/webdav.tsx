@@ -1,3 +1,4 @@
+import type { FsStat } from '@timenote/core';
 import { STORAGE_KEYS } from '@timenote/core';
 import { useLocalStorage } from '@timenote/core/hooks';
 import {
@@ -13,7 +14,6 @@ import {
 import { ArrowLeft, FileText, Folder, Globe, Plus, Save, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
-import type { FsStat } from '~/services/fs-client';
 
 export default function WebDAVPlayground() {
   const [url, setUrl] = useLocalStorage(STORAGE_KEYS.WEBDAV_URL, 'https://dav.jianguoyun.com/dav/');

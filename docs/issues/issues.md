@@ -1,7 +1,5 @@
 ## TODO
-- #cli review code
-    - 远程存储 sdk core (fs-client) : fs-client 命名不好
-- #cli #desktop provider 设计
+- extension notebook settings 中多了一个 disabled button, 为什么
 
 ## Feature
 - provider setting ui 修改：支持查看和修改配置（查看所有配置，修改非id相关的配置）

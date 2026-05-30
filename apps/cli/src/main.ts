@@ -3,7 +3,7 @@ import { registerCloneCommand } from './commands/clone.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerNoteCommand } from './commands/note.js';
 import { registerRemoteCommand } from './commands/remote.js';
-import { registerPullCommand, registerSyncCommand } from './commands/sync.js';
+import { registerPullCommand, registerPushCommand, registerSyncCommand } from './commands/sync.js';
 
 const program = new Command();
 
@@ -13,6 +13,7 @@ registerConfigCommand(program);
 registerCloneCommand(program);
 registerRemoteCommand(program);
 registerPullCommand(program);
+registerPushCommand(program);
 registerSyncCommand(program);
 registerNoteCommand(program);
 

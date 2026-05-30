@@ -10,30 +10,77 @@ export {
   parseNotebookName,
 } from './utils/token';
 
-// ─── Provider Layer ──────────────────────────────────────────
+// ─── FS Transport ────────────────────────────────────────────
+
+export type { FsStat, FsTransport } from './fs/transport';
+export { createPrefixedTransport } from './fs/prefixed';
+export { createOpfsTransport, type OpfsTransport } from './fs/opfs';
+export { createS3Transport } from './fs/s3';
+export { createWebdavTransport } from './fs/webdav';
+// NodeFS transport not exported from barrel (node:fs breaks browser builds)
+// CLI imports directly: import { createNodeFsTransport } from '@timenote/core/fs/node-fs'
+
+// ─── Storage Provider Config ─────────────────────────────────
 
 export {
-  createFsClient,
-  type FsClient,
-  type FsConnection,
-  type FsStat,
-} from './provider/fs-client';
+  type TransportParams,
+  type WebdavTransportParams,
+  type S3TransportParams,
+  type WebdavIdentity,
+  type WebdavConfig,
+  type S3Identity,
+  type S3Config,
+  type StorageProviderConfig,
+  type StorageProviderIdentity,
+  type StorageProviderType,
+  type ProviderDef,
+  PROVIDER_DEFS,
+  generateProviderId,
+  parseSourceUrl,
+  stringifySourceUrl,
+  serializeTransportParams,
+  createTransportFromConfig,
+  createTransportFromParams,
+} from './fs/config/providers';
 export {
-  createIndexService,
-  deleteVaultIndexDatabase,
-  type IndexService,
-  type NoteIndex,
-  NoteIndexSchema,
-} from './provider/index-service';
-export { createOpfsTransport, type OpfsTransport } from './provider/opfs-transport';
+  configToConnection,
+  testConnection,
+} from './fs/config/connection';
 export {
-  type SearchProvider,
-  type SearchResult,
-  SimpleSearchProvider,
-} from './provider/search-provider';
+  createLocalStorageProviderStore,
+  deleteProvider,
+  getProvider,
+  listProviders,
+  type StorageProviderEntry,
+  type StorageProviderStore,
+  saveProvider,
+} from './fs/config/store';
 
-// ─── Storage Configuration ──────────────────────────────────────
+// Backward-compatible aliases
+export { configToConnection as connectionFromProvider } from './fs/config/connection';
+export { createTransportFromConfig as createTransportFromProvider } from './fs/config/providers';
+export { testConnection as testProviderConnection } from './fs/config/connection';
+export { generateProviderId as generateStorageProviderId } from './fs/config/providers';
+export { parseSourceUrl as parseRemoteUrl } from './fs/config/providers';
+export { stringifySourceUrl as stringifyRemoteUrl } from './fs/config/providers';
+export { serializeTransportParams as connectionFromConfig } from './fs/config/providers';
+export { createTransportFromParams as createTransportFromConnection } from './fs/config/providers';
+export type { TransportParams as FsConnection } from './fs/config/providers';
+export type { StorageProviderConfig as ProviderConfig } from './fs/config/providers';
+export type { StorageProviderIdentity as ProviderIdentity } from './fs/config/providers';
+export type { StorageProviderType as ProviderType } from './fs/config/providers';
+export type { StorageProviderEntry as ProviderEntry } from './fs/config/store';
+export type { StorageProviderStore as ProviderStore } from './fs/config/store';
 
+// ─── Remote Bindings ─────────────────────────────────────────
+
+export {
+  type ConfigLocal,
+  ConfigLocalSchema,
+  createEmptyConfigLocal,
+  type RemoteConfig,
+  RemoteConfigSchema,
+} from './spec/config-local';
 export {
   getAllRemotes,
   getDefaultRemotePath,
@@ -44,19 +91,8 @@ export {
   type RemoteEntry,
   removeRemote,
   setRemote,
-} from './storage/notebook-remotes';
-export { migrateLegacyProviders } from './storage/provider-migration';
-export {
-  deleteProvider,
-  generateProviderId,
-  getProvider,
-  listProviders,
-  type ProviderConfig,
-  type ProviderType,
-  type S3Provider,
-  saveProvider,
-  type WebdavProvider,
-} from './storage/provider-registry';
+  updateProviderIdReferences,
+} from './vault/notebook-remotes';
 
 // ─── Sync Engine + Vault Lifecycle ────────────────────────────
 
@@ -74,6 +110,7 @@ export {
 } from './vault/export-service';
 export {
   createVaultImportService,
+  detectZipRootPrefix,
   type ImportResult,
   type VaultImportService,
 } from './vault/import-service';
@@ -86,20 +123,16 @@ export {
   type SyncSession,
 } from './vault/sync-algorithm';
 export {
-  createPrefixedTransport,
   createVaultSyncService,
-  type RemoteTransport,
   type SyncOptions,
   type SyncResult,
   type SyncStatus,
-  toVaultFs,
   type VaultSyncService,
 } from './vault/sync-service';
 export {
-  createOpfsVaultFs,
-  createTransportVaultFs,
-  type VaultFs,
-} from './vault/vault-fs';
+  appendDeleteLog,
+  initVault,
+} from './vault/vault-ops';
 export {
   createVaultService,
   type VaultMeta,
@@ -119,6 +152,13 @@ export {
   inferMimeFromExt,
   inferMimeFromPath,
 } from './service/attachment-service';
+export {
+  createIndexService,
+  deleteVaultIndexDatabase,
+  type IndexService,
+  type NoteIndex,
+  NoteIndexSchema,
+} from './service/index-service';
 export { createVaultMenuService, type VaultMenuService } from './service/menu-service';
 export {
   flattenMenuItems,
@@ -134,6 +174,11 @@ export {
   type StagedAttachment,
   type VaultNoteService,
 } from './service/note-service';
+export {
+  type SearchProvider,
+  type SearchResult,
+  SimpleSearchProvider,
+} from './service/search-provider';
 export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
 export { createVaultStore, type TransportResolver, type VaultStore } from './service/vault-store';
 

@@ -1,3 +1,4 @@
+import type { FsTransport } from '../fs/transport';
 import { DeleteLogSchema } from '../spec/delete-log';
 import { computeBinaryHash, computeContentHash } from '../spec/hash';
 import { type NoteId, parseNoteSafe } from '../spec/note';
@@ -16,7 +17,6 @@ import {
   SYNCABLE_META_FILES,
   syncLedgerPath,
 } from '../spec/vault-layout';
-import type { VaultFs } from './vault-fs';
 
 export type DirtyEntry =
   | { type: 'note'; path: string; action: 'upsert' }
@@ -25,7 +25,7 @@ export type DirtyEntry =
   | { type: 'attachment'; path: string; action: 'delete' }
   | { type: 'meta'; key: string; action: 'upsert' };
 
-export async function buildLedgerFromFs(fs: VaultFs): Promise<SyncLedger> {
+export async function buildLedgerFromFs(fs: FsTransport): Promise<SyncLedger> {
   const entities: Record<string, SyncEntity> = {};
   const metaFiles: Record<string, SyncEntity> = {};
 
@@ -78,7 +78,7 @@ export async function buildLedgerFromFs(fs: VaultFs): Promise<SyncLedger> {
   return createSyncLedger(entities, metaFiles);
 }
 
-async function scanAssets(fs: VaultFs, entities: Record<string, SyncEntity>): Promise<void> {
+async function scanAssets(fs: FsTransport, entities: Record<string, SyncEntity>): Promise<void> {
   try {
     const shards = await fs.list(ASSETS_DIR);
     for (const shard of shards) {
@@ -102,7 +102,7 @@ async function scanAssets(fs: VaultFs, entities: Record<string, SyncEntity>): Pr
 }
 
 export async function applyDirtyEntries(
-  fs: VaultFs,
+  fs: FsTransport,
   base: SyncLedger,
   dirty: DirtyEntry[],
 ): Promise<SyncLedger> {
@@ -168,7 +168,7 @@ export async function applyDirtyEntries(
   return createSyncLedger(entities, metaFiles);
 }
 
-export async function buildLedgerFromFile(fs: VaultFs): Promise<SyncLedger> {
+export async function buildLedgerFromFile(fs: FsTransport): Promise<SyncLedger> {
   const content = await fs.read(syncLedgerPath());
   return SyncLedgerSchema.parse(JSON.parse(content));
 }

@@ -49,6 +49,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), tsconfigPaths(), copyExtensionFiles()],
   build: {
     rollupOptions: {
+      external: [/^node:/],
       input: {
         sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),

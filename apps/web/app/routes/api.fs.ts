@@ -1,5 +1,5 @@
+import { createTransportFromConnection, type FsConnection } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
-import { createFsClient, type FsConnection } from '~/services/fs-client';
 
 type BaseRequest = {
   connection: FsConnection;
@@ -7,27 +7,27 @@ type BaseRequest = {
 };
 
 type ListRequest = BaseRequest & {
-  method: 'list' | 'readdir';
+  method: 'list';
   args?: never;
 };
 
 type ReadRequest = BaseRequest & {
-  method: 'read' | 'readFile';
+  method: 'read';
   args?: never;
 };
 
 type WriteRequest = BaseRequest & {
-  method: 'write' | 'writeFile';
+  method: 'write';
   args: { content: string };
 };
 
-type DeleteRequest = BaseRequest & {
-  method: 'delete';
+type RemoveRequest = BaseRequest & {
+  method: 'remove';
   args?: never;
 };
 
-type StatRequest = BaseRequest & {
-  method: 'stat';
+type ExistsRequest = BaseRequest & {
+  method: 'exists';
   args?: never;
 };
 
@@ -40,8 +40,8 @@ type FsApiRequest =
   | ListRequest
   | ReadRequest
   | WriteRequest
-  | DeleteRequest
-  | StatRequest
+  | RemoveRequest
+  | ExistsRequest
   | EnsureDirRequest;
 
 export async function action({ request }: ActionFunctionArgs) {
@@ -56,36 +56,30 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
     if (!method) return data({ error: 'Missing method' }, { status: 400 });
 
-    const client = createFsClient(connection);
+    const transport = createTransportFromConnection(connection);
 
     let result: unknown;
     switch (method) {
       case 'list':
-      case 'readdir':
-        result = await client.readdir(path || '/');
+        result = await transport.list(path || '/');
         break;
       case 'read':
-      case 'readFile': {
-        const contentBuffer = await client.readFile(path);
-        const decoder = new TextDecoder();
-        result = decoder.decode(contentBuffer);
+        result = await transport.read(path);
         break;
-      }
       case 'write':
-      case 'writeFile':
         if ((body as WriteRequest).args?.content === undefined) throw new Error('Missing content');
-        await client.writeFile(path, (body as WriteRequest).args.content);
+        await transport.write(path, (body as WriteRequest).args.content);
         result = { success: true };
         break;
-      case 'delete':
-        await client.unlink(path);
+      case 'remove':
+        await transport.remove(path);
         result = { success: true };
         break;
-      case 'stat':
-        result = await client.stat(path);
+      case 'exists':
+        result = await transport.exists(path);
         break;
       case 'ensureDir':
-        await client.ensureDir(path);
+        await transport.ensureDir(path);
         result = { success: true };
         break;
       default:

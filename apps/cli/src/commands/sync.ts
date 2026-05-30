@@ -1,3 +1,4 @@
+import { generateProviderId, parseRemoteUrl } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -19,6 +20,26 @@ export function registerPullCommand(program: Command) {
       const result = await sync.pull(remote);
 
       console.log(`Pulled from "${remoteName}": ${result.pulled} file(s).`);
+      if (result.errors.length > 0) {
+        for (const e of result.errors) {
+          console.error(`  Error: ${e}`);
+        }
+      }
+    });
+}
+
+export function registerPushCommand(program: Command) {
+  program
+    .command('push')
+    .description('Push updates to remote')
+    .option('--dir <dir>', 'Vault directory')
+    .action(async (opts: { dir?: string }) => {
+      const vaultDir = resolveVaultDir(opts.dir);
+      const { remote, remoteName } = await resolveRemote(vaultDir);
+      const sync = createSyncService(vaultDir);
+      const result = await sync.push(remote);
+
+      console.log(`Pushed to "${remoteName}": ${result.pushed} file(s).`);
       if (result.errors.length > 0) {
         for (const e of result.errors) {
           console.error(`  Error: ${e}`);
@@ -50,20 +71,24 @@ export function registerSyncCommand(program: Command) {
 }
 
 async function resolveRemote(vaultDir: string) {
-  const remotes = readRemotes(vaultDir);
-  const entries = Object.entries(remotes).filter(([, e]) => e.enabled);
-  if (entries.length === 0) {
+  const config = readRemotes(vaultDir);
+  const remotes = config.remotes;
+  if (remotes.length === 0) {
     throw new Error('No remote configured. Use "timenote remote set" to add one.');
   }
 
-  const [remoteName, entry] = entries[0];
-  const provider = await configStore.getProvider(entry.providerId);
+  const entry = remotes[0];
+  const remoteName = entry.name || 'origin';
+
+  const parsed = parseRemoteUrl(entry.url);
+  const providerId = generateProviderId(parsed);
+  const provider = await configStore.getProvider(providerId);
   if (!provider) {
-    throw new Error(`Provider not found: ${entry.providerId}`);
+    throw new Error(`Provider not found for URL: ${entry.url}`);
   }
 
   return {
-    remote: createRemoteTransport(provider, entry.path),
+    remote: createRemoteTransport(provider, parsed.path),
     remoteName,
   };
 }

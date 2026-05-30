@@ -1,5 +1,5 @@
+import type { FsTransport } from '../fs/transport';
 import type { SyncPlan } from './sync-algorithm';
-import type { VaultFs } from './vault-fs';
 
 const META_DIR = '.timenote';
 const ASSETS_DIR = 'assets';
@@ -37,7 +37,7 @@ function splitDir(path: string): string | null {
   return parts.length > 1 ? parts.slice(0, -1).join('/') : null;
 }
 
-async function pullEntity(key: string, localFs: VaultFs, remoteFs: VaultFs): Promise<void> {
+async function pullEntity(key: string, localFs: FsTransport, remoteFs: FsTransport): Promise<void> {
   if (isMetaKey(key)) {
     const content = await remoteFs.read(extractMetaPath(key));
     await localFs.ensureDir(META_DIR);
@@ -55,7 +55,7 @@ async function pullEntity(key: string, localFs: VaultFs, remoteFs: VaultFs): Pro
   }
 }
 
-async function pushEntity(key: string, localFs: VaultFs, remoteFs: VaultFs): Promise<void> {
+async function pushEntity(key: string, localFs: FsTransport, remoteFs: FsTransport): Promise<void> {
   if (isMetaKey(key)) {
     const content = await localFs.read(extractMetaPath(key));
     await remoteFs.ensureDir(META_DIR);
@@ -75,8 +75,8 @@ async function pushEntity(key: string, localFs: VaultFs, remoteFs: VaultFs): Pro
 
 export async function executePlan(
   plan: SyncPlan,
-  localFs: VaultFs,
-  remoteFs: VaultFs,
+  localFs: FsTransport,
+  remoteFs: FsTransport,
   options?: { direction?: 'pull' | 'push' | 'both' },
 ): Promise<ExecuteResult> {
   const result: ExecuteResult = { pulled: 0, pushed: 0, errors: [] };

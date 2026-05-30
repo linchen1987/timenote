@@ -1,8 +1,8 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { FsStat } from '@timenote/core';
+import type { FsStat, FsTransport } from './transport';
 
-export function createNodeFsTransport(rootDir: string) {
+export function createNodeFsTransport(rootDir: string): FsTransport {
   const resolve = (p: string) => path.join(rootDir, p);
 
   return {

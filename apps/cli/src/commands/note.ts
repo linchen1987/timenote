@@ -1,6 +1,6 @@
-import { createNoteOp, deleteNoteOp, updateNoteOp } from '@timenote/core';
+import { appendDeleteLog, createNoteOp, deleteNoteOp, updateNoteOp } from '@timenote/core';
+import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
 import type { Command } from 'commander';
-import { createNodeFsTransport } from '../lib/node-fs-transport.js';
 import { resolveVaultDir } from '../lib/vault.js';
 
 export function registerNoteCommand(program: Command) {
@@ -87,8 +87,7 @@ export function registerNoteCommand(program: Command) {
     .action(async (noteId: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
       const transport = createNodeFsTransport(vaultDir);
-      const appendDeleteLog = makeAppendDeleteLog(vaultDir);
-      await deleteNoteOp(transport, appendDeleteLog, noteId);
+      await deleteNoteOp(transport, (id) => appendDeleteLog(transport, id), noteId);
       console.log(`Deleted: ${noteId}`);
     });
 }
@@ -123,21 +122,4 @@ function appendTags(content: string, tags?: string[]): string {
   if (!tags || tags.length === 0) return content;
   const tagLine = tags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
   return content.trimEnd() + '\n' + tagLine;
-}
-
-function makeAppendDeleteLog(vaultDir: string) {
-  return async (noteId: string) => {
-    const { readFileSync, writeFileSync, mkdirSync } = await import('node:fs');
-    const path = await import('node:path');
-    const metaDir = path.join(vaultDir, '.timenote');
-    const logPath = path.join(metaDir, 'delete-log.json');
-    mkdirSync(metaDir, { recursive: true });
-    let log: any = { version: 1, updated_at: new Date().toISOString(), records: {} };
-    try {
-      log = JSON.parse(readFileSync(logPath, 'utf-8'));
-    } catch {}
-    log.records[noteId] = new Date().toISOString();
-    log.updated_at = new Date().toISOString();
-    writeFileSync(logPath, JSON.stringify(log, null, 2));
-  };
 }
