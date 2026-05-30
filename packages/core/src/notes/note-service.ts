@@ -9,7 +9,6 @@ import {
 } from '../spec/note';
 import { noteIdFromFilename } from '../spec/note-id';
 import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layout';
-import { appendDeleteLog } from '../vault/vault-ops';
 import type { VaultService } from '../vault/vault-service';
 import { type AttachmentService, createAttachmentService } from './attachment-service';
 import type { NoteIndex } from './index-service';
@@ -72,8 +71,15 @@ export interface VaultNoteService {
   garbageCollectAttachments(projectId: string): Promise<number>;
 }
 
-export function createVaultNoteService(vaultService: VaultService): VaultNoteService {
-  return new VaultNoteServiceImpl(vaultService);
+export interface NoteServiceCallbacks {
+  onDeleteNote?: (projectId: string, noteId: string) => Promise<void>;
+}
+
+export function createVaultNoteService(
+  vaultService: VaultService,
+  callbacks?: NoteServiceCallbacks,
+): VaultNoteService {
+  return new VaultNoteServiceImpl(vaultService, callbacks);
 }
 
 class VaultNoteServiceImpl implements VaultNoteService {
@@ -81,7 +87,10 @@ class VaultNoteServiceImpl implements VaultNoteService {
   private indexService: IndexService | null = null;
   private searchProvider: SearchProvider = new SimpleSearchProvider();
 
-  constructor(private vaultService: VaultService) {}
+  constructor(
+    private vaultService: VaultService,
+    private callbacks?: NoteServiceCallbacks,
+  ) {}
 
   private get idx(): IndexService {
     if (!this.indexService) throw new Error('No active vault. Call activateVault() first.');
@@ -168,7 +177,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     await deleteNoteOp(
       transport,
       async (id) => {
-        await appendDeleteLog(transport, id);
+        await this.callbacks?.onDeleteNote?.(projectId, id);
       },
       noteId,
     );

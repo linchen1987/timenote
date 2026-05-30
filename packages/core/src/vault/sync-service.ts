@@ -1,5 +1,4 @@
 import type { FsTransport } from '../fs/transport';
-import type { VaultNoteService } from '../service/note-service';
 import type { SyncLedger } from '../spec/sync-ledger';
 import { META_DIR } from '../spec/vault-layout';
 import type { DirtyEntry } from './build-ledger';
@@ -51,11 +50,15 @@ export interface VaultSyncService {
   markDirty(projectId: string, entries: DirtyEntry[]): void;
 }
 
+export interface SyncServiceCallbacks {
+  onPullComplete?: (projectId: string) => Promise<void>;
+}
+
 export function createVaultSyncService(
   vaultService: VaultService,
-  noteService: VaultNoteService,
+  callbacks?: SyncServiceCallbacks,
 ): VaultSyncService {
-  return new VaultSyncServiceImpl(vaultService, noteService);
+  return new VaultSyncServiceImpl(vaultService, callbacks);
 }
 
 async function buildSourceLedger(source: FsTransport): Promise<SyncLedger> {
@@ -72,7 +75,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   constructor(
     private vaultService: VaultService,
-    private noteService: VaultNoteService,
+    private callbacks?: SyncServiceCallbacks,
   ) {}
 
   async sync(projectId: string, remote: FsTransport): Promise<SyncResult> {
@@ -206,7 +209,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
     }
 
     if (execResult.pulled > 0) {
-      await this.noteService.rebuildIndex(projectId);
+      await this.callbacks?.onPullComplete?.(projectId);
     }
 
     return {

@@ -145,21 +145,21 @@ export {
   extFromFilename,
   inferMimeFromExt,
   inferMimeFromPath,
-} from './service/attachment-service';
+} from './notes/attachment-service';
 export {
   createIndexService,
   deleteVaultIndexDatabase,
   type IndexService,
   type NoteIndex,
   NoteIndexSchema,
-} from './service/index-service';
-export { createVaultMenuService, type VaultMenuService } from './service/menu-service';
+} from './notes/index-service';
+export { createVaultMenuService, type VaultMenuService } from './notes/menu-service';
 export {
   flattenMenuItems,
   nestifyMenuItems,
   updateMenuNoteId,
-} from './service/menu-transform';
-export { createNoteOp, deleteNoteOp, updateNoteOp } from './service/note-ops';
+} from './notes/menu-transform';
+export { createNoteOp, deleteNoteOp, updateNoteOp } from './notes/note-ops';
 export {
   createVaultNoteService,
   type EditAttachment,
@@ -167,13 +167,13 @@ export {
   type SaveNoteOptions,
   type StagedAttachment,
   type VaultNoteService,
-} from './service/note-service';
+} from './notes/note-service';
 export {
   type SearchProvider,
   type SearchResult,
   SimpleSearchProvider,
-} from './service/search-provider';
-export { extractTagsFromBody, type ParsedSearchQuery } from './service/search-query';
+} from './notes/search-provider';
+export { extractTagsFromBody, type ParsedSearchQuery } from './notes/search-query';
 export {
   type MenuItemInput,
   type MenuItemUpdate,

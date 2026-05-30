@@ -4,13 +4,16 @@ import { getProvider, type StorageProviderConfig as ProviderConfig } from '../fs
 import { createPrefixedTransport } from '../fs/prefixed';
 import type { FsTransport } from '../fs/transport';
 import type { VaultStorage } from '../fs/vault-storage';
-import { deleteVaultIndexDatabase } from '../service/index-service';
-import { createVaultMenuService, type VaultMenuService } from '../service/menu-service';
-import { createVaultNoteService, type VaultNoteService } from '../service/note-service';
+import { deleteVaultIndexDatabase } from '../notes/index-service';
+
+import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
+
+import { createVaultNoteService, type VaultNoteService } from '../notes/note-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
 import { metaPath, noteFilePath } from '../spec/vault-layout';
 import type { DirtyEntry } from '../vault/build-ledger';
+import { appendDeleteLog } from '../vault/vault-ops';
 import { createVaultExportService, type VaultExportService } from '../vault/export-service';
 import {
   createVaultImportService,
@@ -131,13 +134,19 @@ export class VaultOrchestrator {
     if (this.initialized) return;
     const storage = await this.createLocalStorage();
     this.vaultService = createVaultService(storage);
-    this.noteService = createVaultNoteService(this.vaultService);
+    this.noteService = createVaultNoteService(this.vaultService, {
+      onDeleteNote: async (projectId, noteId) => {
+        const transport = await this.vaultService!.getTransport(projectId);
+        await appendDeleteLog(transport, noteId);
+      },
+    });
     this.menuService = createVaultMenuService(this.vaultService);
-    this.syncService = createVaultSyncService(this.vaultService, this.noteService);
+    this.syncService = createVaultSyncService(this.vaultService, {
+      onPullComplete: (projectId) => this.noteService!.rebuildIndex(projectId),
+    });
     this.exportService = createVaultExportService(this.vaultService, this.syncService);
     this.importService = createVaultImportService(
       this.vaultService,
-      this.noteService,
       this.syncService,
     );
     this.initialized = true;

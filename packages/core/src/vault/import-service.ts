@@ -1,6 +1,5 @@
 import JSZip from 'jszip';
 import type { FsStat, FsTransport } from '../fs/transport';
-import type { VaultNoteService } from '../service/note-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import { MAX_ZIP_SIZE, metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
@@ -23,10 +22,9 @@ export interface VaultImportService {
 
 export function createVaultImportService(
   vaultService: VaultService,
-  noteService: VaultNoteService,
   syncService: VaultSyncService,
 ): VaultImportService {
-  return new VaultImportServiceImpl(vaultService, noteService, syncService);
+  return new VaultImportServiceImpl(vaultService, syncService);
 }
 
 export function detectZipRootPrefix(zip: JSZip): string {
@@ -57,7 +55,6 @@ export function detectZipRootPrefix(zip: JSZip): string {
 class VaultImportServiceImpl implements VaultImportService {
   constructor(
     private vaultService: VaultService,
-    _noteService: VaultNoteService,
     private syncService: VaultSyncService,
   ) {}
 
