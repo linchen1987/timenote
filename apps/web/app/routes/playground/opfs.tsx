@@ -1,539 +1,336 @@
 'use client';
 
+import type { FsStat, FsTransport } from '@timenote/core';
+import { createOpfsTransport } from '@timenote/core';
+import { Button } from '@timenote/ui';
 import {
-  createOpfsVaultRegistry,
-  createVaultNoteService,
-  createVaultService,
-  type Manifest,
-  type NoteIndex,
-  type ParsedNote,
-  type VaultMeta,
-  type VaultNoteService,
-  type VaultService,
-} from '@timenote/core';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  Input,
-} from '@timenote/ui';
-import { HardDrive, Plus, RefreshCw, Search, Trash2 } from 'lucide-react';
+  ArrowLeft,
+  ChevronRight,
+  Download,
+  File,
+  Folder,
+  FolderOpen,
+  HardDrive,
+  RefreshCw,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 
-export default function OpfsPlayground() {
-  const vaultServiceRef = useRef<VaultService | null>(null);
-  const noteServiceRef = useRef<VaultNoteService | null>(null);
-  const [vaults, setVaults] = useState<VaultMeta[]>([]);
-  const [selectedVault, setSelectedVault] = useState<string | null>(null);
-  const [manifest, setManifest] = useState<Manifest | null>(null);
-  const [timeline, setTimeline] = useState<NoteIndex[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
-  const [selectedNote, setSelectedNote] = useState<ParsedNote | null>(null);
-  const [noteContent, setNoteContent] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [newVaultName, setNewVaultName] = useState('');
-  const [showNewVault, setShowNewVault] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [allTags, setAllTags] = useState<string[]>([]);
+function isTextFile(name: string, size: number): boolean {
+  if (size > 512 * 1024) return false;
+  const ext = name.split('.').pop()?.toLowerCase() ?? '';
+  const textExts = new Set([
+    'txt',
+    'md',
+    'markdown',
+    'json',
+    'yaml',
+    'yml',
+    'xml',
+    'html',
+    'css',
+    'js',
+    'ts',
+    'tsx',
+    'jsx',
+    'toml',
+    'ini',
+    'cfg',
+    'conf',
+    'sh',
+    'bash',
+    'zsh',
+    'log',
+    'csv',
+    'env',
+    'gitignore',
+    'properties',
+    'sql',
+  ]);
+  return textExts.has(ext);
+}
 
-  const getServices = useCallback(async () => {
-    if (!vaultServiceRef.current) {
-      vaultServiceRef.current = createVaultService(await createOpfsVaultRegistry());
-      noteServiceRef.current = createVaultNoteService(vaultServiceRef.current);
+function formatSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'directory';
+  size: number;
+  lastmod: string;
+  expanded: boolean;
+  loaded: boolean;
+  children: TreeNode[];
+}
+
+function sortByTypeThenName(
+  a: { type: string; basename: string },
+  b: { type: string; basename: string },
+): number {
+  if (a.type !== b.type) return a.type === 'directory' ? -1 : 1;
+  return a.basename.localeCompare(b.basename);
+}
+
+function statToNode(stat: FsStat): TreeNode {
+  return {
+    name: stat.basename,
+    path: stat.filename,
+    type: stat.type,
+    size: stat.size,
+    lastmod: stat.lastmod,
+    expanded: false,
+    loaded: false,
+    children: [],
+  };
+}
+
+function cloneTree(nodes: TreeNode[]): TreeNode[] {
+  return nodes.map((n) => ({ ...n, children: cloneTree(n.children) }));
+}
+
+function updateNodeInTree(
+  nodes: TreeNode[],
+  path: string,
+  updater: (node: TreeNode) => void,
+): TreeNode[] {
+  const result = cloneTree(nodes);
+  const parts = path.split('/').filter(Boolean);
+  let current = result;
+  for (let i = 0; i < parts.length; i++) {
+    const found = current.find((n) => n.name === parts[i]);
+    if (!found) break;
+    if (i === parts.length - 1) {
+      updater(found);
+    } else {
+      current = found.children;
     }
-    return { vaultService: vaultServiceRef.current, noteService: noteServiceRef.current! };
+  }
+  return result;
+}
+
+function findNode(nodes: TreeNode[], path: string): TreeNode | null {
+  const parts = path.split('/').filter(Boolean);
+  let current = nodes;
+  for (let i = 0; i < parts.length; i++) {
+    const found = current.find((n) => n.name === parts[i]);
+    if (!found) return null;
+    if (i === parts.length - 1) return found;
+    current = found.children;
+  }
+  return null;
+}
+
+export default function OpfsPlayground() {
+  const [tree, setTree] = useState<TreeNode[]>([]);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FsStat | null>(null);
+  const [fileContent, setFileContent] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const transportRef = useRef<FsTransport | null>(null);
+
+  const getTransport = useCallback(async (): Promise<FsTransport> => {
+    if (!transportRef.current) {
+      const opfsRoot = await navigator.storage.getDirectory();
+      transportRef.current = createOpfsTransport(opfsRoot);
+    }
+    return transportRef.current;
   }, []);
 
-  const refreshVaults = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { vaultService } = await getServices();
-      const list = await vaultService.listVaults();
-      setVaults(list);
-    } catch (e) {
-      toast.error(`List vaults failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [getServices]);
-
-  useEffect(() => {
-    refreshVaults();
-  }, [refreshVaults]);
-
-  const loadTimeline = useCallback(
-    async (projectId: string) => {
-      setLoading(true);
-      try {
-        const { vaultService, noteService } = await getServices();
-        const m = await vaultService.readManifest(projectId);
-        setManifest(m);
-
-        await noteService.activateVault(projectId);
-        const notes = await noteService.listNotes({ limit: 100 });
-        setTimeline(notes);
-        const tags = await noteService.getAllTags();
-        setAllTags(tags);
-
-        setSelectedNoteId(null);
-        setSelectedNote(null);
-        setNoteContent('');
-      } catch (e) {
-        toast.error(`Load vault failed: ${(e as Error).message}`);
-      } finally {
-        setLoading(false);
-      }
+  const loadChildren = useCallback(
+    async (parentPath: string): Promise<TreeNode[]> => {
+      const transport = await getTransport();
+      const list = await transport.list(parentPath);
+      return list.sort(sortByTypeThenName).map(statToNode);
     },
-    [getServices],
+    [getTransport],
   );
 
-  const handleCreateVault = async () => {
-    const name = newVaultName.trim();
-    if (!name) return;
+  const loadRoot = useCallback(async () => {
     setLoading(true);
     try {
-      const { vaultService } = await getServices();
-      const id = await vaultService.createVault(name);
-      toast.success(`Vault created: ${id}`);
-      setNewVaultName('');
-      setShowNewVault(false);
-      await refreshVaults();
-      setSelectedVault(id);
-      await loadTimeline(id);
+      const children = await loadChildren('');
+      setTree(children);
     } catch (e) {
-      toast.error(`Create failed: ${(e as Error).message}`);
+      toast.error(`Failed to list: ${(e as Error).message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [loadChildren]);
 
-  const handleDeleteVault = async (projectId: string) => {
-    setLoading(true);
-    try {
-      const { vaultService, noteService } = await getServices();
-      await vaultService.deleteVault(projectId);
-      toast.success('Vault deleted');
-      setConfirmDelete(null);
-      if (selectedVault === projectId) {
-        noteService.deactivateVault();
-        setSelectedVault(null);
-        setManifest(null);
-        setTimeline([]);
-        setSelectedNoteId(null);
-        setSelectedNote(null);
-        setAllTags([]);
+  useEffect(() => {
+    loadRoot();
+  }, [loadRoot]);
+
+  const toggleFolder = async (path: string) => {
+    const node = findNode(tree, path);
+    if (!node || node.type !== 'directory') return;
+
+    if (!node.loaded) {
+      try {
+        const children = await loadChildren(path);
+        setTree((prev) =>
+          updateNodeInTree(prev, path, (n) => {
+            n.children = children;
+            n.loaded = true;
+            n.expanded = true;
+          }),
+        );
+      } catch (e) {
+        toast.error(`Failed to expand: ${(e as Error).message}`);
       }
-      await refreshVaults();
-    } catch (e) {
-      toast.error(`Delete failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
+    } else {
+      setTree((prev) =>
+        updateNodeInTree(prev, path, (n) => {
+          n.expanded = !n.expanded;
+        }),
+      );
     }
   };
 
-  const handleSelectVault = async (projectId: string) => {
-    setSelectedVault(projectId);
-    await loadTimeline(projectId);
-  };
-
-  const handleReadNote = async (noteId: string) => {
-    if (!selectedVault) return;
+  const handleFileClick = async (entry: FsStat) => {
+    setSelectedPath(entry.filename);
+    setSelectedFile(entry);
     setLoading(true);
     try {
-      const { noteService } = await getServices();
-      const note = await noteService.getNote(selectedVault, noteId);
-      if (note) {
-        setSelectedNoteId(noteId);
-        setSelectedNote(note);
-        setNoteContent(note.body);
+      const transport = await getTransport();
+      if (isTextFile(entry.basename, entry.size)) {
+        const text = await transport.read(entry.filename);
+        setFileContent(text);
       } else {
-        toast.error('Note not found');
+        setFileContent(null);
       }
     } catch (e) {
-      toast.error(`Read failed: ${(e as Error).message}`);
+      toast.error(`Failed to read: ${(e as Error).message}`);
+      setSelectedFile(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateNote = async () => {
-    if (!selectedVault) return;
-    setLoading(true);
+  const handleDownload = async () => {
+    if (!selectedFile) return;
     try {
-      const { noteService } = await getServices();
-      const noteId = await noteService.createNote(selectedVault);
-      toast.success(`Note created: ${noteId}`);
-      const notes = await noteService.listNotes({ limit: 100 });
-      setTimeline(notes);
-      const tags = await noteService.getAllTags();
-      setAllTags(tags);
-      await handleReadNote(noteId);
+      const transport = await getTransport();
+      const buffer = await transport.readBinary(selectedFile.filename);
+      const blob = new Blob([buffer]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedFile.basename;
+      a.click();
+      URL.revokeObjectURL(url);
     } catch (e) {
-      toast.error(`Create note failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
+      toast.error(`Download failed: ${(e as Error).message}`);
     }
   };
 
-  const handleDeleteNote = async (noteId: string) => {
-    if (!selectedVault) return;
-    setLoading(true);
-    try {
-      const { noteService } = await getServices();
-      await noteService.deleteNote(selectedVault, noteId);
-      toast.success('Note deleted');
-      if (selectedNoteId === noteId) {
-        setSelectedNoteId(null);
-        setSelectedNote(null);
-        setNoteContent('');
-      }
-      const notes = await noteService.listNotes({ limit: 100 });
-      setTimeline(notes);
-      const tags = await noteService.getAllTags();
-      setAllTags(tags);
-    } catch (e) {
-      toast.error(`Delete failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSaveNote = async () => {
-    if (!selectedVault || !selectedNoteId) return;
-    setLoading(true);
-    try {
-      const { noteService } = await getServices();
-      await noteService.updateNote(selectedVault, selectedNoteId, noteContent);
-      toast.success('Note saved');
-      const note = await noteService.getNote(selectedVault, selectedNoteId);
-      if (note) {
-        setSelectedNote(note);
-      }
-      const notes = await noteService.listNotes({ limit: 100 });
-      setTimeline(notes);
-      const tags = await noteService.getAllTags();
-      setAllTags(tags);
-    } catch (e) {
-      toast.error(`Save failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      if (selectedVault) await loadTimeline(selectedVault);
-      return;
-    }
-    setLoading(true);
-    try {
-      const { noteService } = await getServices();
-      const results = await noteService.searchNotes(searchQuery);
-      setTimeline(results);
-    } catch (e) {
-      toast.error(`Search failed: ${(e as Error).message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatTime = (ts: number) => new Date(ts).toLocaleString();
+  const renderTree = (nodes: TreeNode[], depth: number = 0) => (
+    <>
+      {nodes.map((node) => (
+        <div key={node.path} style={{ paddingLeft: `${depth * 8}px` }}>
+          <button
+            type="button"
+            className={`w-max min-w-full flex items-center gap-1 py-1 pr-3 pl-2 text-sm hover:bg-muted/50 rounded-sm whitespace-nowrap ${
+              selectedPath === node.path ? 'bg-muted' : ''
+            }`}
+            onClick={() => {
+              if (node.type === 'directory') {
+                toggleFolder(node.path);
+              } else {
+                handleFileClick({
+                  filename: node.path,
+                  basename: node.name,
+                  type: node.type,
+                  size: node.size,
+                  lastmod: node.lastmod,
+                });
+              }
+            }}
+          >
+            {node.type === 'directory' && (
+              <ChevronRight
+                className={`w-3 h-3 shrink-0 text-muted-foreground transition-transform ${node.expanded ? 'rotate-90' : ''}`}
+              />
+            )}
+            {node.type === 'directory' ? (
+              node.expanded ? (
+                <FolderOpen className="w-4 h-4 shrink-0 text-blue-500" />
+              ) : (
+                <Folder className="w-4 h-4 shrink-0 text-blue-500" />
+              )
+            ) : (
+              <File className="w-4 h-4 shrink-0 text-muted-foreground" />
+            )}
+            <span>{node.name}</span>
+            {node.type === 'file' && (
+              <span className="text-xs text-muted-foreground tabular-nums ml-2">
+                {formatSize(node.size)}
+              </span>
+            )}
+          </button>
+          {node.type === 'directory' && node.expanded && renderTree(node.children, depth + 1)}
+        </div>
+      ))}
+    </>
+  );
 
   return (
-    <div className="min-h-screen bg-background p-6 space-y-6">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <header className="flex items-center gap-4">
-          <Link to="/playground">
-            <Button variant="ghost" size="icon">
-              ←
-            </Button>
-          </Link>
-          <div className="bg-emerald-600 p-2 rounded-lg text-white">
-            <HardDrive className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">OPFS Vault Explorer</h1>
-            <p className="text-muted-foreground">
-              Phase 2: NoteService + IndexService + SearchProvider
-            </p>
-          </div>
-        </header>
+    <div className="min-h-screen bg-background flex flex-col">
+      <header className="flex items-center gap-4 border-b px-4 py-3">
+        <Link to="/playground">
+          <Button variant="ghost" size="icon">
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        </Link>
+        <div className="bg-emerald-600 p-2 rounded-lg text-white">
+          <HardDrive className="w-5 h-5" />
+        </div>
+        <h1 className="text-lg font-bold">OPFS Explorer</h1>
+        <div className="flex-1" />
+        <Button variant="ghost" size="icon" onClick={loadRoot} disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </Button>
+      </header>
 
-        <div className="grid gap-6 md:grid-cols-[280px_1fr]">
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Vaults</CardTitle>
-                  <div className="flex gap-1">
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => setShowNewVault(true)}
-                      disabled={loading}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                    <Button size="icon" variant="ghost" onClick={refreshVaults} disabled={loading}>
-                      <RefreshCw className="w-4 h-4" />
-                    </Button>
-                  </div>
+      <div className="flex-1 grid md:grid-cols-[280px_1fr] divide-x">
+        <div className="overflow-x-auto overflow-y-auto p-2">{renderTree(tree)}</div>
+
+        <div className="overflow-auto">
+          {selectedFile ? (
+            <>
+              <div className="flex items-center justify-between border-b px-4 py-2 bg-muted/30">
+                <div className="flex items-center gap-2 text-sm">
+                  <File className="w-4 h-4" />
+                  <span className="font-medium">{selectedFile.basename}</span>
+                  <span className="text-muted-foreground">
+                    {formatSize(selectedFile.size)}
+                    {selectedFile.lastmod &&
+                      ` · ${new Date(selectedFile.lastmod).toLocaleString()}`}
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0">
-                {showNewVault && (
-                  <div className="flex gap-2 p-3 border-b">
-                    <Input
-                      placeholder="Vault name"
-                      value={newVaultName}
-                      onChange={(e) => setNewVaultName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleCreateVault()}
-                      autoFocus
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleCreateVault}
-                      disabled={loading || !newVaultName.trim()}
-                    >
-                      OK
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowNewVault(false);
-                        setNewVaultName('');
-                      }}
-                    >
-                      X
-                    </Button>
-                  </div>
-                )}
-                {vaults.length === 0 ? (
-                  <p className="p-4 text-sm text-muted-foreground">No vaults found</p>
-                ) : (
-                  <div className="divide-y">
-                    {vaults.map((v) => (
-                      <div
-                        key={v.projectId}
-                        className={`group flex items-center justify-between p-3 text-sm cursor-pointer hover:bg-muted ${
-                          selectedVault === v.projectId ? 'bg-muted' : ''
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          className="flex-1 text-left truncate"
-                          onClick={() => handleSelectVault(v.projectId)}
-                        >
-                          <div className="font-medium truncate">{v.name}</div>
-                          <div className="text-xs text-muted-foreground">{v.projectId}</div>
-                        </button>
-                        {confirmDelete === v.projectId ? (
-                          <div className="flex gap-1">
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="h-6 text-xs"
-                              onClick={() => handleDeleteVault(v.projectId)}
-                            >
-                              Delete
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="h-6 text-xs"
-                              onClick={() => setConfirmDelete(null)}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="opacity-0 group-hover:opacity-100 h-6 w-6"
-                            onClick={() => setConfirmDelete(v.projectId)}
-                          >
-                            <Trash2 className="w-3 h-3 text-red-500" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {selectedVault && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-base">Timeline</CardTitle>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={handleCreateNote}
-                      disabled={loading}
-                    >
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <CardDescription>
-                    {timeline.length} note{timeline.length !== 1 ? 's' : ''}
-                    {allTags.length > 0 &&
-                      ` · ${allTags.length} tag${allTags.length !== 1 ? 's' : ''}`}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0 space-y-0">
-                  <div className="flex gap-2 p-3 border-b">
-                    <Input
-                      placeholder="Search (#tag text...)"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    />
-                    <Button size="icon" variant="ghost" onClick={handleSearch} disabled={loading}>
-                      <Search className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  {searchQuery && (
-                    <div className="px-3 py-1 border-b">
-                      <button
-                        type="button"
-                        className="text-xs text-muted-foreground hover:text-foreground"
-                        onClick={() => {
-                          setSearchQuery('');
-                          if (selectedVault) loadTimeline(selectedVault);
-                        }}
-                      >
-                        Clear search
-                      </button>
-                    </div>
-                  )}
-                  <div className="max-h-[400px] overflow-auto">
-                    {timeline.length === 0 ? (
-                      <p className="p-4 text-sm text-muted-foreground">No notes yet</p>
-                    ) : (
-                      <div className="divide-y">
-                        {timeline.map((note) => (
-                          <div
-                            key={note.id}
-                            className={`group flex items-center justify-between p-3 text-sm hover:bg-muted cursor-pointer ${
-                              selectedNoteId === note.id ? 'bg-muted' : ''
-                            }`}
-                          >
-                            <button
-                              type="button"
-                              className="flex-1 text-left"
-                              onClick={() => handleReadNote(note.id)}
-                            >
-                              <div className="font-medium truncate">{note.title || note.id}</div>
-                              <div className="text-xs text-muted-foreground">
-                                {formatTime(note.updated_at)}
-                              </div>
-                              {note.tags.length > 0 && (
-                                <div className="flex gap-1 mt-1 flex-wrap">
-                                  {note.tags.map((tag) => (
-                                    <span
-                                      key={tag}
-                                      className="text-xs bg-secondary px-1.5 py-0.5 rounded"
-                                    >
-                                      #{tag}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="opacity-0 group-hover:opacity-100 h-6 w-6"
-                              onClick={() => handleDeleteNote(note.id)}
-                            >
-                              <Trash2 className="w-3 h-3 text-red-500" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          <div className="space-y-4">
-            {manifest && (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Manifest</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <pre className="text-xs bg-muted p-3 rounded overflow-auto">
-                    {JSON.stringify(manifest, null, 2)}
-                  </pre>
-                </CardContent>
-              </Card>
-            )}
-
-            {selectedNote ? (
-              <>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base">
-                      {selectedNote.frontmatter.title || selectedNoteId}
-                    </CardTitle>
-                    <CardDescription>
-                      Created: {selectedNote.frontmatter.created_at}
-                      {' · '}
-                      Updated: {selectedNote.frontmatter.updated_at}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <pre className="text-xs bg-muted p-3 rounded overflow-auto">
-                      {JSON.stringify(selectedNote.frontmatter, null, 2)}
-                    </pre>
-                  </CardContent>
-                </Card>
-
-                <Card className="flex flex-col">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">Body</CardTitle>
-                      <Button size="sm" onClick={handleSaveNote} disabled={loading}>
-                        Save
-                      </Button>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex-1 p-0">
-                    <textarea
-                      className="w-full h-[300px] resize-none border-0 focus-visible:ring-0 rounded-none p-4 font-mono text-sm bg-transparent outline-none"
-                      value={noteContent}
-                      onChange={(e) => setNoteContent(e.target.value)}
-                      onKeyDown={(e) => {
-                        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-                          e.preventDefault();
-                          handleSaveNote();
-                        }
-                      }}
-                    />
-                  </CardContent>
-                </Card>
-              </>
-            ) : (
-              <Card className="h-[300px] flex items-center justify-center">
-                <p className="text-muted-foreground text-sm">
-                  {selectedVault ? 'Select a note to view' : 'Select a vault to start'}
-                </p>
-              </Card>
-            )}
-          </div>
+                <Button variant="outline" size="sm" onClick={handleDownload}>
+                  <Download className="w-3.5 h-3.5 mr-1" />
+                  Download
+                </Button>
+              </div>
+              {fileContent !== null ? (
+                <pre className="p-4 text-xs font-mono whitespace-pre-wrap break-all">
+                  {fileContent}
+                </pre>
+              ) : (
+                <div className="p-12 text-center text-muted-foreground text-sm">Binary file</div>
+              )}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+              Select a file to preview
+            </div>
+          )}
         </div>
       </div>
     </div>

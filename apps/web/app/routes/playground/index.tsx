@@ -11,8 +11,8 @@ export default function PlaygroundIndex() {
       icon: <Globe className="w-6 h-6 text-blue-500" />,
     },
     {
-      title: 'OPFS Vault Explorer',
-      description: 'Create vaults, read/write notes, parse frontmatter in OPFS.',
+      title: 'OPFS Explorer',
+      description: 'Browse files and directories in OPFS storage.',
       href: '/playground/opfs',
       icon: <HardDrive className="w-6 h-6 text-emerald-500" />,
     },
