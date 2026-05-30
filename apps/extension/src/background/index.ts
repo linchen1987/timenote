@@ -8,5 +8,4 @@ chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create('auto-sync', { periodInMinutes: 30 });
 });
 
-import './fs-handler';
 import './sync-scheduler';

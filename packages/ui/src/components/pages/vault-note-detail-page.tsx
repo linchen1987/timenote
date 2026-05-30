@@ -91,7 +91,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
     async (files: File[]) => {
       if (!projectId) return;
       const svc = useStore.getState().getNoteService();
-      const attSvc = svc.getAttachmentService(projectId);
+      const attSvc = await svc.getAttachmentService(projectId);
       const newAttachments: PendingAttachment[] = [];
 
       for (const file of files) {

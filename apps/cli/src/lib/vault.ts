@@ -72,7 +72,7 @@ export function createSyncService(vaultDir: string) {
   const transport = createNodeFsTransport(vaultDir);
 
   const vaultServiceLike = {
-    getTransport(_projectId: string) {
+    async getTransport(_projectId: string) {
       return transport as any;
     },
   };

@@ -1,5 +1,7 @@
 import JSZip from 'jszip';
 import type { FsStat, FsTransport } from '../fs/transport';
+import { ManifestSchema } from '../spec/manifest';
+import { metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
 import type { VaultService } from './vault-service';
 
@@ -35,7 +37,9 @@ class VaultExportServiceImpl implements VaultExportService {
   }
 
   async downloadVault(projectId: string): Promise<void> {
-    const manifest = await this.vaultService.readManifest(projectId);
+    const transport = await this.vaultService.getTransport(projectId);
+    const raw = await transport.read(metaPath('manifest'));
+    const manifest = ManifestSchema.parse(JSON.parse(raw));
     const blob = await this.exportVault(projectId);
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

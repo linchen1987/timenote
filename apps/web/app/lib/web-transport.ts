@@ -17,7 +17,7 @@ async function callApi<T = unknown>(
   return data.result as T;
 }
 
-export function createTransportForProvider(provider: ProviderConfig): FsTransport {
+export function createRemoteTransport(provider: ProviderConfig): FsTransport {
   return {
     async list(path: string) {
       const result = await callApi<FsStat[]>(provider, 'list', path);

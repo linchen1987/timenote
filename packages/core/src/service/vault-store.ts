@@ -60,11 +60,7 @@ function isSyncCacheValid(projectId: string): boolean {
 const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
 const DEFAULT_REMOTE_NAME = 'origin';
 
-export interface TransportResolver {
-  createTransport(provider: ProviderConfig): FsTransport;
-}
-
-export interface ResolvedTransport {
+interface ResolvedTransport {
   transport: FsTransport;
   remoteName: string;
   providerId: string;
@@ -73,7 +69,7 @@ export interface ResolvedTransport {
 
 function resolveTransport(
   projectId: string,
-  resolver: TransportResolver,
+  createRemoteTransport: (provider: ProviderConfig) => FsTransport,
 ): ResolvedTransport | null {
   const enabledRemotes = getEnabledRemotes(projectId);
   const remoteNames = Object.keys(enabledRemotes);
@@ -86,7 +82,7 @@ function resolveTransport(
   const provider = getProvider(entry.providerId);
   if (!provider) return null;
 
-  const transport = resolver.createTransport(provider);
+  const transport = createRemoteTransport(provider);
   const prefixed = createPrefixedTransport(entry.path, transport);
   return { transport: prefixed, remoteName, providerId: provider.id, path: entry.path };
 }
@@ -186,8 +182,8 @@ function debounceSync(store: VaultStore, projectId: string): void {
 const EMPTY_SYNC_RESULT: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, errors: [] };
 
 export function createVaultStore(
-  resolver: TransportResolver,
-  createStorage: () => Promise<VaultStorage>,
+  createRemoteTransport: (provider: ProviderConfig) => FsTransport,
+  createLocalStorage: () => Promise<VaultStorage>,
 ) {
   return create<VaultStore>((set, get) => ({
     vaultService: null,
@@ -207,7 +203,7 @@ export function createVaultStore(
 
     init: async () => {
       if (get().vaultService) return;
-      const storage = await createStorage();
+      const storage = await createLocalStorage();
       const vaultService = createVaultService(storage);
       const noteService = createVaultNoteService(vaultService);
       const menuService = createVaultMenuService(vaultService);
@@ -394,7 +390,7 @@ export function createVaultStore(
       const provider = getProvider(providerId);
       if (!provider) return [];
       try {
-        const transport = resolver.createTransport(provider);
+        const transport = createRemoteTransport(provider);
         const entries = await transport.list(VAULTS_REMOTE_PREFIX);
         const vaults: VaultMeta[] = [];
         for (const entry of entries) {
@@ -422,7 +418,7 @@ export function createVaultStore(
       if (!vaultService) throw new Error('VaultService not initialized');
       if (!syncService) throw new Error('SyncService not initialized');
 
-      const resolved = resolveTransport(projectId, resolver);
+      const resolved = resolveTransport(projectId, createRemoteTransport);
       if (!resolved) throw new Error('No remote configured for this notebook');
 
       const remote = resolved.transport;
@@ -455,7 +451,7 @@ export function createVaultStore(
       const provider = getProvider(providerId);
       if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
-      const transport = createPrefixedTransport(path, resolver.createTransport(provider));
+      const transport = createPrefixedTransport(path, createRemoteTransport(provider));
       let manifest: Manifest;
       try {
         const raw = await transport.read(metaPath('manifest'));
@@ -518,7 +514,7 @@ export function createVaultStore(
 
     tryEntrySync: async (projectId: string) => {
       if (isSyncCacheValid(projectId)) return;
-      const resolved = resolveTransport(projectId, resolver);
+      const resolved = resolveTransport(projectId, createRemoteTransport);
       if (!resolved) return;
       try {
         await get().sync(projectId);
@@ -526,7 +522,7 @@ export function createVaultStore(
     },
 
     sync: async (projectId: string) => {
-      const resolved = resolveTransport(projectId, resolver);
+      const resolved = resolveTransport(projectId, createRemoteTransport);
       if (!resolved) return EMPTY_SYNC_RESULT;
       set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
       try {
@@ -550,7 +546,7 @@ export function createVaultStore(
     },
 
     pull: async (projectId: string) => {
-      const resolved = resolveTransport(projectId, resolver);
+      const resolved = resolveTransport(projectId, createRemoteTransport);
       if (!resolved) return EMPTY_SYNC_RESULT;
       set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
       try {
@@ -574,7 +570,7 @@ export function createVaultStore(
     },
 
     push: async (projectId: string) => {
-      const resolved = resolveTransport(projectId, resolver);
+      const resolved = resolveTransport(projectId, createRemoteTransport);
       if (!resolved) return EMPTY_SYNC_RESULT;
       set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
       try {

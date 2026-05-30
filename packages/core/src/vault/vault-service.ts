@@ -1,7 +1,6 @@
 import type { FsTransport } from '../fs/transport';
 import type { VaultStorage } from '../fs/vault-storage';
-import { type Manifest, ManifestSchema } from '../spec/manifest';
-import type { MenuData } from '../spec/menu';
+import { ManifestSchema } from '../spec/manifest';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';
 import { initVault } from './vault-ops';
@@ -16,12 +15,7 @@ export interface VaultService {
   createVaultWithId(projectId: string, name: string): Promise<void>;
   deleteVault(projectId: string): Promise<void>;
   listVaults(): Promise<VaultMeta[]>;
-
-  getTransport(projectId: string): FsTransport;
-
-  readManifest(projectId: string): Promise<Manifest>;
-  readMenu(projectId: string): Promise<MenuData>;
-  writeMenu(projectId: string, menu: MenuData): Promise<void>;
+  getTransport(projectId: string): Promise<FsTransport>;
 }
 
 export function createVaultService(storage: VaultStorage): VaultService {
@@ -70,35 +64,7 @@ class VaultServiceImpl implements VaultService {
     return vaults;
   }
 
-  getTransport(projectId: string): FsTransport {
-    const transport = this.transports.get(projectId);
-    if (!transport) {
-      throw new Error(
-        `Vault ${projectId} not found in cache. Use listVaults or createVault first.`,
-      );
-    }
-    return transport;
-  }
-
-  async readManifest(projectId: string): Promise<Manifest> {
-    const transport = await this.getTransportOrThrow(projectId);
-    const raw = await transport.read(metaPath('manifest'));
-    return ManifestSchema.parse(JSON.parse(raw));
-  }
-
-  async readMenu(projectId: string): Promise<MenuData> {
-    const transport = await this.getTransportOrThrow(projectId);
-    const raw = await transport.read(metaPath('menu'));
-    return JSON.parse(raw) as MenuData;
-  }
-
-  async writeMenu(projectId: string, menu: MenuData): Promise<void> {
-    const transport = await this.getTransportOrThrow(projectId);
-    menu.updated_at = new Date().toISOString();
-    await transport.write(metaPath('menu'), JSON.stringify(menu, null, 2));
-  }
-
-  private async getTransportOrThrow(projectId: string): Promise<FsTransport> {
+  async getTransport(projectId: string): Promise<FsTransport> {
     let transport = this.transports.get(projectId);
     if (!transport) {
       transport = await this.storage.getTransport(projectId);

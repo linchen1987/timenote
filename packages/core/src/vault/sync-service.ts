@@ -129,7 +129,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   async loadLedgerCache(projectId: string): Promise<void> {
     try {
-      const fs = this.vaultService.getTransport(projectId);
+      const fs = await this.vaultService.getTransport(projectId);
       const ledger = await buildLedgerFromFile(fs);
       this.ledgerCache.set(projectId, ledger);
     } catch {
@@ -150,7 +150,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
   private async buildIncrementalLedger(projectId: string): Promise<SyncLedger> {
     const cached = this.ledgerCache.get(projectId);
     if (!cached) {
-      const fs = this.vaultService.getTransport(projectId);
+      const fs = await this.vaultService.getTransport(projectId);
       const ledger = await buildLedgerFromFs(fs);
       this.ledgerCache.set(projectId, ledger);
       return ledger;
@@ -159,7 +159,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
     const dirty = this.dirtyMap.get(projectId);
     if (!dirty || dirty.length === 0) return cached;
 
-    const fs = this.vaultService.getTransport(projectId);
+    const fs = await this.vaultService.getTransport(projectId);
     const updated = await applyDirtyEntries(fs, cached, dirty);
     this.dirtyMap.delete(projectId);
     this.ledgerCache.set(projectId, updated);
@@ -182,7 +182,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
     const session = resolve(localLedger, sourceLedger, direction);
 
-    const localFs = this.vaultService.getTransport(projectId);
+    const localFs = await this.vaultService.getTransport(projectId);
 
     const execResult: ExecuteResult = await executePlan(session.plan, localFs, source, {
       direction,

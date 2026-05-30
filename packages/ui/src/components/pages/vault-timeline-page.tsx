@@ -388,7 +388,7 @@ export function VaultTimelinePage({
     async (files: File[]) => {
       if (!resolvedProjectId) return;
       const svc = useStore.getState().getNoteService();
-      const attSvc = svc.getAttachmentService(resolvedProjectId);
+      const attSvc = await svc.getAttachmentService(resolvedProjectId);
       const newAttachments: PendingAttachment[] = [];
 
       for (const file of files) {
@@ -418,7 +418,7 @@ export function VaultTimelinePage({
     async (files: File[]) => {
       if (!resolvedProjectId) return;
       const svc = useStore.getState().getNoteService();
-      const attSvc = svc.getAttachmentService(resolvedProjectId);
+      const attSvc = await svc.getAttachmentService(resolvedProjectId);
       const newAttachments: PendingAttachment[] = [];
 
       for (const file of files) {

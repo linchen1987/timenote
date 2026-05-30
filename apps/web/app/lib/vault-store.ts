@@ -1,15 +1,4 @@
-import {
-  createOpfsVaultStorage,
-  createVaultStore,
-  type FsTransport,
-  type TransportResolver,
-} from '@timenote/core';
-import { createTransportForProvider } from './web-transport';
+import { createOpfsVaultStorage, createVaultStore } from '@timenote/core';
+import { createRemoteTransport } from './web-transport';
 
-const resolver: TransportResolver = {
-  createTransport(provider): FsTransport {
-    return createTransportForProvider(provider);
-  },
-};
-
-export const useVaultStore = createVaultStore(resolver, createOpfsVaultStorage);
+export const useVaultStore = createVaultStore(createRemoteTransport, createOpfsVaultStorage);
