@@ -1,8 +1,8 @@
-import { createTransportFromConnection, type FsConnection } from '@timenote/core';
+import { createTransportFromConfig, type ProviderConfig } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
 
 type BaseRequest = {
-  connection: FsConnection;
+  config: ProviderConfig;
   path: string;
 };
 
@@ -51,12 +51,12 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     const body = (await request.json()) as FsApiRequest;
-    const { connection, method, path } = body;
+    const { config, method, path } = body;
 
-    if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
+    if (!config) return data({ error: 'Missing config' }, { status: 400 });
     if (!method) return data({ error: 'Missing method' }, { status: 400 });
 
-    const transport = createTransportFromConnection(connection);
+    const transport = createTransportFromConfig(config);
 
     let result: unknown;
     switch (method) {

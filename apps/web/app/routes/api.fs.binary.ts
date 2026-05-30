@@ -1,13 +1,13 @@
-import { createTransportFromConnection, type FsConnection } from '@timenote/core';
+import { createTransportFromConfig, type ProviderConfig } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
 
 type BinaryReadRequest = {
-  connection: FsConnection;
+  config: ProviderConfig;
   path: string;
 };
 
 type BinaryWriteMeta = {
-  connection: FsConnection;
+  config: ProviderConfig;
   path: string;
 };
 
@@ -26,12 +26,12 @@ export async function action({ request }: ActionFunctionArgs) {
 async function handleRead(request: Request) {
   try {
     const body = (await request.json()) as BinaryReadRequest;
-    const { connection, path } = body;
+    const { config, path } = body;
 
-    if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
+    if (!config) return data({ error: 'Missing config' }, { status: 400 });
     if (!path) return data({ error: 'Missing path' }, { status: 400 });
 
-    const transport = createTransportFromConnection(connection);
+    const transport = createTransportFromConfig(config);
     const buffer = await transport.readBinary(path);
 
     return new Response(buffer, {
@@ -59,12 +59,12 @@ async function handleWrite(request: Request) {
     }
 
     const meta = JSON.parse(metaRaw) as BinaryWriteMeta;
-    const { connection, path } = meta;
+    const { config, path } = meta;
 
-    if (!connection) return data({ error: 'Missing connection info' }, { status: 400 });
+    if (!config) return data({ error: 'Missing config' }, { status: 400 });
     if (!path) return data({ error: 'Missing path' }, { status: 400 });
 
-    const transport = createTransportFromConnection(connection);
+    const transport = createTransportFromConfig(config);
     const buffer = await file.arrayBuffer();
     await transport.writeBinary(path, buffer);
 

@@ -12,40 +12,51 @@ export {
 
 // ─── FS Transport ────────────────────────────────────────────
 
-export type { FsStat, FsTransport } from './fs/transport';
+export { createOpfsTransport, createOpfsVaultStorage } from './fs/opfs';
 export { createPrefixedTransport } from './fs/prefixed';
-export { createOpfsTransport, type OpfsTransport } from './fs/opfs';
 export { createS3Transport } from './fs/s3';
+export type { FsStat, FsTransport } from './fs/transport';
+export type { VaultStorage } from './fs/vault-storage';
 export { createWebdavTransport } from './fs/webdav';
+
 // NodeFS transport not exported from barrel (node:fs breaks browser builds)
 // CLI imports directly: import { createNodeFsTransport } from '@timenote/core/fs/node-fs'
 
 // ─── Storage Provider Config ─────────────────────────────────
 
 export {
-  type TransportParams,
-  type WebdavTransportParams,
-  type S3TransportParams,
-  type WebdavIdentity,
-  type WebdavConfig,
-  type S3Identity,
+  testConnection,
+  testConnection as testProviderConnection,
+} from './fs/config/connection';
+export type {
+  StorageProviderConfig as ProviderConfig,
+  StorageProviderIdentity as ProviderIdentity,
+  StorageProviderType as ProviderType,
+} from './fs/config/providers';
+// Backward-compatible aliases
+export {
+  createTransportFromConfig,
+  createTransportFromConfig as createTransportFromProvider,
+  generateProviderId,
+  generateProviderId as generateStorageProviderId,
+  PROVIDER_DEFS,
+  type ProviderDef,
+  parseSourceUrl,
+  parseSourceUrl as parseRemoteUrl,
   type S3Config,
+  type S3Identity,
   type StorageProviderConfig,
   type StorageProviderIdentity,
   type StorageProviderType,
-  type ProviderDef,
-  PROVIDER_DEFS,
-  generateProviderId,
-  parseSourceUrl,
   stringifySourceUrl,
-  serializeTransportParams,
-  createTransportFromConfig,
-  createTransportFromParams,
+  stringifySourceUrl as stringifyRemoteUrl,
+  type WebdavConfig,
+  type WebdavIdentity,
 } from './fs/config/providers';
-export {
-  configToConnection,
-  testConnection,
-} from './fs/config/connection';
+export type {
+  StorageProviderEntry as ProviderEntry,
+  StorageProviderStore as ProviderStore,
+} from './fs/config/store';
 export {
   createLocalStorageProviderStore,
   deleteProvider,
@@ -55,22 +66,6 @@ export {
   type StorageProviderStore,
   saveProvider,
 } from './fs/config/store';
-
-// Backward-compatible aliases
-export { configToConnection as connectionFromProvider } from './fs/config/connection';
-export { createTransportFromConfig as createTransportFromProvider } from './fs/config/providers';
-export { testConnection as testProviderConnection } from './fs/config/connection';
-export { generateProviderId as generateStorageProviderId } from './fs/config/providers';
-export { parseSourceUrl as parseRemoteUrl } from './fs/config/providers';
-export { stringifySourceUrl as stringifyRemoteUrl } from './fs/config/providers';
-export { serializeTransportParams as connectionFromConfig } from './fs/config/providers';
-export { createTransportFromParams as createTransportFromConnection } from './fs/config/providers';
-export type { TransportParams as FsConnection } from './fs/config/providers';
-export type { StorageProviderConfig as ProviderConfig } from './fs/config/providers';
-export type { StorageProviderIdentity as ProviderIdentity } from './fs/config/providers';
-export type { StorageProviderType as ProviderType } from './fs/config/providers';
-export type { StorageProviderEntry as ProviderEntry } from './fs/config/store';
-export type { StorageProviderStore as ProviderStore } from './fs/config/store';
 
 // ─── Remote Bindings ─────────────────────────────────────────
 
@@ -137,7 +132,6 @@ export {
   createVaultService,
   type VaultMeta,
   type VaultService,
-  type VaultTransport,
 } from './vault/vault-service';
 export { writeLedger } from './vault/write-ledger';
 

@@ -59,7 +59,12 @@ export function useSyncButton(
     if (isSyncing) return;
     try {
       const result = await useStore.getState().sync(projectId);
-      if (result && typeof result === 'object' && 'errors' in result && (result as any).errors?.length > 0) {
+      if (
+        result &&
+        typeof result === 'object' &&
+        'errors' in result &&
+        (result as any).errors?.length > 0
+      ) {
         // errors shown via lastSyncError toast
       }
       await onSuccess?.();

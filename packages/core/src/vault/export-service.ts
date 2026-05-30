@@ -80,8 +80,5 @@ function createZipWriteFs(zip: JSZip): FsTransport {
       return false;
     },
     async ensureDir(): Promise<void> {},
-    isConfigured(): boolean {
-      return true;
-    },
   };
 }

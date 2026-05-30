@@ -106,9 +106,5 @@ export function createS3Transport(config: {
     },
 
     async ensureDir(_dirPath: string): Promise<void> {},
-
-    isConfigured(): boolean {
-      return true;
-    },
   };
 }

@@ -1,6 +1,6 @@
 import type { StorageProviderConfig, StorageProviderIdentity } from './providers';
-import type { StorageProviderEntry } from './store';
 import { generateProviderId } from './providers';
+import type { StorageProviderEntry } from './store';
 
 type RawEntry = Record<string, unknown>;
 

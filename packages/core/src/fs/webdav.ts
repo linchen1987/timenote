@@ -48,9 +48,7 @@ export function createWebdavTransport(
     async readBinary(filePath: string): Promise<ArrayBuffer> {
       const c = getClient();
       const buf: any = await c.getFileContents(filePath);
-      return typeof buf === 'string'
-        ? new TextEncoder().encode(buf).buffer as ArrayBuffer
-        : buf;
+      return typeof buf === 'string' ? (new TextEncoder().encode(buf).buffer as ArrayBuffer) : buf;
     },
 
     async writeBinary(filePath: string, data: ArrayBuffer): Promise<void> {
@@ -85,10 +83,6 @@ export function createWebdavTransport(
           await c.createDirectory(current);
         }
       }
-    },
-
-    isConfigured(): boolean {
-      return true;
     },
   };
 }

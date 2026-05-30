@@ -52,9 +52,5 @@ export function createNodeFsTransport(rootDir: string): FsTransport {
     async ensureDir(dirPath: string): Promise<void> {
       await fs.mkdir(resolve(dirPath), { recursive: true });
     },
-
-    isConfigured(): boolean {
-      return true;
-    },
   };
 }

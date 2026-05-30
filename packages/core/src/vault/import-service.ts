@@ -166,9 +166,6 @@ class VaultImportServiceImpl implements VaultImportService {
         return zip.file(resolvePath(path)) !== null;
       },
       async ensureDir(): Promise<void> {},
-      isConfigured(): boolean {
-        return true;
-      },
     };
   }
 

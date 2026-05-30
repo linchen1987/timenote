@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  createOpfsVaultStorage,
   createVaultNoteService,
   createVaultService,
   type Manifest,
@@ -43,7 +44,7 @@ export default function OpfsPlayground() {
 
   const getServices = useCallback(async () => {
     if (!vaultServiceRef.current) {
-      vaultServiceRef.current = await createVaultService();
+      vaultServiceRef.current = createVaultService(await createOpfsVaultStorage());
       noteServiceRef.current = createVaultNoteService(vaultServiceRef.current);
     }
     return { vaultService: vaultServiceRef.current, noteService: noteServiceRef.current! };

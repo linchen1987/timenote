@@ -44,7 +44,10 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const currentContentRef = useRef('');
   const [attachments, setAttachments] = useState<EditAttachment[]>([]);
   const [removedPaths, setRemovedPaths] = useState<string[]>([]);
-  const { hasRemote, handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(useStore, projectId);
+  const { hasRemote, handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(
+    useStore,
+    projectId,
+  );
 
   useEffect(() => {
     if (!projectId || !nId) return;

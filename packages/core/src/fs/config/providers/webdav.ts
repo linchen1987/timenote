@@ -1,8 +1,6 @@
 import { createWebdavTransport } from '../../webdav';
 import type { ProviderDef } from '../provider-def';
 
-// ─── WebDAV Types ───────────────────────────────────────────
-
 export type WebdavIdentity = { type: 'webdav'; host: string; username: string };
 
 export type WebdavConfig = WebdavIdentity & {
@@ -11,15 +9,6 @@ export type WebdavConfig = WebdavIdentity & {
   tls?: boolean;
   port?: number;
 };
-
-export type WebdavTransportParams = {
-  type: 'webdav';
-  url: string;
-  username: string;
-  password: string;
-};
-
-// ─── WebDAV Provider Definition ─────────────────────────────
 
 function buildUrl(config: WebdavConfig): string {
   const protocol = config.tls !== false ? 'https' : 'http';
@@ -43,22 +32,5 @@ export const webdavDef: ProviderDef<WebdavIdentity, WebdavConfig> = {
   createTransport(config) {
     const url = buildUrl(config);
     return createWebdavTransport(url, config.username, config.password);
-  },
-
-  serializeParams(config) {
-    return {
-      type: 'webdav',
-      url: buildUrl(config),
-      username: config.username,
-      password: config.password || '',
-    };
-  },
-
-  createTransportFromParams(params) {
-    return createWebdavTransport(
-      params.url as string,
-      params.username as string,
-      params.password as string | undefined,
-    );
   },
 };

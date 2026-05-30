@@ -12,6 +12,5 @@ export function createPrefixedTransport(prefix: string, transport: FsTransport):
     exists: (path) => transport.exists(resolve(path)),
     ensureDir: (path) => transport.ensureDir(resolve(path)),
     remove: (path) => transport.remove(resolve(path)),
-    isConfigured: () => transport.isConfigured(),
   };
 }

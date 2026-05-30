@@ -1,6 +1,3 @@
-import type { NoteIndex } from './index-service';
-import { createIndexService, type IndexService } from './index-service';
-import { type SearchProvider, SimpleSearchProvider } from './search-provider';
 import {
   type AttachmentRef,
   type NoteFrontmatter,
@@ -15,7 +12,10 @@ import { isNoteFileEntry, isVolumeEntry, noteFilePath } from '../spec/vault-layo
 import { appendDeleteLog } from '../vault/vault-ops';
 import type { VaultService } from '../vault/vault-service';
 import { type AttachmentService, createAttachmentService } from './attachment-service';
+import type { NoteIndex } from './index-service';
+import { createIndexService, type IndexService } from './index-service';
 import { createNoteOp, deleteNoteOp, updateNoteOp } from './note-ops';
+import { type SearchProvider, SimpleSearchProvider } from './search-provider';
 import { extractTagsFromBody, parseSearchQuery } from './search-query';
 
 export interface StagedAttachment {

@@ -1,8 +1,8 @@
 import { STORAGE_KEYS } from '../../constants';
+import { updateProviderIdReferences } from '../../vault/notebook-remotes';
+import { normalizeLegacyEntry } from './legacy-compat';
 import type { StorageProviderConfig } from './providers';
 import { generateProviderId } from './providers';
-import { normalizeLegacyEntry } from './legacy-compat';
-import { updateProviderIdReferences } from '../../vault/notebook-remotes';
 
 export type StorageProviderEntry = StorageProviderConfig & { id: string };
 

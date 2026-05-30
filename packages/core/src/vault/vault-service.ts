@@ -1,14 +1,10 @@
 import type { FsTransport } from '../fs/transport';
-import { createOpfsTransport, type OpfsTransport } from '../fs/opfs';
+import type { VaultStorage } from '../fs/vault-storage';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
-import { createMenuData, type MenuData } from '../spec/menu';
+import type { MenuData } from '../spec/menu';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';
 import { initVault } from './vault-ops';
-
-export interface VaultTransport extends OpfsTransport {}
-
-const VAULTS_DIR = 'vaults';
 
 export interface VaultMeta {
   projectId: string;
@@ -21,23 +17,21 @@ export interface VaultService {
   deleteVault(projectId: string): Promise<void>;
   listVaults(): Promise<VaultMeta[]>;
 
-  getTransport(projectId: string): VaultTransport;
+  getTransport(projectId: string): FsTransport;
 
   readManifest(projectId: string): Promise<Manifest>;
   readMenu(projectId: string): Promise<MenuData>;
   writeMenu(projectId: string, menu: MenuData): Promise<void>;
 }
 
-export async function createVaultService(): Promise<VaultService> {
-  const opfsRoot = await navigator.storage.getDirectory();
-  const vaultsDir = await opfsRoot.getDirectoryHandle(VAULTS_DIR, { create: true });
-  return new VaultServiceImpl(vaultsDir);
+export function createVaultService(storage: VaultStorage): VaultService {
+  return new VaultServiceImpl(storage);
 }
 
 class VaultServiceImpl implements VaultService {
-  private transports = new Map<string, VaultTransport>();
+  private transports = new Map<string, FsTransport>();
 
-  constructor(private vaultsDir: FileSystemDirectoryHandle) {}
+  constructor(private storage: VaultStorage) {}
 
   async createVault(name: string): Promise<string> {
     const projectId = generateProjectId();
@@ -46,27 +40,29 @@ class VaultServiceImpl implements VaultService {
   }
 
   async createVaultWithId(projectId: string, name: string): Promise<void> {
-    const vaultDir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
-    const transport = createOpfsTransport(vaultDir);
+    const transport = await this.storage.getTransport(projectId);
     this.transports.set(projectId, transport);
     await initVault(transport, projectId, name);
   }
 
   async deleteVault(projectId: string): Promise<void> {
-    await this.vaultsDir.removeEntry(projectId, { recursive: true });
+    await this.storage.remove(projectId);
     this.transports.delete(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
     const vaults: VaultMeta[] = [];
+    const dirNames = await this.storage.list();
 
-    for await (const [_name, handle] of this.vaultsDir.entries()) {
-      if (handle.kind !== 'directory') continue;
+    for (const projectId of dirNames) {
       try {
-        const transport = createOpfsTransport(handle);
+        let transport = this.transports.get(projectId);
+        if (!transport) {
+          transport = await this.storage.getTransport(projectId);
+          this.transports.set(projectId, transport);
+        }
         const raw = await transport.read(metaPath('manifest'));
         const manifest = ManifestSchema.parse(JSON.parse(raw));
-        this.transports.set(manifest.project_id, transport);
         vaults.push({ projectId: manifest.project_id, name: manifest.name });
       } catch {}
     }
@@ -74,7 +70,7 @@ class VaultServiceImpl implements VaultService {
     return vaults;
   }
 
-  getTransport(projectId: string): VaultTransport {
+  getTransport(projectId: string): FsTransport {
     const transport = this.transports.get(projectId);
     if (!transport) {
       throw new Error(
@@ -102,11 +98,10 @@ class VaultServiceImpl implements VaultService {
     await transport.write(metaPath('menu'), JSON.stringify(menu, null, 2));
   }
 
-  private async getTransportOrThrow(projectId: string): Promise<VaultTransport> {
+  private async getTransportOrThrow(projectId: string): Promise<FsTransport> {
     let transport = this.transports.get(projectId);
     if (!transport) {
-      const vaultDir = await this.vaultsDir.getDirectoryHandle(projectId);
-      transport = createOpfsTransport(vaultDir);
+      transport = await this.storage.getTransport(projectId);
       this.transports.set(projectId, transport);
     }
     return transport;

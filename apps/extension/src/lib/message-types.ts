@@ -1,20 +1,19 @@
-import type { FsConnection } from '@timenote/core';
+import type { ProviderConfig } from '@timenote/core';
 
-export type { FsConnection };
+export type { ProviderConfig as FsConfig };
+
+type BaseMessage = { config: ProviderConfig; path: string };
 
 export type FsMessage =
-  | { type: 'fs:list'; path: string; connection: FsConnection }
-  | { type: 'fs:read'; path: string; connection: FsConnection }
-  | { type: 'fs:write'; path: string; content: string; connection: FsConnection }
-  | { type: 'fs:readBinary'; path: string; connection: FsConnection }
-  | { type: 'fs:writeBinary'; path: string; content: string; connection: FsConnection }
-  | { type: 'fs:delete'; path: string; connection: FsConnection }
-  | { type: 'fs:exists'; path: string; connection: FsConnection }
-  | { type: 'fs:ensureDir'; path: string; connection: FsConnection }
-  | { type: 'fs:stat'; path: string; connection: FsConnection }
-  | { type: 'sync:push'; notebookId: string }
-  | { type: 'sync:pull'; notebookId: string }
-  | { type: 'sync:getRemoteNotebooks' };
+  | (BaseMessage & { type: 'fs:list' })
+  | (BaseMessage & { type: 'fs:read' })
+  | (BaseMessage & { type: 'fs:write'; content: string })
+  | (BaseMessage & { type: 'fs:readBinary' })
+  | (BaseMessage & { type: 'fs:writeBinary'; content: string })
+  | (BaseMessage & { type: 'fs:delete' })
+  | (BaseMessage & { type: 'fs:exists' })
+  | (BaseMessage & { type: 'fs:ensureDir' })
+  | (BaseMessage & { type: 'fs:stat' });
 
 export type MessageResponse<T = unknown> =
   | { success: true; data: T }

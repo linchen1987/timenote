@@ -1,23 +1,18 @@
 import type { FsStat, FsTransport } from './transport';
+import type { VaultStorage } from './vault-storage';
 
-export interface OpfsTransport extends FsTransport {
-  getRoot(): FileSystemDirectoryHandle;
-}
-
-export function createOpfsTransport(root: FileSystemDirectoryHandle): OpfsTransport {
+export function createOpfsTransport(root: FileSystemDirectoryHandle): FsTransport {
   return new OpfsTransportImpl(root);
 }
 
-class OpfsTransportImpl implements OpfsTransport {
+export async function createOpfsVaultStorage(): Promise<VaultStorage> {
+  const opfsRoot = await navigator.storage.getDirectory();
+  const vaultsDir = await opfsRoot.getDirectoryHandle('vaults', { create: true });
+  return new OpfsVaultStorageImpl(vaultsDir);
+}
+
+class OpfsTransportImpl implements FsTransport {
   constructor(private root: FileSystemDirectoryHandle) {}
-
-  getRoot(): FileSystemDirectoryHandle {
-    return this.root;
-  }
-
-  isConfigured(): boolean {
-    return true;
-  }
 
   async list(path: string): Promise<FsStat[]> {
     const dir = await this.resolveDir(path);
@@ -132,5 +127,26 @@ class OpfsTransportImpl implements OpfsTransport {
       current = await current.getDirectoryHandle(part, { create: true });
     }
     return current;
+  }
+}
+
+class OpfsVaultStorageImpl implements VaultStorage {
+  constructor(private vaultsDir: FileSystemDirectoryHandle) {}
+
+  async list(): Promise<string[]> {
+    const names: string[] = [];
+    for await (const [name, handle] of this.vaultsDir.entries()) {
+      if (handle.kind === 'directory') names.push(name);
+    }
+    return names;
+  }
+
+  async getTransport(projectId: string): Promise<FsTransport> {
+    const dir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
+    return createOpfsTransport(dir);
+  }
+
+  async remove(projectId: string): Promise<void> {
+    await this.vaultsDir.removeEntry(projectId, { recursive: true });
   }
 }

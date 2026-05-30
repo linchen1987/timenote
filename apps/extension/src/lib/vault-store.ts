@@ -1,4 +1,9 @@
-import { createVaultStore, type TransportResolver, type VaultMeta } from '@timenote/core';
+import {
+  createOpfsVaultStorage,
+  createVaultStore,
+  type TransportResolver,
+  type VaultMeta,
+} from '@timenote/core';
 import { createExtensionTransport } from './extension-transport';
 
 export type { VaultMeta };
@@ -9,4 +14,4 @@ const resolver: TransportResolver = {
   },
 };
 
-export const useVaultStore = createVaultStore(resolver);
+export const useVaultStore = createVaultStore(resolver, createOpfsVaultStorage);

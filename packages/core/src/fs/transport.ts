@@ -7,7 +7,6 @@ export interface FsTransport {
   remove(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   ensureDir(path: string): Promise<void>;
-  isConfigured(): boolean;
 }
 
 export type FsStat = {

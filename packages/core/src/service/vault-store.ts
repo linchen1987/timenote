@@ -1,14 +1,20 @@
 import { nanoid } from 'nanoid';
 import { create } from 'zustand';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import type { FsTransport } from '../fs/transport';
+import { getProvider, type StorageProviderConfig as ProviderConfig } from '../fs/config/store';
 import { createPrefixedTransport } from '../fs/prefixed';
-import {
-} from '../fs/config/connection';
-import { deleteVaultIndexDatabase } from './index-service';
+import type { FsTransport } from '../fs/transport';
+import type { VaultStorage } from '../fs/vault-storage';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
 import { metaPath, noteFilePath } from '../spec/vault-layout';
+import type { DirtyEntry } from '../vault/build-ledger';
+import { createVaultExportService, type VaultExportService } from '../vault/export-service';
+import {
+  createVaultImportService,
+  type ImportResult,
+  type VaultImportService,
+} from '../vault/import-service';
 import {
   getDefaultRemotePath,
   getEnabledRemotes,
@@ -18,22 +24,12 @@ import {
   setRemote,
 } from '../vault/notebook-remotes';
 import {
-  getProvider,
-  type StorageProviderConfig as ProviderConfig,
-} from '../fs/config/store';
-import type { DirtyEntry } from '../vault/build-ledger';
-import { createVaultExportService, type VaultExportService } from '../vault/export-service';
-import {
-  createVaultImportService,
-  type ImportResult,
-  type VaultImportService,
-} from '../vault/import-service';
-import {
   createVaultSyncService,
   type SyncResult,
   type VaultSyncService,
 } from '../vault/sync-service';
 import { createVaultService, type VaultMeta, type VaultService } from '../vault/vault-service';
+import { deleteVaultIndexDatabase } from './index-service';
 import { createVaultMenuService, type VaultMenuService } from './menu-service';
 import { createVaultNoteService, type VaultNoteService } from './note-service';
 
@@ -189,7 +185,10 @@ function debounceSync(store: VaultStore, projectId: string): void {
 
 const EMPTY_SYNC_RESULT: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, errors: [] };
 
-export function createVaultStore(resolver: TransportResolver) {
+export function createVaultStore(
+  resolver: TransportResolver,
+  createStorage: () => Promise<VaultStorage>,
+) {
   return create<VaultStore>((set, get) => ({
     vaultService: null,
     noteService: null,
@@ -208,7 +207,8 @@ export function createVaultStore(resolver: TransportResolver) {
 
     init: async () => {
       if (get().vaultService) return;
-      const vaultService = await createVaultService();
+      const storage = await createStorage();
+      const vaultService = createVaultService(storage);
       const noteService = createVaultNoteService(vaultService);
       const menuService = createVaultMenuService(vaultService);
       const syncService = createVaultSyncService(vaultService, noteService);

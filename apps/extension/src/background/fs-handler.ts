@@ -1,7 +1,7 @@
-import { createTransportFromConnection, type FsConnection } from '@timenote/core';
+import { createTransportFromConfig, type ProviderConfig } from '@timenote/core';
 import type { FsMessage, MessageResponse } from '../lib/message-types';
 
-export type { FsConnection };
+export type { ProviderConfig as FsConfig };
 
 chrome.runtime.onMessage.addListener((message: FsMessage, _sender, sendResponse) => {
   if (message.type?.startsWith('fs:')) {
@@ -10,21 +10,21 @@ chrome.runtime.onMessage.addListener((message: FsMessage, _sender, sendResponse)
   }
 });
 
-function getConnectionFromMessage(message: FsMessage): FsConnection | null {
-  if ('connection' in message) {
-    return (message as { connection: FsConnection }).connection;
+function getConfig(message: FsMessage): ProviderConfig | null {
+  if ('config' in message) {
+    return (message as { config: ProviderConfig }).config;
   }
   return null;
 }
 
 async function handleFsMessage(message: FsMessage): Promise<MessageResponse> {
   try {
-    const connection = getConnectionFromMessage(message);
-    if (!connection) {
+    const config = getConfig(message);
+    if (!config) {
       return { success: false, error: 'Storage not configured' };
     }
 
-    const transport = createTransportFromConnection(connection);
+    const transport = createTransportFromConfig(config);
 
     switch (message.type) {
       case 'fs:list': {

@@ -1,8 +1,7 @@
 import type { FsStat, FsTransport, ProviderConfig } from '@timenote/core';
-import { connectionFromProvider, type FsConnection } from '@timenote/core';
 
-async function callApiWithConnection<T = unknown>(
-  connection: FsConnection,
+async function callApi<T = unknown>(
+  config: ProviderConfig,
   method: string,
   path: string,
   args?: unknown,
@@ -10,7 +9,7 @@ async function callApiWithConnection<T = unknown>(
   const res = await fetch('/api/fs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ connection, method, path, args }),
+    body: JSON.stringify({ config, method, path, args }),
   });
 
   const data = (await res.json()) as { error?: string; result?: T };
@@ -19,27 +18,25 @@ async function callApiWithConnection<T = unknown>(
 }
 
 export function createTransportForProvider(provider: ProviderConfig): FsTransport {
-  const connection = connectionFromProvider(provider);
-
   return {
     async list(path: string) {
-      const result = await callApiWithConnection<FsStat[]>(connection, 'list', path);
+      const result = await callApi<FsStat[]>(provider, 'list', path);
       return Array.isArray(result) ? result : [result];
     },
 
     async read(path: string): Promise<string> {
-      return callApiWithConnection<string>(connection, 'read', path);
+      return callApi<string>(provider, 'read', path);
     },
 
     async write(path: string, content: string) {
-      await callApiWithConnection(connection, 'write', path, { content });
+      await callApi(provider, 'write', path, { content });
     },
 
     async readBinary(path: string): Promise<ArrayBuffer> {
       const res = await fetch('/api/fs/binary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ connection, path }),
+        body: JSON.stringify({ config: provider, path }),
       });
       if (!res.ok) throw new Error('Binary read failed');
       return await res.arrayBuffer();
@@ -50,7 +47,7 @@ export function createTransportForProvider(provider: ProviderConfig): FsTranspor
         method: 'POST',
         body: (() => {
           const fd = new FormData();
-          fd.append('meta', JSON.stringify({ connection, path }));
+          fd.append('meta', JSON.stringify({ config: provider, path }));
           fd.append('file', new File([data], 'upload', { type: 'application/octet-stream' }));
           return fd;
         })(),
@@ -72,7 +69,7 @@ export function createTransportForProvider(provider: ProviderConfig): FsTranspor
 
     async exists(path: string): Promise<boolean> {
       try {
-        await callApiWithConnection(connection, 'exists', path);
+        await callApi(provider, 'exists', path);
         return true;
       } catch {
         return false;
@@ -80,15 +77,11 @@ export function createTransportForProvider(provider: ProviderConfig): FsTranspor
     },
 
     async ensureDir(path: string) {
-      await callApiWithConnection(connection, 'ensureDir', path);
+      await callApi(provider, 'ensureDir', path);
     },
 
     async remove(path: string) {
-      await callApiWithConnection(connection, 'remove', path);
-    },
-
-    isConfigured(): boolean {
-      return true;
+      await callApi(provider, 'remove', path);
     },
   };
 }
