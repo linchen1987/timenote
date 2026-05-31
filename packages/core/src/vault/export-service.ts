@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { FsStat, FsTransport } from '../fs/transport';
+import type { FsProvider, FsProviderStat } from '../fs/provider';
 import { ManifestSchema } from '../spec/manifest';
 import { metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
@@ -37,7 +37,7 @@ class VaultExportServiceImpl implements VaultExportService {
   }
 
   async downloadVault(projectId: string): Promise<void> {
-    const transport = await this.vaultService.getTransport(projectId);
+    const transport = await this.vaultService.getProvider(projectId);
     const raw = await transport.read(metaPath('manifest'));
     const manifest = ManifestSchema.parse(JSON.parse(raw));
     const blob = await this.exportVault(projectId);
@@ -55,7 +55,7 @@ class VaultExportServiceImpl implements VaultExportService {
   }
 }
 
-function createZipWriteFs(zip: JSZip): FsTransport {
+function createZipWriteFs(zip: JSZip): FsProvider {
   const SYNC_LEDGER_PREFIX = '.timenote/sync-ledger.json';
 
   return {
@@ -77,7 +77,7 @@ function createZipWriteFs(zip: JSZip): FsTransport {
       zip.file(path, data);
     },
     async remove(): Promise<void> {},
-    async list(): Promise<FsStat[]> {
+    async list(): Promise<FsProviderStat[]> {
       return [];
     },
     async exists(): Promise<boolean> {

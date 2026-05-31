@@ -1,15 +1,15 @@
-import type { FsStat, FsTransport } from './transport';
+import type { FsProvider, FsProviderStat } from '../../provider';
 
-export function createOpfsTransport(root: FileSystemDirectoryHandle): FsTransport {
-  return new OpfsTransportImpl(root);
+export function createOpfsProvider(root: FileSystemDirectoryHandle): FsProvider {
+  return new OpfsProviderImpl(root);
 }
 
-class OpfsTransportImpl implements FsTransport {
+class OpfsProviderImpl implements FsProvider {
   constructor(private root: FileSystemDirectoryHandle) {}
 
-  async list(path: string): Promise<FsStat[]> {
+  async list(path: string): Promise<FsProviderStat[]> {
     const dir = await this.resolveDir(path);
-    const results: FsStat[] = [];
+    const results: FsProviderStat[] = [];
 
     for await (const [name, handle] of dir.entries()) {
       if (handle.kind === 'file') {

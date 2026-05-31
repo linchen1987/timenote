@@ -1,5 +1,29 @@
-export { createOpfsTransport } from './opfs';
-export { createPrefixedTransport } from './prefixed';
-export { createS3Transport } from './s3';
-export type { FsStat, FsTransport } from './transport';
-export { createWebdavTransport } from './webdav';
+export type { FsProvider, FsProviderStat } from './provider';
+
+export {
+  type AnyProviderModule,
+  createFsProvider,
+  createOpfsProvider,
+  createProviderFromConfig,
+  createS3Provider,
+  createWebdavProvider,
+  type FsConfig,
+  type FsIdentity,
+  generateProviderId,
+  getRuntimeFactory,
+  type ProviderModule,
+  parseSourceUrl,
+  registerRuntimeFactory,
+  type S3Config,
+  type S3Identity,
+  type StorageProviderConfig,
+  type StorageProviderEntry,
+  type StorageProviderIdentity,
+  type StorageProviderStore,
+  type StorageProviderType,
+  stringifySourceUrl,
+  testConnection,
+  toProviderEntry,
+  type WebdavConfig,
+  type WebdavIdentity,
+} from './providers';

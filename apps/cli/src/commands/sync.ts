@@ -1,9 +1,9 @@
-import { generateProviderId, parseSourceUrl } from '@timenote/core';
+import { generateProviderId, parseSourceUrl, type StorageProviderStore } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
   createRemoteConfigServiceForVault,
-  createRemoteTransport,
+  createRemoteProviderFromUrl,
   createSyncService,
   resolveVaultDir,
 } from '../lib/vault.js';
@@ -15,7 +15,8 @@ export function registerPullCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const { remote, remoteName } = await resolveRemote(vaultDir);
+      const store = await configStore.createFileProviderStore();
+      const { remote, remoteName } = await resolveRemote(vaultDir, store);
       const sync = createSyncService(vaultDir);
       const result = await sync.pull(remote);
 
@@ -35,7 +36,8 @@ export function registerPushCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const { remote, remoteName } = await resolveRemote(vaultDir);
+      const store = await configStore.createFileProviderStore();
+      const { remote, remoteName } = await resolveRemote(vaultDir, store);
       const sync = createSyncService(vaultDir);
       const result = await sync.push(remote);
 
@@ -55,7 +57,8 @@ export function registerSyncCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const { remote, remoteName } = await resolveRemote(vaultDir);
+      const store = await configStore.createFileProviderStore();
+      const { remote, remoteName } = await resolveRemote(vaultDir, store);
       const sync = createSyncService(vaultDir);
       const result = await sync.sync(remote);
 
@@ -70,7 +73,7 @@ export function registerSyncCommand(program: Command) {
     });
 }
 
-async function resolveRemote(vaultDir: string) {
+async function resolveRemote(vaultDir: string, store: StorageProviderStore) {
   const service = createRemoteConfigServiceForVault(vaultDir);
   const entry = await service.getDefaultRemote();
   if (!entry) {
@@ -78,15 +81,8 @@ async function resolveRemote(vaultDir: string) {
   }
 
   const remoteName = entry.name || 'origin';
-  const parsed = parseSourceUrl(entry.url);
-  const providerId = generateProviderId(parsed);
-  const provider = await configStore.getProvider(providerId);
-  if (!provider) {
-    throw new Error(`Provider not found for URL: ${entry.url}`);
-  }
-
   return {
-    remote: createRemoteTransport(provider, parsed.path),
+    remote: createRemoteProviderFromUrl(entry.url, store),
     remoteName,
   };
 }

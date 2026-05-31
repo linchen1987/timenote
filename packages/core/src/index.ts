@@ -12,61 +12,47 @@ export {
 
 // ─── FS Transport ────────────────────────────────────────────
 
-export { createOpfsTransport } from './fs/opfs';
-export { createPrefixedTransport } from './fs/prefixed';
-export { createS3Transport } from './fs/s3';
-export type { FsStat, FsTransport } from './fs/transport';
-export { createWebdavTransport } from './fs/webdav';
-export type { VaultRegistry } from './vault/vault-registry';
+export type { FsProvider, FsProviderStat } from './fs/provider';
+export type { VaultRegistry, VaultRegistryEntry } from './vault/vault-registry';
 export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
 
 // NodeFS transport not exported from barrel (node:fs breaks browser builds)
-// CLI imports directly: import { createNodeFsTransport } from '@timenote/core/fs/node-fs'
+// CLI imports directly: import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node'
 
 // ─── Storage Provider Config ─────────────────────────────────
 
 export {
-  testConnection,
-  testConnection as testProviderConnection,
-} from './fs/config/connection';
-export type {
-  StorageProviderConfig as ProviderConfig,
-  StorageProviderIdentity as ProviderIdentity,
-  StorageProviderType as ProviderType,
-} from './fs/config/providers';
-// Backward-compatible aliases
-export {
-  createTransportFromConfig,
-  createTransportFromConfig as createTransportFromProvider,
+  createFsProvider,
+  createOpfsProvider,
+  createProviderFromConfig,
+  createS3Provider,
+  createWebdavProvider,
+  type FsConfig,
+  type FsIdentity,
   generateProviderId,
   generateProviderId as generateStorageProviderId,
-  PROVIDER_DEFS,
-  type ProviderDef,
+  getRuntimeFactory,
   parseSourceUrl,
   parseSourceUrl as parseRemoteUrl,
+  registerRuntimeFactory,
   type S3Config,
   type S3Identity,
+  type StorageProviderConfig as ProviderConfig,
   type StorageProviderConfig,
+  type StorageProviderEntry,
+  type StorageProviderIdentity as ProviderIdentity,
   type StorageProviderIdentity,
+  type StorageProviderStore,
+  type StorageProviderType as ProviderType,
   type StorageProviderType,
   stringifySourceUrl,
   stringifySourceUrl as stringifyRemoteUrl,
+  testConnection,
+  testConnection as testProviderConnection,
+  toProviderEntry,
   type WebdavConfig,
   type WebdavIdentity,
-} from './fs/config/providers';
-export type {
-  StorageProviderEntry as ProviderEntry,
-  StorageProviderStore as ProviderStore,
-} from './fs/config/store';
-export {
-  createLocalStorageProviderStore,
-  deleteProvider,
-  getProvider,
-  listProviders,
-  type StorageProviderEntry,
-  type StorageProviderStore,
-  saveProvider,
-} from './fs/config/store';
+} from './fs/providers';
 
 // ─── Remote Bindings ─────────────────────────────────────────
 

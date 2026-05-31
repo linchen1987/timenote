@@ -1,5 +1,5 @@
-export interface FsTransport {
-  list(path: string): Promise<FsStat[]>;
+export interface FsProvider {
+  list(path: string): Promise<FsProviderStat[]>;
   read(path: string): Promise<string>;
   write(path: string, content: string): Promise<void>;
   readBinary(path: string): Promise<ArrayBuffer>;
@@ -9,7 +9,7 @@ export interface FsTransport {
   ensureDir(path: string): Promise<void>;
 }
 
-export type FsStat = {
+export type FsProviderStat = {
   filename: string;
   basename: string;
   lastmod: string;

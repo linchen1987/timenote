@@ -1,18 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  createPrefixedTransport,
+  createFsProvider,
   createRemoteConfigService,
-  createTransportFromConfig,
   createVaultSyncService,
-  type FsTransport,
+  type FsProvider,
   type Manifest,
   ManifestSchema,
-  type StorageProviderEntry as ProviderEntry,
   type RemoteConfigService,
+  type StorageProviderStore,
   type SyncResult,
 } from '@timenote/core';
-import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
+import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node';
 
 const META_DIR = '.timenote';
 
@@ -44,14 +43,12 @@ export function resolveVaultDir(explicit?: string): string {
   throw new Error('Not a timenote vault (or any parent). Use --dir to specify a vault directory.');
 }
 
-export function createRemoteTransport(provider: ProviderEntry, remotePath: string): FsTransport {
-  const config = provider as unknown as import('@timenote/core').StorageProviderConfig;
-  const base = createTransportFromConfig(config);
-  return createPrefixedTransport(remotePath, base);
+export function createRemoteProviderFromUrl(url: string, store: StorageProviderStore): FsProvider {
+  return createFsProvider(url, store);
 }
 
 export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfigService {
-  const transport = createNodeFsTransport(vaultDir);
+  const transport = createNodeFsProvider(vaultDir);
   return createRemoteConfigService(() => transport);
 }
 
@@ -63,7 +60,7 @@ export function buildRemoteUrl(providerId: string, remotePath: string): string {
 }
 
 export function createSyncService(vaultDir: string) {
-  const transport = createNodeFsTransport(vaultDir);
+  const transport = createNodeFsProvider(vaultDir);
 
   const vaultServiceLike = {
     async getTransport(_projectId: string) {
@@ -78,19 +75,19 @@ export function createSyncService(vaultDir: string) {
   const syncSvc = createVaultSyncService(vaultServiceLike as any, noteServiceLike as any);
 
   return {
-    async sync(remote: FsTransport): Promise<SyncResult> {
+    async sync(remote: FsProvider): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.sync(manifest.project_id, remote);
     },
-    async pull(remote: FsTransport): Promise<SyncResult> {
+    async pull(remote: FsProvider): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.pull(manifest.project_id, remote);
     },
-    async push(remote: FsTransport): Promise<SyncResult> {
+    async push(remote: FsProvider): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.push(manifest.project_id, remote);
     },
-    async initFromSource(source: FsTransport): Promise<SyncResult> {
+    async initFromSource(source: FsProvider): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       await syncSvc.loadLedgerCache(manifest.project_id);
       return syncSvc.initFromSource(manifest.project_id, source);

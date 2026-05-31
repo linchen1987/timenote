@@ -1,4 +1,4 @@
-import type { FsStat, FsTransport, ProviderConfig } from '@timenote/core';
+import type { FsProvider, FsProviderStat, ProviderConfig } from '@timenote/core';
 
 async function callApi<T = unknown>(
   config: ProviderConfig,
@@ -17,10 +17,10 @@ async function callApi<T = unknown>(
   return data.result as T;
 }
 
-export function createRemoteTransport(provider: ProviderConfig): FsTransport {
+export function createRemoteProvider(provider: ProviderConfig): FsProvider {
   return {
     async list(path: string) {
-      const result = await callApi<FsStat[]>(provider, 'list', path);
+      const result = await callApi<FsProviderStat[]>(provider, 'list', path);
       return Array.isArray(result) ? result : [result];
     },
 

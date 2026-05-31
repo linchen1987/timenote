@@ -1,6 +1,9 @@
-import type { StorageProviderConfig, StorageProviderIdentity } from './providers';
-import { generateProviderId } from './providers';
-import type { StorageProviderEntry } from './store';
+import type {
+  StorageProviderConfig,
+  StorageProviderEntry,
+  StorageProviderIdentity,
+} from '@timenote/core';
+import { generateProviderId } from '@timenote/core';
 
 type RawEntry = Record<string, unknown>;
 
@@ -57,15 +60,14 @@ function toIdentity(config: StorageProviderConfig): StorageProviderIdentity {
       return { type: 's3', endpoint: config.endpoint, bucket: config.bucket };
     case 'webdav':
       return { type: 'webdav', host: config.host, username: config.username };
+    default:
+      throw new Error(`Unknown provider type: ${(config as { type: string }).type}`);
   }
 }
 
-export interface NormalizedEntry {
-  entry: StorageProviderEntry;
-  oldId: string | null;
-}
-
-export function normalizeLegacyEntry(raw: RawEntry): NormalizedEntry | null {
+export function normalizeLegacyEntry(
+  raw: RawEntry,
+): { entry: StorageProviderEntry; oldId: string | null } | null {
   const flat = flattenNested(raw);
   const config = toConfig(flat);
   if (!config) return null;

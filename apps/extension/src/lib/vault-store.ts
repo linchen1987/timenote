@@ -1,11 +1,10 @@
-import {
-  createOpfsVaultRegistry,
-  createTransportFromConfig,
-  VaultOrchestrator,
-} from '@timenote/core';
-import { createBoundVaultStore } from '@timenote/ui';
+import { createOpfsVaultRegistry, VaultOrchestrator } from '@timenote/core';
+import { createBoundVaultStore, createLocalStorageProviderStore } from '@timenote/ui';
 
 export type { VaultMeta } from '@timenote/core';
 
-const orchestrator = new VaultOrchestrator(createTransportFromConfig, createOpfsVaultRegistry);
+const orchestrator = new VaultOrchestrator(
+  createOpfsVaultRegistry,
+  createLocalStorageProviderStore(),
+);
 export const useVaultStore = createBoundVaultStore(orchestrator);

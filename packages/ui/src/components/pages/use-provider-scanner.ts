@@ -1,4 +1,4 @@
-import { getDefaultRemotePath, listProviders, type ProviderConfig, type VaultMeta } from '@timenote/core';
+import { getDefaultRemotePath, type ProviderEntry, type VaultMeta } from '@timenote/core';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { UseVaultStoreHook } from './use-notebooks-page';
@@ -9,7 +9,7 @@ export interface RemoteVaultMeta extends VaultMeta {
 }
 
 export interface UseProviderScannerReturn {
-  providers: ProviderConfig[];
+  providers: ProviderEntry[];
   scanResults: Map<string, VaultMeta[]>;
   remoteOnlyVaults: RemoteVaultMeta[];
   scanningId: string | null;
@@ -31,7 +31,9 @@ export function useProviderScanner(
   localVaults: VaultMeta[],
   onPullSuccess: () => Promise<void>,
 ): UseProviderScannerReturn {
-  const [providers, setProviders] = useState<ProviderConfig[]>(() => listProviders());
+  const [providers, setProviders] = useState<ProviderEntry[]>(() =>
+    useStore.getState().listProviders(),
+  );
   const [scanningId, setScanningId] = useState<string | null>(null);
   const [scanResults, setScanResults] = useState<Map<string, VaultMeta[]>>(new Map());
   const [isPulling, setIsPulling] = useState<string | null>(null);
@@ -54,7 +56,7 @@ export function useProviderScanner(
   }
 
   const refreshProviders = useCallback(() => {
-    setProviders(listProviders());
+    setProviders(useStore.getState().listProviders());
   }, []);
 
   const handleScan = useCallback(
@@ -62,7 +64,7 @@ export function useProviderScanner(
       setScanningId(providerId);
       try {
         const result = await useStore.getState().listRemoteVaults(providerId);
-        setScanResults((prev) => {
+        setScanResults((prev: Map<string, VaultMeta[]>) => {
           const next = new Map(prev);
           next.set(providerId, result);
           return next;

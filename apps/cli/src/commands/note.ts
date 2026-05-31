@@ -1,5 +1,5 @@
 import { appendDeleteLog, createNoteOp, deleteNoteOp, updateNoteOp } from '@timenote/core';
-import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
+import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node';
 import type { Command } from 'commander';
 import { resolveVaultDir } from '../lib/vault.js';
 
@@ -24,7 +24,7 @@ export function registerNoteCommand(program: Command) {
       }) => {
         const vaultDir = resolveVaultDir(opts.dir);
         const content = await resolveContent(opts.content, opts.file, opts.tag);
-        const transport = createNodeFsTransport(vaultDir);
+        const transport = createNodeFsProvider(vaultDir);
         const noteId = await createNoteOp(transport, content);
 
         if (opts.json) {
@@ -49,7 +49,7 @@ export function registerNoteCommand(program: Command) {
         opts: { content?: string; file?: string; append?: string; dir?: string },
       ) => {
         const vaultDir = resolveVaultDir(opts.dir);
-        const transport = createNodeFsTransport(vaultDir);
+        const transport = createNodeFsProvider(vaultDir);
 
         if (opts.content !== undefined) {
           await updateNoteOp(transport, noteId, opts.content);
@@ -86,7 +86,7 @@ export function registerNoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (noteId: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const transport = createNodeFsTransport(vaultDir);
+      const transport = createNodeFsProvider(vaultDir);
       await deleteNoteOp(transport, (id) => appendDeleteLog(transport, id), noteId);
       console.log(`Deleted: ${noteId}`);
     });

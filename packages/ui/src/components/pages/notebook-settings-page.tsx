@@ -1,8 +1,7 @@
 import {
   generateProviderId,
   getDefaultRemotePath,
-  listProviders,
-  type ProviderConfig,
+  type ProviderEntry,
   parseNotebookId,
   parseSourceUrl,
 } from '@timenote/core';
@@ -25,7 +24,7 @@ export interface NotebookSettingsPageProps {
 export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookSettingsPageProps) {
   const projectId = notebookToken ? parseNotebookId(notebookToken) : null;
 
-  const [providers] = useState<ProviderConfig[]>(() => listProviders());
+  const [providers] = useState<ProviderEntry[]>(() => useVaultStore.getState().listProviders());
   const [remoteConfig, setRemoteConfig] = useState<{
     providerId: string;
     path: string;

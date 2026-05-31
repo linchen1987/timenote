@@ -1,12 +1,12 @@
 import path from 'node:path';
-import { initVault, metaPath } from '@timenote/core';
-import { createNodeFsTransport } from '@timenote/core/fs/node-fs';
+import { initVault, metaPath, type StorageProviderEntry } from '@timenote/core';
+import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
   buildRemoteUrl,
   createRemoteConfigServiceForVault,
-  createRemoteTransport,
+  createRemoteProviderFromUrl,
   createSyncService,
 } from '../lib/vault.js';
 
@@ -20,7 +20,7 @@ export function registerCloneCommand(program: Command) {
     )
     .argument('[dir]', 'Local directory name (defaults to notebook name)')
     .action(async (providerPath: string, dir?: string) => {
-      let provider: import('@timenote/core').ProviderEntry, remotePath: string;
+      let provider: StorageProviderEntry, remotePath: string;
       try {
         ({ provider, remotePath } = await configStore.resolveProviderPath(providerPath));
       } catch (e: any) {
@@ -28,7 +28,9 @@ export function registerCloneCommand(program: Command) {
         process.exit(1);
       }
 
-      const remote = createRemoteTransport(provider, remotePath);
+      const store = await configStore.createFileProviderStore();
+      const remoteUrl = buildRemoteUrl(provider.id, remotePath);
+      const remote = createRemoteProviderFromUrl(remoteUrl, store);
 
       let manifest: Record<string, unknown>;
       try {
@@ -42,12 +44,12 @@ export function registerCloneCommand(program: Command) {
       const localDir = dir || (manifest.name as string) || (manifest.project_id as string);
       const vaultDir = path.resolve(localDir);
 
-      const transport = createNodeFsTransport(vaultDir);
+      const transport = createNodeFsProvider(vaultDir);
       await initVault(transport, manifest.project_id as string, manifest.name as string);
 
       const service = createRemoteConfigServiceForVault(vaultDir);
       await service.setRemote({
-        url: buildRemoteUrl(provider.id, remotePath),
+        url: remoteUrl,
         name: 'origin',
         default: true,
       });

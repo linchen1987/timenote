@@ -1,12 +1,12 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { FsStat, FsTransport } from './transport';
+import type { FsProvider, FsProviderStat } from '../../provider';
 
-export function createNodeFsTransport(rootDir: string): FsTransport {
+export function createNodeFsProvider(rootDir: string): FsProvider {
   const resolve = (p: string) => path.join(rootDir, p);
 
   return {
-    async list(dirPath: string): Promise<FsStat[]> {
+    async list(dirPath: string): Promise<FsProviderStat[]> {
       const entries = await fs.readdir(resolve(dirPath), { withFileTypes: true });
       return entries.map((e) => ({
         filename: dirPath ? `${dirPath}/${e.name}` : e.name,

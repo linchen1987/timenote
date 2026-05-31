@@ -1,16 +1,11 @@
-import { STORAGE_KEYS } from '../../constants';
+import {
+  STORAGE_KEYS,
+  type StorageProviderConfig,
+  type StorageProviderEntry,
+  type StorageProviderStore,
+  toProviderEntry,
+} from '@timenote/core';
 import { normalizeLegacyEntry } from './legacy-compat';
-import type { StorageProviderConfig } from './providers';
-import { generateProviderId } from './providers';
-
-export type StorageProviderEntry = StorageProviderConfig & { id: string };
-
-export interface StorageProviderStore {
-  listProviders(): StorageProviderEntry[];
-  getProvider(id: string): StorageProviderEntry | null;
-  saveProvider(config: StorageProviderConfig): StorageProviderEntry;
-  deleteProvider(id: string): void;
-}
 
 type RawEntry = Record<string, unknown>;
 
@@ -18,10 +13,6 @@ function parseEntry(raw: RawEntry): StorageProviderEntry | null {
   const result = normalizeLegacyEntry(raw);
   if (!result) return null;
   return result.entry;
-}
-
-function toEntry(config: StorageProviderConfig): StorageProviderEntry {
-  return { ...config, id: generateProviderId(config) };
 }
 
 export function createLocalStorageProviderStore(): StorageProviderStore {
@@ -53,7 +44,7 @@ export function createLocalStorageProviderStore(): StorageProviderStore {
       return read().find((p) => p.id === id) ?? null;
     },
     saveProvider(config: StorageProviderConfig): StorageProviderEntry {
-      const entry = toEntry(config);
+      const entry = toProviderEntry(config);
       const providers = read();
       const idx = providers.findIndex((p) => p.id === entry.id);
       if (idx >= 0) {
@@ -68,33 +59,4 @@ export function createLocalStorageProviderStore(): StorageProviderStore {
       write(read().filter((p) => p.id !== id));
     },
   };
-}
-
-let defaultStore: StorageProviderStore | null = null;
-
-function getStore(): StorageProviderStore | null {
-  if (!defaultStore && typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
-    defaultStore = createLocalStorageProviderStore();
-  }
-  return defaultStore;
-}
-
-export function listProviders(): StorageProviderEntry[] {
-  return getStore()?.listProviders() ?? [];
-}
-
-export function getProvider(id: string): StorageProviderEntry | null {
-  return getStore()?.getProvider(id) ?? null;
-}
-
-export function saveProvider(config: StorageProviderConfig): StorageProviderEntry {
-  const store = getStore();
-  if (!store) throw new Error('ProviderStore not available (no window/localStorage)');
-  return store.saveProvider(config);
-}
-
-export function deleteProvider(id: string): void {
-  const store = getStore();
-  if (!store) return;
-  store.deleteProvider(id);
 }

@@ -1,4 +1,4 @@
-import type { FsTransport } from '../fs/transport';
+import type { FsProvider } from '../fs/provider';
 import { ManifestSchema } from '../spec/manifest';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';
@@ -15,7 +15,7 @@ export interface VaultService {
   createVaultWithId(projectId: string, name: string): Promise<void>;
   deleteVault(projectId: string): Promise<void>;
   listVaults(): Promise<VaultMeta[]>;
-  getTransport(projectId: string): Promise<FsTransport>;
+  getProvider(projectId: string): Promise<FsProvider>;
 }
 
 export function createVaultService(registry: VaultRegistry): VaultService {
@@ -23,7 +23,7 @@ export function createVaultService(registry: VaultRegistry): VaultService {
 }
 
 class VaultServiceImpl implements VaultService {
-  private transports = new Map<string, FsTransport>();
+  private transports = new Map<string, FsProvider>();
 
   constructor(private registry: VaultRegistry) {}
 
@@ -34,26 +34,27 @@ class VaultServiceImpl implements VaultService {
   }
 
   async createVaultWithId(projectId: string, name: string): Promise<void> {
-    const transport = await this.registry.getTransport(projectId);
+    await this.registry.register(projectId, name);
+    const transport = await this.registry.getProvider(projectId);
     this.transports.set(projectId, transport);
     await initVault(transport, projectId, name);
   }
 
   async deleteVault(projectId: string): Promise<void> {
-    await this.registry.remove(projectId);
+    await this.registry.destroy(projectId);
     this.transports.delete(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
     const vaults: VaultMeta[] = [];
-    const dirNames = await this.registry.list();
+    const entries = await this.registry.list();
 
-    for (const projectId of dirNames) {
+    for (const entry of entries) {
       try {
-        let transport = this.transports.get(projectId);
+        let transport = this.transports.get(entry.projectId);
         if (!transport) {
-          transport = await this.registry.getTransport(projectId);
-          this.transports.set(projectId, transport);
+          transport = await this.registry.getProvider(entry.projectId);
+          this.transports.set(entry.projectId, transport);
         }
         const raw = await transport.read(metaPath('manifest'));
         const manifest = ManifestSchema.parse(JSON.parse(raw));
@@ -64,10 +65,10 @@ class VaultServiceImpl implements VaultService {
     return vaults;
   }
 
-  async getTransport(projectId: string): Promise<FsTransport> {
+  async getProvider(projectId: string): Promise<FsProvider> {
     let transport = this.transports.get(projectId);
     if (!transport) {
-      transport = await this.storage.getTransport(projectId);
+      transport = await this.registry.getProvider(projectId);
       this.transports.set(projectId, transport);
     }
     return transport;

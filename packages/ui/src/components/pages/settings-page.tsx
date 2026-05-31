@@ -1,4 +1,4 @@
-import { deleteProvider, listProviders, type ProviderConfig, saveProvider } from '@timenote/core';
+import type { ProviderConfig, ProviderEntry } from '@timenote/core';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -6,20 +6,24 @@ import { toast } from 'sonner';
 import { emptyProviderForm, ProviderForm, type ProviderFormState } from '../provider-form';
 import { ProviderListCard } from '../provider-list-card';
 import { Button } from '../ui/button';
+import type { UseVaultStoreHook } from './use-notebooks-page';
 
 export interface SettingsPageProps {
+  useVaultStore: UseVaultStoreHook;
   testProviderConnection: (provider: ProviderConfig) => Promise<boolean>;
 }
 
-export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
-  const [providers, setProviders] = useState<ProviderConfig[]>(() => listProviders());
+export function SettingsPage({ useVaultStore, testProviderConnection }: SettingsPageProps) {
+  const [providers, setProviders] = useState<ProviderEntry[]>(() =>
+    useVaultStore.getState().listProviders(),
+  );
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<ProviderFormState>({ ...emptyProviderForm });
   const [connectionStatus, setConnectionStatus] = useState<
     'idle' | 'testing' | 'success' | 'error'
   >('idle');
 
-  const refreshList = () => setProviders(listProviders());
+  const refreshList = () => setProviders(useVaultStore.getState().listProviders());
 
   const handleSave = () => {
     try {
@@ -28,7 +32,7 @@ export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
           toast.error('URL and Username are required');
           return;
         }
-        saveProvider({
+        useVaultStore.getState().saveProvider({
           type: 'webdav',
           host: form.webdav.url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
           username: form.webdav.username,
@@ -40,7 +44,7 @@ export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
           toast.error('Bucket and Access Key ID are required');
           return;
         }
-        saveProvider({
+        useVaultStore.getState().saveProvider({
           type: 's3',
           endpoint: form.s3.endpoint || '',
           region: form.s3.region || undefined,
@@ -60,7 +64,7 @@ export function SettingsPage({ testProviderConnection }: SettingsPageProps) {
   };
 
   const handleDelete = (id: string) => {
-    deleteProvider(id);
+    useVaultStore.getState().deleteProvider(id);
     refreshList();
     toast.success('Provider deleted');
   };

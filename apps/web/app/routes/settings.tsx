@@ -2,6 +2,7 @@
 
 import { SettingsPage } from '@timenote/ui';
 import { testProviderConnection } from '~/lib/fs-service';
+import { useVaultStore } from '~/lib/vault-store';
 import type { Route } from './+types/settings';
 
 export const meta: Route.MetaFunction = () => {
@@ -9,5 +10,7 @@ export const meta: Route.MetaFunction = () => {
 };
 
 export default function SettingsRoute() {
-  return <SettingsPage testProviderConnection={testProviderConnection} />;
+  return (
+    <SettingsPage useVaultStore={useVaultStore} testProviderConnection={testProviderConnection} />
+  );
 }

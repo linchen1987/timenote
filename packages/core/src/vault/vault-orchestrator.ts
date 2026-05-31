@@ -1,10 +1,13 @@
 import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import type { StorageProviderConfig as ProviderConfig } from '../fs/config/providers';
-import { generateProviderId, parseSourceUrl } from '../fs/config/providers';
-import { getProvider } from '../fs/config/store';
-import { createPrefixedTransport } from '../fs/prefixed';
-import type { FsTransport } from '../fs/transport';
+import type { FsProvider } from '../fs/provider';
+import {
+  createFsProvider,
+  generateProviderId,
+  parseSourceUrl,
+  type StorageProviderConfig,
+  type StorageProviderStore,
+} from '../fs/providers';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -25,6 +28,7 @@ import { createRemoteConfigService } from '../vault/remote-config';
 export function getDefaultRemotePath(projectId: string): string {
   return `timenote/vaults/${projectId}`;
 }
+
 import {
   createVaultSyncService,
   type SyncResult,
@@ -64,8 +68,8 @@ export interface SyncOutcome {
   noteChanged: boolean;
 }
 
-interface ResolvedTransport {
-  transport: FsTransport;
+interface ResolvedProvider {
+  provider: FsProvider;
   remoteName: string;
   providerId: string;
   path: string;
@@ -101,21 +105,37 @@ export class VaultOrchestrator {
   private menuService: VaultMenuService | null = null;
   private syncService: VaultSyncService | null = null;
   private exportService: VaultExportService | null = null;
+  private resolvedRegistry: VaultRegistry | null = null;
   private importService: VaultImportService | null = null;
   private initialized = false;
 
+  // TODO: createRemoteProvider 是临时方案，仅为支持 web 端 RPC proxy。
+  // 应该通过 ProviderModule 注册机制统一处理，而不是在 Orchestrator 构造函数注入回调。
   constructor(
-    private readonly createRemoteTransport: (provider: ProviderConfig) => FsTransport,
-    private readonly createLocalRegistry: () => Promise<VaultRegistry>,
+    private readonly registry: VaultRegistry | (() => Promise<VaultRegistry>),
+    private readonly providerStore: StorageProviderStore,
+    private readonly createRemoteProvider?: (config: StorageProviderConfig) => FsProvider,
   ) {}
+
+  getProviderStore(): StorageProviderStore {
+    return this.providerStore;
+  }
+
+  private async getRegistry(): Promise<VaultRegistry> {
+    if (!this.resolvedRegistry) {
+      this.resolvedRegistry =
+        typeof this.registry === 'function' ? await this.registry() : this.registry;
+    }
+    return this.resolvedRegistry;
+  }
 
   async init(): Promise<void> {
     if (this.initialized) return;
-    const registry = await this.createLocalRegistry();
+    const registry = await this.getRegistry();
     this.vaultService = createVaultService(registry);
     this.noteService = createVaultNoteService(this.vaultService, {
       onDeleteNote: async (projectId, noteId) => {
-        const transport = await this.vaultService!.getTransport(projectId);
+        const transport = await this.vaultService!.getProvider(projectId);
         await appendDeleteLog(transport, noteId);
       },
     });
@@ -149,15 +169,15 @@ export class VaultOrchestrator {
   }
 
   private getRemoteConfigService(projectId: string) {
-    return createRemoteConfigService(() => this.requireVaultService().getTransport(projectId));
+    return createRemoteConfigService(() => this.requireVaultService().getProvider(projectId));
   }
 
   getNoteService(): VaultNoteService {
     return this.requireNoteService();
   }
 
-  async getVaultTransport(projectId: string): Promise<FsTransport> {
-    return this.requireVaultService().getTransport(projectId);
+  async getVaultProvider(projectId: string): Promise<FsProvider> {
+    return this.requireVaultService().getProvider(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
@@ -317,8 +337,16 @@ export class VaultOrchestrator {
     return remote;
   }
 
+  private createRemoteTransport(configOrUrl: StorageProviderConfig | string): FsProvider {
+    if (this.createRemoteProvider && typeof configOrUrl !== 'string') {
+      return this.createRemoteProvider(configOrUrl);
+    }
+    const url = typeof configOrUrl === 'string' ? configOrUrl : generateProviderId(configOrUrl);
+    return createFsProvider(url, this.providerStore);
+  }
+
   async listRemoteVaults(providerId: string): Promise<VaultMeta[]> {
-    const provider = getProvider(providerId);
+    const provider = this.providerStore.getProvider(providerId);
     if (!provider) return [];
     try {
       const transport = this.createRemoteTransport(provider);
@@ -347,10 +375,10 @@ export class VaultOrchestrator {
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
 
-    const resolved = await this.resolveTransport(projectId);
+    const resolved = await this.resolveProvider(projectId);
     if (!resolved) throw new Error('No remote configured for this notebook');
 
-    const remote = resolved.transport;
+    const remote = resolved.provider;
     let manifest: Manifest;
     try {
       const raw = await remote.read(metaPath('manifest'));
@@ -374,10 +402,10 @@ export class VaultOrchestrator {
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
 
-    const provider = getProvider(providerId);
+    const provider = this.providerStore.getProvider(providerId);
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
-    const transport = createPrefixedTransport(path, this.createRemoteTransport(provider));
+    const transport = this.createRemoteTransport(`${providerId}/${path}`);
     let manifest: Manifest;
     try {
       const raw = await transport.read(metaPath('manifest'));
@@ -440,7 +468,7 @@ export class VaultOrchestrator {
 
   async tryEntrySync(projectId: string): Promise<SyncOutcome | null> {
     if (isSyncCacheValid(projectId)) return null;
-    const resolved = await this.resolveTransport(projectId);
+    const resolved = await this.resolveProvider(projectId);
     if (!resolved) return null;
     try {
       return await this.sync(projectId);
@@ -449,19 +477,19 @@ export class VaultOrchestrator {
     }
   }
 
-  private async resolveTransport(projectId: string): Promise<ResolvedTransport | null> {
+  private async resolveProvider(projectId: string): Promise<ResolvedProvider | null> {
     const service = this.getRemoteConfigService(projectId);
     const remote = await service.getDefaultRemote();
     if (!remote?.url) return null;
 
     const parsed = parseSourceUrl(remote.url);
     const providerId = generateProviderId(parsed);
-    const provider = getProvider(providerId);
+    const provider = this.providerStore.getProvider(providerId);
     if (!provider) return null;
 
-    const transport = createPrefixedTransport(parsed.path, this.createRemoteTransport(provider));
+    const transport = this.createRemoteTransport(provider);
     return {
-      transport,
+      provider: transport,
       remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
       providerId,
       path: parsed.path,
@@ -472,7 +500,7 @@ export class VaultOrchestrator {
     projectId: string,
     direction: 'sync' | 'pull' | 'push',
   ): Promise<SyncOutcome> {
-    const resolved = await this.resolveTransport(projectId);
+    const resolved = await this.resolveProvider(projectId);
     if (!resolved) {
       return { result: EMPTY_SYNC_RESULT, menuItems: [], noteChanged: false };
     }
@@ -481,13 +509,13 @@ export class VaultOrchestrator {
     let result: SyncResult;
     switch (direction) {
       case 'sync':
-        result = await syncService.sync(projectId, resolved.transport);
+        result = await syncService.sync(projectId, resolved.provider);
         break;
       case 'pull':
-        result = await syncService.pull(projectId, resolved.transport);
+        result = await syncService.pull(projectId, resolved.provider);
         break;
       case 'push':
-        result = await syncService.push(projectId, resolved.transport);
+        result = await syncService.push(projectId, resolved.provider);
         break;
     }
 

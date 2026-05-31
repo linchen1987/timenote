@@ -1,5 +1,7 @@
 import type {
   ImportResult,
+  ProviderConfig,
+  ProviderEntry,
   RemoteConfig,
   RuntimeMenuItem,
   SyncResult,
@@ -83,6 +85,10 @@ export type VaultStore = {
 
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
+
+  listProviders: () => ProviderEntry[];
+  saveProvider: (config: ProviderConfig) => ProviderEntry;
+  deleteProvider: (id: string) => void;
 };
 
 import { migrateRemotesFromLocalStorage } from '../lib/remote-config-migration';
@@ -110,7 +116,7 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       await orchestrator.init();
       try {
         await migrateRemotesFromLocalStorage(
-          (projectId) => orchestrator.getVaultTransport(projectId),
+          (projectId) => orchestrator.getVaultProvider(projectId),
           async () => (await orchestrator.listVaults()).map((v) => v.projectId),
         );
       } catch (e) {
@@ -320,6 +326,16 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       const result = await orchestrator.importVault(file);
       await get().listVaults();
       return result;
+    },
+
+    listProviders: () => {
+      return orchestrator.getProviderStore().listProviders();
+    },
+    saveProvider: (config: ProviderConfig) => {
+      return orchestrator.getProviderStore().saveProvider(config);
+    },
+    deleteProvider: (id: string) => {
+      orchestrator.getProviderStore().deleteProvider(id);
     },
   }));
 }

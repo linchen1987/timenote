@@ -1,13 +1,16 @@
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
-import type { FsStat, FsTransport } from './transport';
+import type { FsProvider, FsProviderStat } from '../../provider';
+import type { ProviderModule } from '../module';
 
-export function createS3Transport(config: {
-  endpoint: string;
-  bucket: string;
+export type S3Identity = { type: 's3'; endpoint: string; bucket: string };
+
+export type S3Config = S3Identity & {
   accessKeyId: string;
   secretAccessKey: string;
   region?: string;
-}): FsTransport {
+};
+
+function createS3Provider(config: S3Config): FsProvider {
   let clientCache: S3Client | null = null;
 
   function getClient() {
@@ -26,10 +29,10 @@ export function createS3Transport(config: {
   }
 
   return {
-    async list(dirPath: string): Promise<FsStat[]> {
+    async list(dirPath: string): Promise<FsProviderStat[]> {
       const c = getClient();
       const prefix = dirPath ? `${dirPath}/` : '';
-      const entries: FsStat[] = [];
+      const entries: FsProviderStat[] = [];
       try {
         for await (const item of c.listObjectsGrouped({
           prefix: prefix || '',
@@ -108,3 +111,21 @@ export function createS3Transport(config: {
     async ensureDir(_dirPath: string): Promise<void> {},
   };
 }
+
+export const s3Module: ProviderModule<S3Identity, S3Config> = {
+  scheme: 's3',
+
+  generateId({ bucket, endpoint }: S3Identity): string {
+    return `s3://${bucket}@${endpoint}`;
+  },
+
+  parseSource(userinfo: string, host: string, path: string): S3Identity & { path: string } {
+    return { type: 's3', bucket: userinfo, endpoint: host, path };
+  },
+
+  create(_identity: S3Identity, config: S3Config): FsProvider {
+    return createS3Provider(config);
+  },
+};
+
+export { createS3Provider };

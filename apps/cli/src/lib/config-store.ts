@@ -6,6 +6,8 @@ import {
   type ProviderConfig,
   type ProviderEntry,
   type ProviderType,
+  type StorageProviderStore,
+  toProviderEntry,
 } from '@timenote/core';
 
 function configDir(): string {
@@ -81,4 +83,32 @@ export async function saveProvider(
 export async function deleteProvider(id: string): Promise<void> {
   const providers = (await readProviders()).filter((p) => p.id !== id);
   await writeProviders(providers);
+}
+
+export async function createFileProviderStore(): Promise<StorageProviderStore> {
+  let cache = await readProviders();
+
+  return {
+    listProviders(): ProviderEntry[] {
+      return cache;
+    },
+    getProvider(id: string): ProviderEntry | null {
+      return cache.find((p) => p.id === id) ?? null;
+    },
+    saveProvider(config: ProviderConfig): ProviderEntry {
+      const entry = toProviderEntry(config);
+      const idx = cache.findIndex((p) => p.id === entry.id);
+      if (idx >= 0) {
+        cache[idx] = entry;
+      } else {
+        cache.push(entry);
+      }
+      writeProviders(cache).catch(() => {});
+      return entry;
+    },
+    deleteProvider(id: string): void {
+      cache = cache.filter((p) => p.id !== id);
+      writeProviders(cache).catch(() => {});
+    },
+  };
 }

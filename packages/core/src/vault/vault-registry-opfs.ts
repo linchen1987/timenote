@@ -1,6 +1,6 @@
-import { createOpfsTransport } from '../fs/opfs';
-import type { FsTransport } from '../fs/transport';
-import type { VaultRegistry } from './vault-registry';
+import type { FsProvider } from '../fs/provider';
+import { createOpfsProvider } from '../fs/providers/fs/opfs';
+import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
 
 export async function createOpfsVaultRegistry(): Promise<VaultRegistry> {
   const opfsRoot = await navigator.storage.getDirectory();
@@ -11,20 +11,48 @@ export async function createOpfsVaultRegistry(): Promise<VaultRegistry> {
 class OpfsVaultRegistryImpl implements VaultRegistry {
   constructor(private vaultsDir: FileSystemDirectoryHandle) {}
 
-  async list(): Promise<string[]> {
-    const names: string[] = [];
+  async list(): Promise<VaultRegistryEntry[]> {
+    const entries: VaultRegistryEntry[] = [];
     for await (const [name, handle] of this.vaultsDir.entries()) {
-      if (handle.kind === 'directory') names.push(name);
+      if (handle.kind === 'directory') {
+        entries.push(this.toEntry(name));
+      }
     }
-    return names;
+    return entries;
   }
 
-  async getTransport(projectId: string): Promise<FsTransport> {
-    const dir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
-    return createOpfsTransport(dir);
+  async get(projectId: string): Promise<VaultRegistryEntry | null> {
+    try {
+      await this.vaultsDir.getDirectoryHandle(projectId);
+      return this.toEntry(projectId);
+    } catch {
+      return null;
+    }
   }
 
-  async remove(projectId: string): Promise<void> {
+  async register(projectId: string, name: string): Promise<VaultRegistryEntry> {
+    await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
+    return this.toEntry(projectId, name);
+  }
+
+  async unregister(projectId: string): Promise<void> {
     await this.vaultsDir.removeEntry(projectId, { recursive: true });
+  }
+
+  async destroy(projectId: string): Promise<void> {
+    await this.vaultsDir.removeEntry(projectId, { recursive: true });
+  }
+
+  async getProvider(projectId: string): Promise<FsProvider> {
+    const dir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
+    return createOpfsProvider(dir);
+  }
+
+  private toEntry(projectId: string, name?: string): VaultRegistryEntry {
+    return {
+      projectId,
+      sourceUrl: `fs:///vaults/${projectId}`,
+      name: name ?? projectId,
+    };
   }
 }

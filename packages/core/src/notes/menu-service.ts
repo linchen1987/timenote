@@ -11,14 +11,14 @@ export interface VaultMenuService {
 export function createVaultMenuService(vaultService: VaultService): VaultMenuService {
   return {
     async loadMenu(projectId: string): Promise<RuntimeMenuItem[]> {
-      const transport = await vaultService.getTransport(projectId);
+      const transport = await vaultService.getProvider(projectId);
       const raw = await transport.read(metaPath('menu'));
       const data = JSON.parse(raw) as MenuData;
       return flattenMenuItems(data.items);
     },
 
     async saveMenu(projectId: string, items: RuntimeMenuItem[]): Promise<void> {
-      const transport = await vaultService.getTransport(projectId);
+      const transport = await vaultService.getProvider(projectId);
       const nested = nestifyMenuItems(items);
       const menu = createMenuData(nested);
       menu.updated_at = new Date().toISOString();

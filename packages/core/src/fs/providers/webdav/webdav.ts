@@ -1,11 +1,17 @@
 import { createClient } from 'webdav';
-import type { FsStat, FsTransport } from './transport';
+import type { FsProvider, FsProviderStat } from '../../provider';
+import type { ProviderModule } from '../module';
 
-export function createWebdavTransport(
-  baseUrl: string,
-  username: string,
-  password?: string,
-): FsTransport {
+export type WebdavIdentity = { type: 'webdav'; host: string; username: string };
+
+export type WebdavConfig = WebdavIdentity & {
+  password?: string;
+  token?: string;
+  tls?: boolean;
+  port?: number;
+};
+
+function createWebdavProvider(baseUrl: string, username: string, password?: string): FsProvider {
   const userAgent = 'Microsoft-WebDAV-MiniRedir/10.0.19041';
   let clientCache: ReturnType<typeof createClient> | null = null;
 
@@ -20,7 +26,7 @@ export function createWebdavTransport(
   }
 
   return {
-    async list(dirPath: string): Promise<FsStat[]> {
+    async list(dirPath: string): Promise<FsProviderStat[]> {
       const c = getClient();
       const items: any[] = await c.getDirectoryContents(dirPath || '/');
       return items.map((item: any) => ({
@@ -86,3 +92,27 @@ export function createWebdavTransport(
     },
   };
 }
+
+export const webdavModule: ProviderModule<WebdavIdentity, WebdavConfig> = {
+  scheme: 'webdav',
+
+  generateId({ username, host }: WebdavIdentity): string {
+    return `webdav://${username}@${host}`;
+  },
+
+  parseSource(userinfo: string, host: string, path: string): WebdavIdentity & { path: string } {
+    return { type: 'webdav', username: userinfo, host, path };
+  },
+
+  create(identity: WebdavIdentity, config: WebdavConfig): FsProvider {
+    const protocol = config.tls !== false ? 'https' : 'http';
+    const defaultPort = config.tls !== false ? 443 : 80;
+    const baseUrl =
+      config.port && config.port !== defaultPort
+        ? `${protocol}://${config.host}:${config.port}`
+        : `${protocol}://${config.host}`;
+    return createWebdavProvider(baseUrl, identity.username, config.password);
+  },
+};
+
+export { createWebdavProvider };

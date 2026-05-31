@@ -1,4 +1,4 @@
-import type { FsTransport } from '../fs/transport';
+import type { FsProvider } from '../fs/provider';
 import { computeBinaryHash } from '../spec/hash';
 import { ASSETS_DIR, assetPath } from '../spec/vault-layout';
 
@@ -47,7 +47,7 @@ export interface AttachmentWriteResult {
   existed: boolean;
 }
 
-export function createAttachmentService(transport: FsTransport) {
+export function createAttachmentService(transport: FsProvider) {
   return {
     async write(path: string, data: ArrayBuffer): Promise<void> {
       const dir = path.split('/').slice(0, -1).join('/');

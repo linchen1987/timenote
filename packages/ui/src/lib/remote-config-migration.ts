@@ -1,4 +1,4 @@
-import { type FsTransport, META_DIR, type RemoteConfig, STORAGE_KEYS } from '@timenote/core';
+import { type FsProvider, META_DIR, type RemoteConfig, STORAGE_KEYS } from '@timenote/core';
 
 const V1_KEY = '@timenote/notebook_remotes_migrated';
 const V2_KEY = STORAGE_KEYS.NOTEBOOK_REMOTES_MIGRATED_V2;
@@ -44,7 +44,7 @@ function parseTimestamp(value: string): number | null {
 }
 
 export async function migrateRemotesFromLocalStorage(
-  getVaultTransport: (projectId: string) => Promise<FsTransport>,
+  getVaultProvider: (projectId: string) => Promise<FsProvider>,
   listVaultProjectIds: () => Promise<string[]>,
 ): Promise<void> {
   const state = localStorage.getItem(V2_KEY);
@@ -101,9 +101,9 @@ export async function migrateRemotesFromLocalStorage(
   for (const [projectId, remotes] of Object.entries(oldConfig)) {
     if (!existingProjectIds.has(projectId)) continue;
 
-    let transport: FsTransport;
+    let transport: FsProvider;
     try {
-      transport = await getVaultTransport(projectId);
+      transport = await getVaultProvider(projectId);
     } catch {
       console.warn(`[migrateRemotes] vault transport not found for ${projectId}, skipping`);
       allSucceeded = false;
