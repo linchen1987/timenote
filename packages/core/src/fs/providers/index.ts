@@ -27,6 +27,14 @@ const modules: Record<string, AnyProviderModule> = {
 
 const SCHEME_MAP = new Map<string, string>(Object.values(modules).map((m) => [m.scheme, m.scheme]));
 
+// Internal API for testing. Replaces a provider module in the global registry.
+// Must NOT be used in production code — it mutates shared state and will
+// affect all callers within the same process.
+export function registerModule(name: string, module: AnyProviderModule): void {
+  modules[name] = module;
+  SCHEME_MAP.set(module.scheme, module.scheme);
+}
+
 function findModule(scheme: string): AnyProviderModule {
   const key = SCHEME_MAP.get(scheme);
   if (!key) throw new Error(`Unsupported scheme: ${scheme}`);

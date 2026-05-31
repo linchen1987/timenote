@@ -109,12 +109,13 @@ export class VaultOrchestrator {
   private importService: VaultImportService | null = null;
   private initialized = false;
 
-  // TODO: createRemoteProvider 是临时方案，仅为支持 web 端 RPC proxy。
-  // 应该通过 ProviderModule 注册机制统一处理，而不是在 Orchestrator 构造函数注入回调。
+  // rpcProviderFactory: platform-specific factory that creates an FsProvider
+  // from a source URL. On web this creates an RPC proxy to server-side storage;
+  // when absent, createFsProvider is used (direct S3/WebDAV/local).
   constructor(
     private readonly registry: VaultRegistry | (() => Promise<VaultRegistry>),
     private readonly providerStore: StorageProviderStore,
-    private readonly createRemoteProvider?: (config: StorageProviderConfig) => FsProvider,
+    private readonly rpcProviderFactory?: (url: string, store: StorageProviderStore) => FsProvider,
   ) {}
 
   getProviderStore(): StorageProviderStore {
@@ -337,11 +338,10 @@ export class VaultOrchestrator {
     return remote;
   }
 
-  private createRemoteTransport(configOrUrl: StorageProviderConfig | string): FsProvider {
-    if (this.createRemoteProvider && typeof configOrUrl !== 'string') {
-      return this.createRemoteProvider(configOrUrl);
+  private createRemoteFsProvider(url: string): FsProvider {
+    if (this.rpcProviderFactory) {
+      return this.rpcProviderFactory(url, this.providerStore);
     }
-    const url = typeof configOrUrl === 'string' ? configOrUrl : generateProviderId(configOrUrl);
     return createFsProvider(url, this.providerStore);
   }
 
@@ -349,7 +349,7 @@ export class VaultOrchestrator {
     const provider = this.providerStore.getProvider(providerId);
     if (!provider) return [];
     try {
-      const transport = this.createRemoteTransport(provider);
+      const transport = this.createRemoteFsProvider(providerId);
       const entries = await transport.list(VAULTS_REMOTE_PREFIX);
       const vaults: VaultMeta[] = [];
       for (const entry of entries) {
@@ -405,7 +405,7 @@ export class VaultOrchestrator {
     const provider = this.providerStore.getProvider(providerId);
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
-    const transport = this.createRemoteTransport(`${providerId}/${path}`);
+    const transport = this.createRemoteFsProvider(`${providerId}/${path}`);
     let manifest: Manifest;
     try {
       const raw = await transport.read(metaPath('manifest'));
@@ -487,7 +487,7 @@ export class VaultOrchestrator {
     const provider = this.providerStore.getProvider(providerId);
     if (!provider) return null;
 
-    const transport = this.createRemoteTransport(provider);
+    const transport = this.createRemoteFsProvider(remote.url);
     return {
       provider: transport,
       remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
