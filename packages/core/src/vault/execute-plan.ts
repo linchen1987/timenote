@@ -92,10 +92,13 @@ export async function executePlan(
       }
     }
 
+    // 必须计入 pulled 以触发索引重建和 UI 刷新。
+    // 远端驱动的本地删除也是 pulled 变更的一部分，
     for (const key of plan.toDeleteLocal) {
       try {
         const path = isMetaKey(key) ? extractMetaPath(key) : key;
         await localFs.remove(path);
+        result.pulled++;
       } catch (e) {
         if (!isNotFoundError(e)) {
           result.errors.push(`Delete local ${key}: ${(e as Error).message}`);
