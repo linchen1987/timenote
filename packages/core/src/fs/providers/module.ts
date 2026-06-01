@@ -1,40 +1,23 @@
 import type { FsProvider } from '../provider';
+import type { FsAccount, FsConfig, FsEndpoint, FsIdentity } from './fs/def';
+import type { S3Account, S3Config, S3Endpoint, S3Identity } from './s3/s3';
+import type { WebdavAccount, WebdavConfig, WebdavEndpoint, WebdavIdentity } from './webdav/webdav';
 
-export type StorageProviderType = 'fs' | 's3' | 'webdav';
+export type FsProviderType = 'fs' | 's3' | 'webdav';
 
-export type StorageProviderIdentity =
-  | { type: 'fs' }
-  | { type: 's3'; endpoint: string; bucket: string }
-  | { type: 'webdav'; host: string; username: string };
+export type FsProviderIdentity = FsIdentity | S3Identity | WebdavIdentity;
 
-export type StorageProviderConfig =
-  | { type: 'fs' }
-  | {
-      type: 's3';
-      endpoint: string;
-      bucket: string;
-      accessKeyId: string;
-      secretAccessKey: string;
-      region?: string;
-    }
-  | {
-      type: 'webdav';
-      host: string;
-      username: string;
-      password?: string;
-      token?: string;
-      tls?: boolean;
-      port?: number;
-    };
+export type FsProviderEndpoint = FsEndpoint | S3Endpoint | WebdavEndpoint;
 
-export interface ProviderModule<
-  I extends StorageProviderIdentity = StorageProviderIdentity,
-  C = void,
-> {
+export type FsProviderAccount = FsAccount | S3Account | WebdavAccount;
+
+export type FsProviderConfig = FsConfig | S3Config | WebdavConfig;
+
+export interface ProviderModule<I extends FsProviderIdentity = FsProviderIdentity> {
   scheme: string;
-  generateId(identity: I): string;
-  parseSource(userinfo: string, host: string, path: string): I & { path: string };
-  create(identity: I, config: C): FsProvider;
+  getProviderId(identity: I): string;
+  parseSource(userinfo: string, host: string, path: string): FsProviderEndpoint & { type: I['type'] };
+  create(config: FsProviderConfig & { type: I['type'] }): FsProvider;
 }
 
-export type AnyProviderModule = ProviderModule<StorageProviderIdentity, unknown>;
+export type AnyProviderModule = ProviderModule;

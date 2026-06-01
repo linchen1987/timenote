@@ -3,10 +3,13 @@ import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
 import type { FsProvider } from '../fs/provider';
 import {
   createFsProvider,
-  generateProviderId,
+  createFsProviderFromUrl,
+  type FsProviderAccount,
+  type FsProviderConfig,
+  type FsProviderEndpoint,
+  type FsProviderStore,
+  getProviderId,
   parseSourceUrl,
-  type StorageProviderConfig,
-  type StorageProviderStore,
 } from '../fs/providers';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
@@ -40,7 +43,13 @@ import type { VaultRegistry } from './vault-registry';
 
 const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
 const DEFAULT_REMOTE_NAME = 'origin';
-const EMPTY_SYNC_RESULT: SyncResult = { pulled: 0, pushed: 0, conflicts: 0, errors: [] };
+const EMPTY_SYNC_RESULT: SyncResult = {
+  pulled: 0,
+  pushed: 0,
+  deletedLocal: 0,
+  conflicts: 0,
+  errors: [],
+};
 
 export interface MenuItemInput {
   parentId: string | null;
@@ -109,16 +118,13 @@ export class VaultOrchestrator {
   private importService: VaultImportService | null = null;
   private initialized = false;
 
-  // rpcProviderFactory: platform-specific factory that creates an FsProvider
-  // from a source URL. On web this creates an RPC proxy to server-side storage;
-  // when absent, createFsProvider is used (direct S3/WebDAV/local).
   constructor(
     private readonly registry: VaultRegistry | (() => Promise<VaultRegistry>),
-    private readonly providerStore: StorageProviderStore,
-    private readonly rpcProviderFactory?: (url: string, store: StorageProviderStore) => FsProvider,
+    private readonly providerStore: FsProviderStore,
+    private readonly rpcProviderFactory?: (config: FsProviderConfig) => FsProvider,
   ) {}
 
-  getProviderStore(): StorageProviderStore {
+  getProviderStore(): FsProviderStore {
     return this.providerStore;
   }
 
@@ -338,18 +344,26 @@ export class VaultOrchestrator {
     return remote;
   }
 
-  private createRemoteFsProvider(url: string): FsProvider {
-    if (this.rpcProviderFactory) {
-      return this.rpcProviderFactory(url, this.providerStore);
+  private resolveFsProviderConfig(endpoint: FsProviderEndpoint, account: FsProviderAccount): FsProviderConfig {
+    if (endpoint.type === 'fs') {
+      return { type: 'fs', path: endpoint.path };
     }
-    return createFsProvider(url, this.providerStore);
+    return { ...account, path: endpoint.path } as FsProviderConfig;
+  }
+
+  private createRemoteFsProvider(config: FsProviderConfig): FsProvider {
+    if (this.rpcProviderFactory) {
+      return this.rpcProviderFactory(config);
+    }
+    return createFsProvider(config);
   }
 
   async listRemoteVaults(providerId: string): Promise<VaultMeta[]> {
     const provider = this.providerStore.getProvider(providerId);
     if (!provider) return [];
     try {
-      const transport = this.createRemoteFsProvider(providerId);
+      const config = { ...provider, path: '/' } as FsProviderConfig;
+      const transport = this.createRemoteFsProvider(config);
       const entries = await transport.list(VAULTS_REMOTE_PREFIX);
       const vaults: VaultMeta[] = [];
       for (const entry of entries) {
@@ -405,7 +419,8 @@ export class VaultOrchestrator {
     const provider = this.providerStore.getProvider(providerId);
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
-    const transport = this.createRemoteFsProvider(`${providerId}/${path}`);
+    const config = { ...provider, path } as FsProviderConfig;
+    const transport = this.createRemoteFsProvider(config);
     let manifest: Manifest;
     try {
       const raw = await transport.read(metaPath('manifest'));
@@ -483,11 +498,12 @@ export class VaultOrchestrator {
     if (!remote?.url) return null;
 
     const parsed = parseSourceUrl(remote.url);
-    const providerId = generateProviderId(parsed);
+    const providerId = getProviderId(parsed);
     const provider = this.providerStore.getProvider(providerId);
     if (!provider) return null;
 
-    const transport = this.createRemoteFsProvider(remote.url);
+    const config = this.resolveFsProviderConfig(parsed, provider);
+    const transport = this.createRemoteFsProvider(config);
     return {
       provider: transport,
       remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
@@ -521,7 +537,7 @@ export class VaultOrchestrator {
 
     touchSyncCache(projectId);
 
-    const noteChanged = result.pulled > 0;
+    const noteChanged = result.pulled > 0 || result.deletedLocal > 0;
     let menuItems: RuntimeMenuItem[] = [];
     if (direction !== 'push') {
       menuItems = await this.loadMenu(projectId);

@@ -4,11 +4,17 @@ import type { ProviderModule } from '../module';
 
 export type S3Identity = { type: 's3'; endpoint: string; bucket: string };
 
-export type S3Config = S3Identity & {
+export type S3Credentials = {
   accessKeyId: string;
   secretAccessKey: string;
   region?: string;
 };
+
+export type S3Endpoint = S3Identity & { path: string };
+
+export type S3Account = S3Identity & S3Credentials;
+
+export type S3Config = S3Identity & S3Credentials & { path: string };
 
 function createS3Provider(config: S3Config): FsProvider {
   let clientCache: S3Client | null = null;
@@ -98,7 +104,11 @@ function createS3Provider(config: S3Config): FsProvider {
       } catch {
         try {
           const prefix = filePath.endsWith('/') ? filePath : filePath + '/';
-          for await (const _item of c.listObjectsGrouped({ prefix, maxResults: 1 })) {
+          for await (const _item of c.listObjectsGrouped({
+            prefix,
+            delimiter: '/' as any,
+            maxResults: 1,
+          })) {
             return true;
           }
           return false;
@@ -112,18 +122,18 @@ function createS3Provider(config: S3Config): FsProvider {
   };
 }
 
-export const s3Module: ProviderModule<S3Identity, S3Config> = {
+export const s3Module: ProviderModule<S3Identity> = {
   scheme: 's3',
 
-  generateId({ bucket, endpoint }: S3Identity): string {
+  getProviderId({ bucket, endpoint }: S3Identity): string {
     return `s3://${bucket}@${endpoint}`;
   },
 
-  parseSource(userinfo: string, host: string, path: string): S3Identity & { path: string } {
+  parseSource(userinfo: string, host: string, path: string): S3Endpoint {
     return { type: 's3', bucket: userinfo, endpoint: host, path };
   },
 
-  create(_identity: S3Identity, config: S3Config): FsProvider {
+  create(config: S3Config): FsProvider {
     return createS3Provider(config);
   },
 };

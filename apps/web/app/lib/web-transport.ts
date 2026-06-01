@@ -1,15 +1,7 @@
-import type { FsProvider, FsProviderStat, ProviderConfig, StorageProviderStore } from '@timenote/core';
-import {
-  generateProviderId,
-  parseSourceUrl,
-} from '@timenote/core';
+import type { FsProvider, FsProviderConfig, FsProviderStat } from '@timenote/core';
 
-function createRpcProxy(config: ProviderConfig): FsProvider {
-  async function callApi<T = unknown>(
-    method: string,
-    path: string,
-    args?: unknown,
-  ): Promise<T> {
+function createRpcProxy(config: FsProviderConfig): FsProvider {
+  async function callApi<T = unknown>(method: string, path: string, args?: unknown): Promise<T> {
     const res = await fetch('/api/fs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -48,6 +40,7 @@ function createRpcProxy(config: ProviderConfig): FsProvider {
     async writeBinary(path: string, data: ArrayBuffer) {
       const res = await fetch('/api/fs/binary', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: (() => {
           const fd = new FormData();
           fd.append('meta', JSON.stringify({ config, path }));
@@ -89,15 +82,11 @@ function createRpcProxy(config: ProviderConfig): FsProvider {
   };
 }
 
-export function createRpcProvider(url: string, store: StorageProviderStore): FsProvider {
-  const parsed = parseSourceUrl(url);
-  const providerId = generateProviderId(parsed);
-  const config = store.getProvider(providerId);
-  if (!config) throw new Error(`Provider not configured: ${providerId}`);
-
-  const proxy = createRpcProxy(config);
-  const prefix = parsed.path?.replace(/\/+$/, '');
-  if (!prefix) return proxy;
+export function createRpcProvider(config: FsProviderConfig): FsProvider {
+  const { path: configPath, ...credentials } = config;
+  const proxy = createRpcProxy({ ...credentials, path: '/' } as FsProviderConfig);
+  const prefix = configPath?.replace(/\/+$/, '');
+  if (!prefix || prefix === '/') return proxy;
 
   const resolve = (path: string) => (path ? `${prefix}/${path}` : prefix);
   return {

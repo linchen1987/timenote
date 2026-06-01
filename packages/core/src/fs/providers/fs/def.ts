@@ -1,8 +1,10 @@
-import type { FsProvider, FsProviderStat } from '../../provider';
-import type { ProviderModule, StorageProviderIdentity } from '../module';
+import type { FsProvider } from '../../provider';
+import type { ProviderModule } from '../module';
 
 export type FsIdentity = { type: 'fs' };
-export type FsConfig = FsIdentity;
+export type FsEndpoint = FsIdentity & { path: string };
+export type FsAccount = FsIdentity;
+export type FsConfig = FsIdentity & { path: string };
 
 const runtimeFactories = new Map<string, (path: string) => FsProvider>();
 
@@ -14,20 +16,20 @@ export function getRuntimeFactory(id: string): ((path: string) => FsProvider) | 
   return runtimeFactories.get(id) ?? null;
 }
 
-export const fsModule: ProviderModule<FsIdentity, void> = {
+export const fsModule: ProviderModule<FsIdentity> = {
   scheme: 'fs',
 
-  generateId(): string {
+  getProviderId(): string {
     return 'fs://';
   },
 
-  parseSource(_userinfo: string, _host: string, path: string): FsIdentity & { path: string } {
+  parseSource(_userinfo: string, _host: string, path: string): FsConfig {
     return { type: 'fs', path };
   },
 
-  create(identity: FsIdentity & { path?: string }, _config: void): FsProvider {
+  create(config: FsConfig): FsProvider {
     const factory = getRuntimeFactory('fs://');
     if (!factory) throw new Error('No runtime factory registered for fs://');
-    return factory((identity as { path: string }).path ?? '');
+    return factory(config.path);
   },
 };

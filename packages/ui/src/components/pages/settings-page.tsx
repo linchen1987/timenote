@@ -1,4 +1,4 @@
-import type { ProviderConfig, ProviderEntry } from '@timenote/core';
+import type { FsProviderAccount, FsProviderConfig, FsProviderEntry } from '@timenote/core';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -10,11 +10,11 @@ import type { UseVaultStoreHook } from './use-notebooks-page';
 
 export interface SettingsPageProps {
   useVaultStore: UseVaultStoreHook;
-  testProviderConnection: (provider: ProviderConfig) => Promise<boolean>;
+  testProviderConnection: (provider: FsProviderConfig) => Promise<boolean>;
 }
 
 export function SettingsPage({ useVaultStore, testProviderConnection }: SettingsPageProps) {
-  const [providers, setProviders] = useState<ProviderEntry[]>(() =>
+  const [providers, setProviders] = useState<FsProviderEntry[]>(() =>
     useVaultStore.getState().listProviders(),
   );
   const [isAdding, setIsAdding] = useState(false);
@@ -38,7 +38,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
           username: form.webdav.username,
           password: form.webdav.password,
           tls: form.webdav.url.startsWith('https'),
-        });
+        } as FsProviderAccount);
       } else {
         if (!form.s3.bucket || !form.s3.accessKeyId) {
           toast.error('Bucket and Access Key ID are required');
@@ -51,7 +51,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
           bucket: form.s3.bucket,
           accessKeyId: form.s3.accessKeyId,
           secretAccessKey: form.s3.secretAccessKey,
-        });
+        } as FsProviderAccount);
       }
       refreshList();
       setIsAdding(false);
@@ -72,7 +72,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
   const handleTest = async () => {
     setConnectionStatus('testing');
     try {
-      const config: ProviderConfig =
+      const config: FsProviderConfig =
         form.type === 'webdav'
           ? {
               type: 'webdav',
@@ -80,6 +80,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
               username: form.webdav.username,
               password: form.webdav.password,
               tls: form.webdav.url.startsWith('https'),
+              path: '/',
             }
           : {
               type: 's3',
@@ -88,6 +89,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
               bucket: form.s3.bucket,
               accessKeyId: form.s3.accessKeyId,
               secretAccessKey: form.s3.secretAccessKey,
+              path: '/',
             };
       const ok = await testProviderConnection(config);
       if (ok) {

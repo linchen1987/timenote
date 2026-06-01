@@ -1,10 +1,10 @@
-import type { ProviderConfig } from '@timenote/core';
+import type { FsProviderEntry } from '@timenote/core';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
 export interface ProviderListCardProps {
-  providers: ProviderConfig[];
+  providers: FsProviderEntry[];
   onAdd: () => void;
   onDelete: (id: string) => void;
 }

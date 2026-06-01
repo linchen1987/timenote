@@ -13,7 +13,7 @@ export function registerRemoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (name: string, providerPath: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      let provider: import('@timenote/core').ProviderEntry, remotePathStr: string;
+      let provider: import('@timenote/core').FsProviderEntry, remotePathStr: string;
       try {
         ({ provider, remotePath: remotePathStr } =
           await configStore.resolveProviderPath(providerPath));

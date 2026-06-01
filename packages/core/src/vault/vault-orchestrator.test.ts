@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { FsProvider, FsProviderStat } from '../fs/provider';
 import {
   type AnyProviderModule,
-  type StorageProviderConfig,
-  type StorageProviderIdentity,
-  type StorageProviderStore,
+  type FsProviderAccount,
+  type FsProviderConfig,
+  type FsProviderIdentity,
+  type FsProviderStore,
   registerModule,
 } from '../fs/providers';
-import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
 import { VaultOrchestrator } from './vault-orchestrator';
+import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
 
 function createMemoryProvider(): FsProvider {
   const files = new Map<string, string>();
@@ -98,17 +99,18 @@ function createRecordingProvider(): { provider: FsProvider; paths: string[] } {
 
 const S3_PROVIDER_ID = 's3://test-endpoint@test-bucket';
 const S3_URL_WITH_PATH = 's3://test-endpoint@test-bucket/timenote/vaults/abc';
-const S3_CONFIG: StorageProviderConfig = {
+const S3_ACCOUNT: FsProviderAccount = {
   type: 's3',
   endpoint: 'test-endpoint',
   bucket: 'test-bucket',
   accessKeyId: 'key',
   secretAccessKey: 'secret',
 };
+const S3_CONFIG: FsProviderConfig = { ...S3_ACCOUNT, path: '/' };
 
 const mockS3Module: AnyProviderModule = {
   scheme: 's3',
-  generateId: (i: StorageProviderIdentity) => {
+  getProviderId: (i: FsProviderIdentity) => {
     const s3 = i as { type: 's3'; endpoint: string; bucket: string };
     return `s3://${s3.endpoint}@${s3.bucket}`;
   },
@@ -123,11 +125,11 @@ const mockS3Module: AnyProviderModule = {
   },
 };
 
-function createMockStore(): StorageProviderStore {
+function createMockStore(): FsProviderStore {
   return {
-    getProvider: (id: string) => (id === S3_PROVIDER_ID ? S3_CONFIG : null),
-    saveProvider: () => {},
-    listProviders: () => [S3_CONFIG],
+    getProvider: (id: string) => (id === S3_PROVIDER_ID ? S3_ACCOUNT : null),
+    saveProvider: () => ({ ...S3_ACCOUNT, id: S3_PROVIDER_ID }),
+    listProviders: () => [{ ...S3_ACCOUNT, id: S3_PROVIDER_ID }],
     deleteProvider: () => {},
   };
 }
@@ -194,8 +196,11 @@ describe('VaultOrchestrator', () => {
   it('sync uses path prefix via rpcProviderFactory (RPC path)', async () => {
     const recording = createRecordingProvider();
 
-    const rpcProviderFactory = (url: string, _store: StorageProviderStore): FsProvider => {
-      if (url !== S3_URL_WITH_PATH) throw new Error(`Unexpected URL: ${url}`);
+    const rpcProviderFactory = (config: FsProviderConfig): FsProvider => {
+      if (config.type !== 's3') throw new Error(`Unexpected type: ${config.type}`);
+      const s3Config = config as FsProviderConfig & { type: 's3' };
+      if (s3Config.path !== 'timenote/vaults/abc')
+        throw new Error(`Unexpected path: ${s3Config.path}`);
       const prefix = 'timenote/vaults/abc';
       const resolve = (path: string) => (path ? `${prefix}/${path}` : prefix);
       const inner = recording.provider;

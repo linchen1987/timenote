@@ -1,4 +1,4 @@
-import { getDefaultRemotePath, type ProviderEntry, type VaultMeta } from '@timenote/core';
+import { type FsProviderEntry, getDefaultRemotePath, type VaultMeta } from '@timenote/core';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { UseVaultStoreHook } from './use-notebooks-page';
@@ -9,7 +9,7 @@ export interface RemoteVaultMeta extends VaultMeta {
 }
 
 export interface UseProviderScannerReturn {
-  providers: ProviderEntry[];
+  providers: FsProviderEntry[];
   scanResults: Map<string, VaultMeta[]>;
   remoteOnlyVaults: RemoteVaultMeta[];
   scanningId: string | null;
@@ -31,7 +31,7 @@ export function useProviderScanner(
   localVaults: VaultMeta[],
   onPullSuccess: () => Promise<void>,
 ): UseProviderScannerReturn {
-  const [providers, setProviders] = useState<ProviderEntry[]>(() =>
+  const [providers, setProviders] = useState<FsProviderEntry[]>(() =>
     useStore.getState().listProviders(),
   );
   const [scanningId, setScanningId] = useState<string | null>(null);

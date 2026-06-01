@@ -2,11 +2,11 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  generateProviderId,
-  type ProviderConfig,
-  type ProviderEntry,
-  type ProviderType,
-  type StorageProviderStore,
+  type FsProviderAccount,
+  type FsProviderEntry,
+  type FsProviderStore,
+  type FsProviderType,
+  getProviderId,
   toProviderEntry,
 } from '@timenote/core';
 
@@ -24,7 +24,7 @@ async function ensureConfigDir(): Promise<void> {
   await fs.mkdir(configDir(), { recursive: true });
 }
 
-async function readProviders(): Promise<ProviderEntry[]> {
+async function readProviders(): Promise<FsProviderEntry[]> {
   try {
     const raw = await fs.readFile(providersPath(), 'utf-8');
     return JSON.parse(raw);
@@ -33,23 +33,23 @@ async function readProviders(): Promise<ProviderEntry[]> {
   }
 }
 
-async function writeProviders(providers: ProviderEntry[]): Promise<void> {
+async function writeProviders(providers: FsProviderEntry[]): Promise<void> {
   await ensureConfigDir();
   await fs.writeFile(providersPath(), JSON.stringify(providers, null, 2));
 }
 
-export async function listProviders(): Promise<ProviderEntry[]> {
+export async function listProviders(): Promise<FsProviderEntry[]> {
   return readProviders();
 }
 
-export async function getProvider(id: string): Promise<ProviderEntry | null> {
+export async function getProvider(id: string): Promise<FsProviderEntry | null> {
   const providers = await readProviders();
   return providers.find((p) => p.id === id) ?? null;
 }
 
 export async function resolveProviderPath(
   providerPath: string,
-): Promise<{ provider: ProviderEntry; remotePath: string }> {
+): Promise<{ provider: FsProviderEntry; remotePath: string }> {
   const providers = await readProviders();
   const sorted = [...providers].sort((a, b) => b.id.length - a.id.length);
   for (const p of sorted) {
@@ -64,11 +64,11 @@ export async function resolveProviderPath(
 }
 
 export async function saveProvider(
-  type: ProviderType,
-  options: ProviderConfig,
-): Promise<ProviderEntry> {
-  const id = generateProviderId(options);
-  const entry: ProviderEntry = { ...options, id };
+  type: FsProviderType,
+  options: FsProviderAccount,
+): Promise<FsProviderEntry> {
+  const id = getProviderId(options);
+  const entry: FsProviderEntry = { ...options, id };
   const providers = await readProviders();
   const idx = providers.findIndex((p) => p.id === id);
   if (idx >= 0) {
@@ -85,18 +85,18 @@ export async function deleteProvider(id: string): Promise<void> {
   await writeProviders(providers);
 }
 
-export async function createFileProviderStore(): Promise<StorageProviderStore> {
+export async function createFileProviderStore(): Promise<FsProviderStore> {
   let cache = await readProviders();
 
   return {
-    listProviders(): ProviderEntry[] {
+    listProviders(): FsProviderEntry[] {
       return cache;
     },
-    getProvider(id: string): ProviderEntry | null {
+    getProvider(id: string): FsProviderAccount | null {
       return cache.find((p) => p.id === id) ?? null;
     },
-    saveProvider(config: ProviderConfig): ProviderEntry {
-      const entry = toProviderEntry(config);
+    saveProvider(account: FsProviderAccount): FsProviderEntry {
+      const entry = toProviderEntry(account);
       const idx = cache.findIndex((p) => p.id === entry.id);
       if (idx >= 0) {
         cache[idx] = entry;

@@ -1,7 +1,7 @@
 import type {
+  FsProviderAccount,
+  FsProviderEntry,
   ImportResult,
-  ProviderConfig,
-  ProviderEntry,
   RemoteConfig,
   RuntimeMenuItem,
   SyncResult,
@@ -86,8 +86,8 @@ export type VaultStore = {
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
 
-  listProviders: () => ProviderEntry[];
-  saveProvider: (config: ProviderConfig) => ProviderEntry;
+  listProviders: () => FsProviderEntry[];
+  saveProvider: (account: FsProviderAccount) => FsProviderEntry;
   deleteProvider: (id: string) => void;
 };
 
@@ -331,8 +331,8 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
     listProviders: () => {
       return orchestrator.getProviderStore().listProviders();
     },
-    saveProvider: (config: ProviderConfig) => {
-      return orchestrator.getProviderStore().saveProvider(config);
+    saveProvider: (account: FsProviderAccount): FsProviderEntry => {
+      return orchestrator.getProviderStore().saveProvider(account);
     },
     deleteProvider: (id: string) => {
       orchestrator.getProviderStore().deleteProvider(id);

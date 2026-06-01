@@ -4,12 +4,18 @@ import type { ProviderModule } from '../module';
 
 export type WebdavIdentity = { type: 'webdav'; host: string; username: string };
 
-export type WebdavConfig = WebdavIdentity & {
+export type WebdavCredentials = {
   password?: string;
   token?: string;
   tls?: boolean;
   port?: number;
 };
+
+export type WebdavEndpoint = WebdavIdentity & { path: string };
+
+export type WebdavAccount = WebdavIdentity & WebdavCredentials;
+
+export type WebdavConfig = WebdavIdentity & WebdavCredentials & { path: string };
 
 function createWebdavProvider(baseUrl: string, username: string, password?: string): FsProvider {
   const userAgent = 'Microsoft-WebDAV-MiniRedir/10.0.19041';
@@ -93,25 +99,25 @@ function createWebdavProvider(baseUrl: string, username: string, password?: stri
   };
 }
 
-export const webdavModule: ProviderModule<WebdavIdentity, WebdavConfig> = {
+export const webdavModule: ProviderModule<WebdavIdentity> = {
   scheme: 'webdav',
 
-  generateId({ username, host }: WebdavIdentity): string {
+  getProviderId({ username, host }: WebdavIdentity): string {
     return `webdav://${username}@${host}`;
   },
 
-  parseSource(userinfo: string, host: string, path: string): WebdavIdentity & { path: string } {
+  parseSource(userinfo: string, host: string, path: string): WebdavEndpoint {
     return { type: 'webdav', username: userinfo, host, path };
   },
 
-  create(identity: WebdavIdentity, config: WebdavConfig): FsProvider {
+  create(config: WebdavConfig): FsProvider {
     const protocol = config.tls !== false ? 'https' : 'http';
     const defaultPort = config.tls !== false ? 443 : 80;
     const baseUrl =
       config.port && config.port !== defaultPort
         ? `${protocol}://${config.host}:${config.port}`
         : `${protocol}://${config.host}`;
-    return createWebdavProvider(baseUrl, identity.username, config.password);
+    return createWebdavProvider(baseUrl, config.username, config.password);
   },
 };
 

@@ -1,4 +1,4 @@
-import { generateProviderId, parseSourceUrl, type StorageProviderStore } from '@timenote/core';
+import { type FsProviderStore, getProviderId, parseSourceUrl } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -73,7 +73,7 @@ export function registerSyncCommand(program: Command) {
     });
 }
 
-async function resolveRemote(vaultDir: string, store: StorageProviderStore) {
+async function resolveRemote(vaultDir: string, store: FsProviderStore) {
   const service = createRemoteConfigServiceForVault(vaultDir);
   const entry = await service.getDefaultRemote();
   if (!entry) {

@@ -1,8 +1,8 @@
-import { createProviderFromConfig, type ProviderConfig } from '@timenote/core';
+import { createProviderFromConfig, type FsProviderConfig } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
 
 type BaseRequest = {
-  config: ProviderConfig;
+  config: FsProviderConfig;
   path: string;
 };
 

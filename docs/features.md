@@ -175,4 +175,4 @@ vault 内所有持久化格式的 schema 与校验。格式定义详见 [vault.m
 - **S10（导入）vs 当前实现**：设计要求 Import vault 不存在时应调用 S9（Clone），当前 `import-service.ts` 直接调用 V1 + S8，未复用 Clone。实现应对齐设计。
 - **S10（导入）source 泛化**：设计要求 Import 支持任意 T1 存储作为 source，当前实现仅支持 ZIP 存储（T1.5）。实现应对齐设计，将 ZIP 作为 source 的特化调用。
 - **S11（导出）泛化**：设计要求 Export 支持任意 T1 存储作为 target，当前实现仅支持 ZIP 存储（T1.5）。S11.1 是 ZIP 场景的特化调用，当前已有实现。
-- **M8（Remote 配置格式）存储位置**：设计要求远程绑定配置存在 vault 内部，当前 CLI 使用 `.timenote/remotes.json`，Web/Extension 使用 localStorage，需统一迁移。详见 [remotes.md](specs/remotes.md)。
+- **M8（Remote 配置格式）存储位置**：设计要求远程绑定配置存在 vault 内部，当前 CLI 使用 `.timenote/remotes.json`，Web/Extension 使用 localStorage，需统一迁移。详见 [fs-storage.md](specs/fs-storage.md)。

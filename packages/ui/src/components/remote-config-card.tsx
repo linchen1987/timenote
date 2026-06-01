@@ -1,4 +1,4 @@
-import type { ProviderConfig } from '@timenote/core';
+import type { FsProviderEntry } from '@timenote/core';
 import { Check, Cloud, CloudOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -12,7 +12,7 @@ export interface RemoteDisplayConfig {
 }
 
 export interface RemoteConfigCardProps {
-  providers: ProviderConfig[];
+  providers: FsProviderEntry[];
   remoteConfig: RemoteDisplayConfig | null;
   selectedProviderId: string;
   customPath: string;

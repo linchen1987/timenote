@@ -1,9 +1,5 @@
-import type {
-  StorageProviderConfig,
-  StorageProviderEntry,
-  StorageProviderIdentity,
-} from '@timenote/core';
-import { generateProviderId } from '@timenote/core';
+import type { FsProviderAccount, FsProviderEntry, FsProviderIdentity } from '@timenote/core';
+import { getProviderId } from '@timenote/core';
 
 type RawEntry = Record<string, unknown>;
 
@@ -27,7 +23,7 @@ function flattenNested(raw: RawEntry): RawEntry {
   return raw;
 }
 
-function toConfig(raw: RawEntry): StorageProviderConfig | null {
+function toAccount(raw: RawEntry): FsProviderAccount | null {
   if (raw.type === 's3') {
     if (typeof raw.endpoint !== 'string' || typeof raw.bucket !== 'string') return null;
     if (typeof raw.accessKeyId !== 'string' || typeof raw.secretAccessKey !== 'string') return null;
@@ -54,26 +50,26 @@ function toConfig(raw: RawEntry): StorageProviderConfig | null {
   return null;
 }
 
-function toIdentity(config: StorageProviderConfig): StorageProviderIdentity {
-  switch (config.type) {
+function toIdentity(account: FsProviderAccount): FsProviderIdentity {
+  switch (account.type) {
     case 's3':
-      return { type: 's3', endpoint: config.endpoint, bucket: config.bucket };
+      return { type: 's3', endpoint: account.endpoint, bucket: account.bucket };
     case 'webdav':
-      return { type: 'webdav', host: config.host, username: config.username };
+      return { type: 'webdav', host: account.host, username: account.username };
     default:
-      throw new Error(`Unknown provider type: ${(config as { type: string }).type}`);
+      throw new Error(`Unknown provider type: ${(account as { type: string }).type}`);
   }
 }
 
 export function normalizeLegacyEntry(
   raw: RawEntry,
-): { entry: StorageProviderEntry; oldId: string | null } | null {
+): { entry: FsProviderEntry; oldId: string | null } | null {
   const flat = flattenNested(raw);
-  const config = toConfig(flat);
-  if (!config) return null;
+  const account = toAccount(flat);
+  if (!account) return null;
 
-  const newId = generateProviderId(toIdentity(config));
+  const newId = getProviderId(toIdentity(account));
   const oldId = typeof raw.id === 'string' && raw.id !== newId ? raw.id : null;
 
-  return { entry: { ...config, id: newId }, oldId };
+  return { entry: { ...account, id: newId }, oldId };
 }
