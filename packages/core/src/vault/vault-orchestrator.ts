@@ -1,16 +1,7 @@
 import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import type { FsProvider } from '../fs/provider';
-import {
-  buildSourceUrl,
-  createFsProvider,
-  createFsProviderFromUrl,
-  type FsProviderConfig,
-  type FsProviderStore,
-  getProviderId,
-  parseSourceUrl,
-  resolveProviderConfigFromUrl,
-} from '../fs/providers';
+import type { FsClient } from '../fs/client';
+import { type FsProviderConfig, type FsProviderStore, providerFacade } from '../fs/providers';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -78,7 +69,7 @@ export interface SyncOutcome {
 }
 
 interface ResolvedProvider {
-  provider: FsProvider;
+  provider: FsClient;
   remoteName: string;
   providerId: string;
   path: string;
@@ -121,7 +112,7 @@ export class VaultOrchestrator {
   constructor(
     private readonly registry: VaultRegistry | (() => Promise<VaultRegistry>),
     private readonly providerStore: FsProviderStore,
-    private readonly rpcProviderFactory?: (config: FsProviderConfig) => FsProvider,
+    private readonly rpcProviderFactory?: (config: FsProviderConfig) => FsClient,
   ) {}
 
   getProviderStore(): FsProviderStore {
@@ -183,7 +174,7 @@ export class VaultOrchestrator {
     return this.requireNoteService();
   }
 
-  async getVaultProvider(projectId: string): Promise<FsProvider> {
+  async getVaultProvider(projectId: string): Promise<FsClient> {
     return this.requireVaultService().getProvider(projectId);
   }
 
@@ -310,7 +301,7 @@ export class VaultOrchestrator {
 
   async configureRemote(projectId: string, providerId: string, path?: string): Promise<void> {
     const service = this.getRemoteConfigService(projectId);
-    const url = buildSourceUrl(providerId, path ?? '/');
+    const url = path && path !== '/' ? `${providerId}/${path}` : providerId;
     await service.setRemote({
       url,
       name: DEFAULT_REMOTE_NAME,
@@ -344,11 +335,11 @@ export class VaultOrchestrator {
     return remote;
   }
 
-  private createRemoteFsProvider(config: FsProviderConfig): FsProvider {
+  private createRemoteFsClient(config: FsProviderConfig): FsClient {
     if (this.rpcProviderFactory) {
       return this.rpcProviderFactory(config);
     }
-    return createFsProvider(config);
+    return providerFacade.create(config);
   }
 
   async listRemoteVaults(providerId: string): Promise<VaultMeta[]> {
@@ -356,7 +347,7 @@ export class VaultOrchestrator {
     if (!provider) return [];
     try {
       const config = { ...provider, path: '/' } as FsProviderConfig;
-      const transport = this.createRemoteFsProvider(config);
+      const transport = this.createRemoteFsClient(config);
       const entries = await transport.list(VAULTS_REMOTE_PREFIX);
       const vaults: VaultMeta[] = [];
       for (const entry of entries) {
@@ -413,7 +404,7 @@ export class VaultOrchestrator {
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
     const config = { ...provider, path } as FsProviderConfig;
-    const transport = this.createRemoteFsProvider(config);
+    const transport = this.createRemoteFsClient(config);
     let manifest: Manifest;
     try {
       const raw = await transport.read(metaPath('manifest'));
@@ -430,7 +421,7 @@ export class VaultOrchestrator {
 
     const service = this.getRemoteConfigService(projectId);
     await service.setRemote({
-      url: buildSourceUrl(providerId, path),
+      url: path && path !== '/' ? `${providerId}/${path}` : providerId,
       name: DEFAULT_REMOTE_NAME,
       default: true,
     });
@@ -491,13 +482,13 @@ export class VaultOrchestrator {
     if (!remote?.url) return null;
 
     try {
-      const config = resolveProviderConfigFromUrl(remote.url, this.providerStore);
-      const transport = this.createRemoteFsProvider(config);
-      const parsed = parseSourceUrl(remote.url);
+      const config = providerFacade.resolveConfigFromUrl(remote.url, this.providerStore);
+      const transport = this.createRemoteFsClient(config);
+      const parsed = providerFacade.parseUrl(remote.url);
       return {
         provider: transport,
         remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
-        providerId: getProviderId(parsed),
+        providerId: providerFacade.getProviderId(parsed),
         path: parsed.path,
       };
     } catch {

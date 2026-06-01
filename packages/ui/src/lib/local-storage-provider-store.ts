@@ -2,8 +2,8 @@ import {
   type FsProviderAccount,
   type FsProviderEntry,
   type FsProviderStore,
+  providerFacade,
   STORAGE_KEYS,
-  toProviderEntry,
 } from '@timenote/core';
 import { normalizeLegacyEntry } from './legacy-compat';
 
@@ -44,7 +44,7 @@ export function createLocalStorageProviderStore(): FsProviderStore {
       return read().find((p) => p.id === id) ?? null;
     },
     saveProvider(account: FsProviderAccount): FsProviderEntry {
-      const entry = toProviderEntry(account);
+      const entry = providerFacade.toEntry(account);
       const providers = read();
       const idx = providers.findIndex((p) => p.id === entry.id);
       if (idx >= 0) {

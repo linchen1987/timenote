@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 import { ManifestSchema } from '../spec/manifest';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';
@@ -15,7 +15,7 @@ export interface VaultService {
   createVaultWithId(projectId: string, name: string): Promise<void>;
   deleteVault(projectId: string): Promise<void>;
   listVaults(): Promise<VaultMeta[]>;
-  getProvider(projectId: string): Promise<FsProvider>;
+  getProvider(projectId: string): Promise<FsClient>;
 }
 
 export function createVaultService(registry: VaultRegistry): VaultService {
@@ -23,7 +23,7 @@ export function createVaultService(registry: VaultRegistry): VaultService {
 }
 
 class VaultServiceImpl implements VaultService {
-  private transports = new Map<string, FsProvider>();
+  private transports = new Map<string, FsClient>();
 
   constructor(private registry: VaultRegistry) {}
 
@@ -65,7 +65,7 @@ class VaultServiceImpl implements VaultService {
     return vaults;
   }
 
-  async getProvider(projectId: string): Promise<FsProvider> {
+  async getProvider(projectId: string): Promise<FsClient> {
     let transport = this.transports.get(projectId);
     if (!transport) {
       transport = await this.registry.getProvider(projectId);

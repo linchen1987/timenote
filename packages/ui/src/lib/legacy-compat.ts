@@ -1,5 +1,5 @@
 import type { FsProviderAccount, FsProviderEntry, FsProviderIdentity } from '@timenote/core';
-import { getProviderId } from '@timenote/core';
+import { providerFacade } from '@timenote/core';
 
 type RawEntry = Record<string, unknown>;
 
@@ -68,7 +68,7 @@ export function normalizeLegacyEntry(
   const account = toAccount(flat);
   if (!account) return null;
 
-  const newId = getProviderId(toIdentity(account));
+  const newId = providerFacade.getProviderId(toIdentity(account));
   const oldId = typeof raw.id === 'string' && raw.id !== newId ? raw.id : null;
 
   return { entry: { ...account, id: newId }, oldId };

@@ -6,8 +6,7 @@ import {
   type FsProviderEntry,
   type FsProviderStore,
   type FsProviderType,
-  getProviderId,
-  toProviderEntry,
+  providerFacade,
 } from '@timenote/core';
 
 function configDir(): string {
@@ -67,7 +66,7 @@ export async function saveProvider(
   type: FsProviderType,
   options: FsProviderAccount,
 ): Promise<FsProviderEntry> {
-  const id = getProviderId(options);
+  const id = providerFacade.getProviderId(options);
   const entry: FsProviderEntry = { ...options, id };
   const providers = await readProviders();
   const idx = providers.findIndex((p) => p.id === id);
@@ -96,7 +95,7 @@ export async function createFileProviderStore(): Promise<FsProviderStore> {
       return cache.find((p) => p.id === id) ?? null;
     },
     saveProvider(account: FsProviderAccount): FsProviderEntry {
-      const entry = toProviderEntry(account);
+      const entry = providerFacade.toEntry(account);
       const idx = cache.findIndex((p) => p.id === entry.id);
       if (idx >= 0) {
         cache[idx] = entry;

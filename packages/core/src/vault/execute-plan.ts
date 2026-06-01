@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 import type { SyncPlan } from './sync-algorithm';
 
 const META_DIR = '.timenote';
@@ -37,7 +37,7 @@ function splitDir(path: string): string | null {
   return parts.length > 1 ? parts.slice(0, -1).join('/') : null;
 }
 
-async function pullEntity(key: string, localFs: FsProvider, remoteFs: FsProvider): Promise<void> {
+async function pullEntity(key: string, localFs: FsClient, remoteFs: FsClient): Promise<void> {
   if (isMetaKey(key)) {
     const content = await remoteFs.read(extractMetaPath(key));
     await localFs.ensureDir(META_DIR);
@@ -55,7 +55,7 @@ async function pullEntity(key: string, localFs: FsProvider, remoteFs: FsProvider
   }
 }
 
-async function pushEntity(key: string, localFs: FsProvider, remoteFs: FsProvider): Promise<void> {
+async function pushEntity(key: string, localFs: FsClient, remoteFs: FsClient): Promise<void> {
   if (isMetaKey(key)) {
     const content = await localFs.read(extractMetaPath(key));
     await remoteFs.ensureDir(META_DIR);
@@ -75,8 +75,8 @@ async function pushEntity(key: string, localFs: FsProvider, remoteFs: FsProvider
 
 export async function executePlan(
   plan: SyncPlan,
-  localFs: FsProvider,
-  remoteFs: FsProvider,
+  localFs: FsClient,
+  remoteFs: FsClient,
   options?: { direction?: 'pull' | 'push' | 'both' },
 ): Promise<ExecuteResult> {
   const result: ExecuteResult = { pulled: 0, pushed: 0, errors: [] };

@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 import { computeBinaryHash } from '../spec/hash';
 import { ASSETS_DIR, assetPath } from '../spec/vault-layout';
 
@@ -47,7 +47,7 @@ export interface AttachmentWriteResult {
   existed: boolean;
 }
 
-export function createAttachmentService(transport: FsProvider) {
+export function createAttachmentService(transport: FsClient) {
   return {
     async write(path: string, data: ArrayBuffer): Promise<void> {
       const dir = path.split('/').slice(0, -1).join('/');

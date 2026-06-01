@@ -1,29 +1,31 @@
-import type { FsProvider } from '../provider';
-import { fsModule } from './fs/def';
+import type { FsClient } from '../client';
+import { fsProvider } from './fs/def';
 import type {
-  AnyProviderModule,
+  FsProvider,
   FsProviderAccount,
   FsProviderConfig,
   FsProviderEndpoint,
   FsProviderIdentity,
-} from './module';
-import { s3Module } from './s3/s3';
-import { webdavModule } from './webdav/webdav';
+  FsProviderStore,
+} from './provider';
+import { s3Provider } from './s3/s3';
+import { webdavProvider } from './webdav/webdav';
 
 export type { FsAccount, FsConfig, FsEndpoint, FsIdentity } from './fs/def';
 export { getRuntimeFactory, registerRuntimeFactory } from './fs/def';
-export { createOpfsProvider } from './fs/opfs';
+export { createOpfsClient } from './fs/opfs';
 export type {
-  AnyProviderModule,
+  FsProvider,
   FsProviderAccount,
   FsProviderConfig,
   FsProviderEndpoint,
+  FsProviderEntry,
   FsProviderIdentity,
+  FsProviderStore,
   FsProviderType,
-  ProviderModule,
-} from './module';
+} from './provider';
 export type { S3Account, S3Config, S3Credentials, S3Endpoint, S3Identity } from './s3/s3';
-export { createS3Provider } from './s3/s3';
+export { createS3Client } from './s3/s3';
 export type {
   WebdavAccount,
   WebdavConfig,
@@ -31,109 +33,68 @@ export type {
   WebdavEndpoint,
   WebdavIdentity,
 } from './webdav/webdav';
-export { createWebdavProvider } from './webdav/webdav';
+export { createWebdavClient } from './webdav/webdav';
 
-const modules: Record<string, AnyProviderModule> = {
-  fs: fsModule,
-  s3: s3Module,
-  webdav: webdavModule,
+const providers: Record<string, FsProvider> = {
+  fs: fsProvider,
+  s3: s3Provider,
+  webdav: webdavProvider,
 };
 
-const SCHEME_MAP = new Map<string, string>(Object.values(modules).map((m) => [m.scheme, m.scheme]));
+const SCHEME_MAP = new Map<string, string>(Object.values(providers).map((m) => [m.scheme, m.scheme]));
 
-export function registerModule(name: string, module: AnyProviderModule): void {
-  modules[name] = module;
-  SCHEME_MAP.set(module.scheme, module.scheme);
-}
-
-function findModule(scheme: string): AnyProviderModule {
+function findProvider(scheme: string): FsProvider {
   const key = SCHEME_MAP.get(scheme);
   if (!key) throw new Error(`Unsupported scheme: ${scheme}`);
-  return modules[key];
+  return providers[key];
 }
 
-export function getProviderId(identity: FsProviderIdentity): string {
-  const module = findModule(identity.type);
-  return module.getProviderId(identity);
+/** @internal Only for testing - register a custom provider */
+export function registerProvider(name: string, provider: FsProvider): void {
+  providers[name] = provider;
+  SCHEME_MAP.set(provider.scheme, provider.scheme);
 }
 
-export function configToUrl(config: FsProviderEndpoint): string {
-  const id = getProviderId(config);
-  return buildSourceUrl(id, config.path);
-}
+export const providerFacade: FsProvider = {
+  scheme: '*',
+  getProviderId(identity: FsProviderIdentity): string {
+    return findProvider(identity.type).getProviderId(identity);
+  },
 
-export function buildSourceUrl(providerId: string, path: string): string {
-  return path && path !== '/' ? `${providerId}/${path}` : providerId;
-}
+  parseUrl(url: string): FsProviderEndpoint {
+    const protoIdx = url.indexOf('://');
+    if (protoIdx < 0) throw new Error(`Invalid source URL: ${url}`);
+    const scheme = url.slice(0, protoIdx);
+    return findProvider(scheme).parseUrl(url) as FsProviderEndpoint;
+  },
 
-export function parseSourceUrl(url: string): FsProviderEndpoint {
-  const protoIdx = url.indexOf('://');
-  if (protoIdx < 0) throw new Error(`Invalid source URL: ${url}`);
-  const scheme = url.slice(0, protoIdx);
-  const module = findModule(scheme);
-  return module.parseUrl(url) as FsProviderEndpoint;
-}
+  buildUrl(endpoint: FsProviderEndpoint): string {
+    return findProvider(endpoint.type).buildUrl(endpoint);
+  },
 
-export interface FsProviderStore {
-  getProvider(id: string): FsProviderAccount | null;
-  saveProvider(account: FsProviderAccount): FsProviderEntry;
-  listProviders(): FsProviderEntry[];
-  deleteProvider(id: string): void;
-}
+  create(config: FsProviderConfig): FsClient {
+    return findProvider(config.type).create(config);
+  },
 
-export type FsProviderEntry = FsProviderAccount & { id: string };
+  testConnection(config: FsProviderConfig): Promise<boolean> {
+    return findProvider(config.type).testConnection(config);
+  },
 
-export function toProviderEntry(account: FsProviderAccount): FsProviderEntry {
-  const id = getProviderId(account);
-  return { ...account, id };
-}
+  toEntry(account: FsProviderAccount) {
+    return findProvider(account.type).toEntry(account);
+  },
 
-function scopeToPath(prefix: string, provider: FsProvider): FsProvider {
-  const p = prefix.replace(/\/+$/, '');
-  const resolve = (path: string) => (path ? `${p}/${path}` : p);
-  return {
-    list: (path) => provider.list(resolve(path)),
-    read: (path) => provider.read(resolve(path)),
-    write: (path, content) => provider.write(resolve(path), content),
-    readBinary: (path) => provider.readBinary(resolve(path)),
-    writeBinary: (path, data) => provider.writeBinary(resolve(path), data),
-    exists: (path) => provider.exists(resolve(path)),
-    ensureDir: (path) => provider.ensureDir(resolve(path)),
-    remove: (path) => provider.remove(resolve(path)),
-  };
-}
+  resolveConfigFromUrl(url: string, store: FsProviderStore) {
+    const protoIdx = url.indexOf('://');
+    if (protoIdx < 0) throw new Error(`Invalid source URL: ${url}`);
+    const scheme = url.slice(0, protoIdx);
+    return findProvider(scheme).resolveConfigFromUrl(url, store);
+  },
 
-export function createFsProvider(config: FsProviderConfig): FsProvider {
-  const module = findModule(config.type);
-  const provider = module.create(config);
-  return config.path && config.path !== '/' ? scopeToPath(config.path, provider) : provider;
-}
-
-export function resolveProviderConfigFromUrl(url: string, store: FsProviderStore): FsProviderConfig {
-  const endpoint = parseSourceUrl(url);
-  const providerId = getProviderId(endpoint);
-  const stored = store.getProvider(providerId);
-  if (!stored) {
-    if (endpoint.type === 'fs') return { type: 'fs', path: endpoint.path };
-    throw new Error(`Provider not configured: ${providerId}`);
-  }
-  return { ...stored, path: endpoint.path } as FsProviderConfig;
-}
-
-export function createFsProviderFromUrl(url: string, store: FsProviderStore): FsProvider {
-  return createFsProvider(resolveProviderConfigFromUrl(url, store));
-}
-
-export function createProviderFromConfig(config: FsProviderConfig): FsProvider {
-  const module = findModule(config.type);
-  return module.create(config);
-}
-
-export async function testConnection(config: FsProviderConfig): Promise<boolean> {
-  try {
-    const transport = createProviderFromConfig(config);
-    return await transport.exists('/');
-  } catch {
-    return false;
-  }
-}
+  createFromUrl(url: string, store: FsProviderStore): FsClient {
+    const protoIdx = url.indexOf('://');
+    if (protoIdx < 0) throw new Error(`Invalid source URL: ${url}`);
+    const scheme = url.slice(0, protoIdx);
+    return findProvider(scheme).createFromUrl(url, store);
+  },
+};

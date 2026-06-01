@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { type FsProviderEntry, initVault, metaPath } from '@timenote/core';
-import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node';
+import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -44,7 +44,7 @@ export function registerCloneCommand(program: Command) {
       const localDir = dir || (manifest.name as string) || (manifest.project_id as string);
       const vaultDir = path.resolve(localDir);
 
-      const transport = createNodeFsProvider(vaultDir);
+      const transport = createNodeFsClient(vaultDir);
       await initVault(transport, manifest.project_id as string, manifest.name as string);
 
       const service = createRemoteConfigServiceForVault(vaultDir);

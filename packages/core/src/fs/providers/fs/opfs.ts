@@ -1,15 +1,15 @@
-import type { FsProvider, FsProviderStat } from '../../provider';
+import type { FsClient, FsClientStat } from '../../client';
 
-export function createOpfsProvider(root: FileSystemDirectoryHandle): FsProvider {
-  return new OpfsProviderImpl(root);
+export function createOpfsClient(root: FileSystemDirectoryHandle): FsClient {
+  return new OpfsClientImpl(root);
 }
 
-class OpfsProviderImpl implements FsProvider {
+class OpfsClientImpl implements FsClient {
   constructor(private root: FileSystemDirectoryHandle) {}
 
-  async list(path: string): Promise<FsProviderStat[]> {
+  async list(path: string): Promise<FsClientStat[]> {
     const dir = await this.resolveDir(path);
-    const results: FsProviderStat[] = [];
+    const results: FsClientStat[] = [];
 
     for await (const [name, handle] of dir.entries()) {
       if (handle.kind === 'file') {

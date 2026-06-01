@@ -1,7 +1,7 @@
 'use client';
 
-import type { FsProvider, FsProviderStat } from '@timenote/core';
-import { createOpfsProvider } from '@timenote/core';
+import type { FsClient, FsClientStat } from '@timenote/core';
+import { createOpfsClient } from '@timenote/core';
 import { Button } from '@timenote/ui';
 import {
   ArrowLeft,
@@ -76,7 +76,7 @@ function sortByTypeThenName(
   return a.basename.localeCompare(b.basename);
 }
 
-function statToNode(stat: FsProviderStat): TreeNode {
+function statToNode(stat: FsClientStat): TreeNode {
   return {
     name: stat.basename,
     path: stat.filename,
@@ -128,15 +128,15 @@ function findNode(nodes: TreeNode[], path: string): TreeNode | null {
 export default function OpfsPlayground() {
   const [tree, setTree] = useState<TreeNode[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<FsProviderStat | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FsClientStat | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const transportRef = useRef<FsProvider | null>(null);
+  const transportRef = useRef<FsClient | null>(null);
 
-  const getTransport = useCallback(async (): Promise<FsProvider> => {
+  const getTransport = useCallback(async (): Promise<FsClient> => {
     if (!transportRef.current) {
       const opfsRoot = await navigator.storage.getDirectory();
-      transportRef.current = createOpfsProvider(opfsRoot);
+      transportRef.current = createOpfsClient(opfsRoot);
     }
     return transportRef.current;
   }, []);
@@ -192,7 +192,7 @@ export default function OpfsPlayground() {
     }
   };
 
-  const handleFileClick = async (entry: FsProviderStat) => {
+  const handleFileClick = async (entry: FsClientStat) => {
     setSelectedPath(entry.filename);
     setSelectedFile(entry);
     setLoading(true);

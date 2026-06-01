@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { FsProvider, FsProviderStat } from '../fs/provider';
+import type { FsClient, FsClientStat } from '../fs/client';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import { MAX_ZIP_SIZE, metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
@@ -97,7 +97,7 @@ class VaultImportServiceImpl implements VaultImportService {
     };
   }
 
-  private createZipVaultFs(zip: JSZip, rootPrefix: string): FsProvider {
+  private createZipVaultFs(zip: JSZip, rootPrefix: string): FsClient {
     const prefix = rootPrefix;
     const resolvePath = (path: string) => (prefix ? `${prefix}${path}` : path);
 
@@ -121,8 +121,8 @@ class VaultImportServiceImpl implements VaultImportService {
       async remove(): Promise<void> {
         throw new Error('ZipVaultFs is read-only');
       },
-      async list(dirPath: string): Promise<FsProviderStat[]> {
-        const entries: FsProviderStat[] = [];
+      async list(dirPath: string): Promise<FsClientStat[]> {
+        const entries: FsClientStat[] = [];
         const listPrefix = dirPath ? `${resolvePath(dirPath)}/` : prefix || '';
         const seen = new Set<string>();
 

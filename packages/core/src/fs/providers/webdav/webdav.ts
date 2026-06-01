@@ -1,6 +1,7 @@
 import { createClient } from 'webdav';
-import type { FsProvider, FsProviderStat } from '../../provider';
-import type { ProviderModule } from '../module';
+import type { FsClient, FsClientStat } from '../../client';
+import { scopeToPath } from '../../client';
+import type { FsProviderEntry, FsProviderStore, FsProvider } from '../provider';
 
 export type WebdavIdentity = { type: 'webdav'; host: string; username: string };
 
@@ -17,7 +18,7 @@ export type WebdavAccount = WebdavIdentity & WebdavCredentials;
 
 export type WebdavConfig = WebdavIdentity & WebdavCredentials & { path: string };
 
-function createWebdavProvider(baseUrl: string, username: string, password?: string): FsProvider {
+function createWebdavClient(baseUrl: string, username: string, password?: string): FsClient {
   const userAgent = 'Microsoft-WebDAV-MiniRedir/10.0.19041';
   let clientCache: ReturnType<typeof createClient> | null = null;
 
@@ -32,7 +33,7 @@ function createWebdavProvider(baseUrl: string, username: string, password?: stri
   }
 
   return {
-    async list(dirPath: string): Promise<FsProviderStat[]> {
+    async list(dirPath: string): Promise<FsClientStat[]> {
       const c = getClient();
       const items: any[] = await c.getDirectoryContents(dirPath || '/');
       return items.map((item: any) => ({
@@ -99,7 +100,7 @@ function createWebdavProvider(baseUrl: string, username: string, password?: stri
   };
 }
 
-export const webdavModule: ProviderModule<WebdavIdentity> = {
+export const webdavProvider: FsProvider<WebdavIdentity> = {
   scheme: 'webdav',
 
   getProviderId({ username, host }: WebdavIdentity): string {
@@ -131,15 +132,48 @@ export const webdavModule: ProviderModule<WebdavIdentity> = {
     return { type: 'webdav', username, host, path };
   },
 
-  create(config: WebdavConfig): FsProvider {
+  buildUrl(endpoint: WebdavEndpoint): string {
+    const id = this.getProviderId(endpoint);
+    return endpoint.path && endpoint.path !== '/' ? `${id}/${endpoint.path}` : id;
+  },
+
+  create(config: WebdavConfig): FsClient {
     const protocol = config.tls !== false ? 'https' : 'http';
     const defaultPort = config.tls !== false ? 443 : 80;
     const baseUrl =
       config.port && config.port !== defaultPort
         ? `${protocol}://${config.host}:${config.port}`
         : `${protocol}://${config.host}`;
-    return createWebdavProvider(baseUrl, config.username, config.password);
+    const client = createWebdavClient(baseUrl, config.username, config.password);
+    if (config.path && config.path !== '/') return scopeToPath(config.path, client);
+    return client;
+  },
+
+  async testConnection(config: WebdavConfig): Promise<boolean> {
+    try {
+      const client = this.create(config);
+      return await client.exists('/');
+    } catch {
+      return false;
+    }
+  },
+
+  toEntry(account: WebdavAccount): FsProviderEntry {
+    return { ...account, id: this.getProviderId(account) };
+  },
+
+  resolveConfigFromUrl(url: string, store: FsProviderStore): WebdavConfig {
+    const endpoint = this.parseUrl(url);
+    const id = this.getProviderId(endpoint);
+    const stored = store.getProvider(id);
+    if (!stored || stored.type !== 'webdav')
+      throw new Error(`WebDAV provider not configured: ${id}`);
+    return { ...stored, path: endpoint.path } as WebdavConfig;
+  },
+
+  createFromUrl(url: string, store: FsProviderStore): FsClient {
+    return this.create(this.resolveConfigFromUrl(url, store));
   },
 };
 
-export { createWebdavProvider };
+export { createWebdavClient };

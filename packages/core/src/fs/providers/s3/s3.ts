@@ -1,6 +1,7 @@
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
-import type { FsProvider, FsProviderStat } from '../../provider';
-import type { ProviderModule } from '../module';
+import type { FsClient, FsClientStat } from '../../client';
+import { scopeToPath } from '../../client';
+import type { FsProviderEntry, FsProviderStore, FsProvider } from '../provider';
 
 export type S3Identity = { type: 's3'; endpoint: string; bucket: string };
 
@@ -16,7 +17,7 @@ export type S3Account = S3Identity & S3Credentials;
 
 export type S3Config = S3Identity & S3Credentials & { path: string };
 
-function createS3Provider(config: S3Config): FsProvider {
+function createS3Client(config: S3Config): FsClient {
   let clientCache: S3Client | null = null;
 
   function getClient() {
@@ -35,10 +36,10 @@ function createS3Provider(config: S3Config): FsProvider {
   }
 
   return {
-    async list(dirPath: string): Promise<FsProviderStat[]> {
+    async list(dirPath: string): Promise<FsClientStat[]> {
       const c = getClient();
       const prefix = dirPath ? `${dirPath}/` : '';
-      const entries: FsProviderStat[] = [];
+      const entries: FsClientStat[] = [];
       try {
         for await (const item of c.listObjectsGrouped({
           prefix: prefix || '',
@@ -122,7 +123,7 @@ function createS3Provider(config: S3Config): FsProvider {
   };
 }
 
-export const s3Module: ProviderModule<S3Identity> = {
+export const s3Provider: FsProvider<S3Identity> = {
   scheme: 's3',
 
   getProviderId({ bucket, endpoint }: S3Identity): string {
@@ -154,9 +155,41 @@ export const s3Module: ProviderModule<S3Identity> = {
     return { type: 's3', bucket, endpoint, path };
   },
 
-  create(config: S3Config): FsProvider {
-    return createS3Provider(config);
+  buildUrl(endpoint: S3Endpoint): string {
+    const id = this.getProviderId(endpoint);
+    return endpoint.path && endpoint.path !== '/' ? `${id}/${endpoint.path}` : id;
+  },
+
+  create(config: S3Config): FsClient {
+    const client = createS3Client(config);
+    if (config.path && config.path !== '/') return scopeToPath(config.path, client);
+    return client;
+  },
+
+  async testConnection(config: S3Config): Promise<boolean> {
+    try {
+      const client = this.create(config);
+      return await client.exists('/');
+    } catch {
+      return false;
+    }
+  },
+
+  toEntry(account: S3Account): FsProviderEntry {
+    return { ...account, id: this.getProviderId(account) };
+  },
+
+  resolveConfigFromUrl(url: string, store: FsProviderStore): S3Config {
+    const endpoint = this.parseUrl(url);
+    const id = this.getProviderId(endpoint);
+    const stored = store.getProvider(id);
+    if (!stored || stored.type !== 's3') throw new Error(`S3 provider not configured: ${id}`);
+    return { ...stored, path: endpoint.path } as S3Config;
+  },
+
+  createFromUrl(url: string, store: FsProviderStore): FsClient {
+    return this.create(this.resolveConfigFromUrl(url, store));
   },
 };
 
-export { createS3Provider };
+export { createS3Client };

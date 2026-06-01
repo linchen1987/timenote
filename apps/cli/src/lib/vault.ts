@@ -1,17 +1,17 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
-  createFsProviderFromUrl,
   createRemoteConfigService,
   createVaultSyncService,
-  type FsProvider,
+  type FsClient,
   type FsProviderStore,
   type Manifest,
   ManifestSchema,
+  providerFacade,
   type RemoteConfigService,
   type SyncResult,
 } from '@timenote/core';
-import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node';
+import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node';
 
 const META_DIR = '.timenote';
 
@@ -43,12 +43,12 @@ export function resolveVaultDir(explicit?: string): string {
   throw new Error('Not a timenote vault (or any parent). Use --dir to specify a vault directory.');
 }
 
-export function createRemoteProviderFromUrl(url: string, store: FsProviderStore): FsProvider {
-  return createFsProviderFromUrl(url, store);
+export function createRemoteProviderFromUrl(url: string, store: FsProviderStore): FsClient {
+  return providerFacade.createFromUrl(url, store);
 }
 
 export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfigService {
-  const transport = createNodeFsProvider(vaultDir);
+  const transport = createNodeFsClient(vaultDir);
   return createRemoteConfigService(() => transport);
 }
 
@@ -60,7 +60,7 @@ export function buildRemoteUrl(providerId: string, remotePath: string): string {
 }
 
 export function createSyncService(vaultDir: string) {
-  const transport = createNodeFsProvider(vaultDir);
+  const transport = createNodeFsClient(vaultDir);
 
   const vaultServiceLike = {
     async getTransport(_projectId: string) {
@@ -75,19 +75,19 @@ export function createSyncService(vaultDir: string) {
   const syncSvc = createVaultSyncService(vaultServiceLike as any, noteServiceLike as any);
 
   return {
-    async sync(remote: FsProvider): Promise<SyncResult> {
+    async sync(remote: FsClient): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.sync(manifest.project_id, remote);
     },
-    async pull(remote: FsProvider): Promise<SyncResult> {
+    async pull(remote: FsClient): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.pull(manifest.project_id, remote);
     },
-    async push(remote: FsProvider): Promise<SyncResult> {
+    async push(remote: FsClient): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       return syncSvc.push(manifest.project_id, remote);
     },
-    async initFromSource(source: FsProvider): Promise<SyncResult> {
+    async initFromSource(source: FsClient): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
       await syncSvc.loadLedgerCache(manifest.project_id);
       return syncSvc.initFromSource(manifest.project_id, source);

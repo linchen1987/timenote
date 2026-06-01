@@ -1,3 +1,3 @@
-import { testProviderConnection } from '@timenote/core';
+import { providerFacade } from '@timenote/core';
 
-export { testProviderConnection };
+export const testProviderConnection = providerFacade.testConnection.bind(providerFacade);

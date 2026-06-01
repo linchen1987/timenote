@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 
 export interface VaultRegistryEntry {
   projectId: string;
@@ -12,5 +12,5 @@ export interface VaultRegistry {
   register(projectId: string, name: string): Promise<VaultRegistryEntry>;
   unregister(projectId: string): Promise<void>;
   destroy(projectId: string): Promise<void>;
-  getProvider(projectId: string): Promise<FsProvider>;
+  getProvider(projectId: string): Promise<FsClient>;
 }

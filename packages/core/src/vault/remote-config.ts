@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 import {
   type ConfigLocal,
   ConfigLocalSchema,
@@ -22,7 +22,7 @@ export interface RemoteConfigService {
   setDefault(name: string): Promise<void>;
 }
 
-async function readConfig(transport: FsProvider): Promise<ConfigLocal> {
+async function readConfig(transport: FsClient): Promise<ConfigLocal> {
   try {
     const raw = await transport.read(configLocalPath());
     return ConfigLocalSchema.parse(JSON.parse(raw));
@@ -31,15 +31,15 @@ async function readConfig(transport: FsProvider): Promise<ConfigLocal> {
   }
 }
 
-async function writeConfig(transport: FsProvider, config: ConfigLocal): Promise<void> {
+async function writeConfig(transport: FsClient, config: ConfigLocal): Promise<void> {
   await transport.ensureDir(META_DIR);
   await transport.write(configLocalPath(), JSON.stringify(config, null, 2));
 }
 
 export function createRemoteConfigService(
-  getTransport: () => Promise<FsProvider> | FsProvider,
+  getTransport: () => Promise<FsClient> | FsClient,
 ): RemoteConfigService {
-  async function getTransportAsync(): Promise<FsProvider> {
+  async function getTransportAsync(): Promise<FsClient> {
     return await getTransport();
   }
 

@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 import type { SyncLedger } from '../spec/sync-ledger';
 import { META_DIR } from '../spec/vault-layout';
 import type { DirtyEntry } from './build-ledger';
@@ -32,15 +32,15 @@ export interface SyncOptions {
 }
 
 export interface VaultSyncService {
-  sync(projectId: string, remote: FsProvider): Promise<SyncResult>;
-  pull(projectId: string, remote: FsProvider): Promise<SyncResult>;
-  push(projectId: string, remote: FsProvider): Promise<SyncResult>;
+  sync(projectId: string, remote: FsClient): Promise<SyncResult>;
+  pull(projectId: string, remote: FsClient): Promise<SyncResult>;
+  push(projectId: string, remote: FsClient): Promise<SyncResult>;
   initFromSource(
     projectId: string,
-    source: FsProvider,
+    source: FsClient,
     options?: { writeSourceLedger?: boolean },
   ): Promise<SyncResult>;
-  syncWithSource(projectId: string, source: FsProvider, options?: SyncOptions): Promise<SyncResult>;
+  syncWithSource(projectId: string, source: FsClient, options?: SyncOptions): Promise<SyncResult>;
   getSyncStatus(projectId: string): Promise<SyncStatus>;
   loadLedgerCache(projectId: string): Promise<void>;
   markDirty(projectId: string, entries: DirtyEntry[]): void;
@@ -57,7 +57,7 @@ export function createVaultSyncService(
   return new VaultSyncServiceImpl(vaultService, callbacks);
 }
 
-async function buildSourceLedger(source: FsProvider): Promise<SyncLedger> {
+async function buildSourceLedger(source: FsClient): Promise<SyncLedger> {
   try {
     return await buildLedgerFromFile(source);
   } catch {
@@ -74,7 +74,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
     private callbacks?: SyncServiceCallbacks,
   ) {}
 
-  async sync(projectId: string, remote: FsProvider): Promise<SyncResult> {
+  async sync(projectId: string, remote: FsClient): Promise<SyncResult> {
     return this.doSync(projectId, remote, {
       direction: 'both',
       writeSourceLedger: true,
@@ -82,7 +82,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
     });
   }
 
-  async pull(projectId: string, remote: FsProvider): Promise<SyncResult> {
+  async pull(projectId: string, remote: FsClient): Promise<SyncResult> {
     return this.doSync(projectId, remote, {
       direction: 'pull',
       writeSourceLedger: true,
@@ -90,7 +90,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
     });
   }
 
-  async push(projectId: string, remote: FsProvider): Promise<SyncResult> {
+  async push(projectId: string, remote: FsClient): Promise<SyncResult> {
     return this.doSync(projectId, remote, {
       direction: 'push',
       writeSourceLedger: true,
@@ -100,7 +100,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   async initFromSource(
     projectId: string,
-    source: FsProvider,
+    source: FsClient,
     options?: { writeSourceLedger?: boolean },
   ): Promise<SyncResult> {
     return this.doSync(projectId, source, {
@@ -112,7 +112,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   async syncWithSource(
     projectId: string,
-    source: FsProvider,
+    source: FsClient,
     options?: SyncOptions,
   ): Promise<SyncResult> {
     return this.doSync(projectId, source, {
@@ -167,7 +167,7 @@ class VaultSyncServiceImpl implements VaultSyncService {
 
   private async doSync(
     projectId: string,
-    source: FsProvider,
+    source: FsClient,
     options: SyncOptions & { writeSourceLedger: boolean; localLedgerMode: string },
   ): Promise<SyncResult> {
     const direction = options.direction ?? 'both';

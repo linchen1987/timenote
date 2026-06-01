@@ -1,6 +1,6 @@
-import type { FsProvider, FsProviderConfig, FsProviderStat } from '@timenote/core';
+import type { FsClient, FsClientStat, FsProviderConfig } from '@timenote/core';
 
-function createRpcProxy(config: FsProviderConfig): FsProvider {
+function createRpcProxy(config: FsProviderConfig): FsClient {
   async function callApi<T = unknown>(method: string, path: string, args?: unknown): Promise<T> {
     const res = await fetch('/api/fs', {
       method: 'POST',
@@ -15,7 +15,7 @@ function createRpcProxy(config: FsProviderConfig): FsProvider {
 
   return {
     async list(path: string) {
-      const result = await callApi<FsProviderStat[]>('list', path);
+      const result = await callApi<FsClientStat[]>('list', path);
       return Array.isArray(result) ? result : [result];
     },
 
@@ -82,7 +82,7 @@ function createRpcProxy(config: FsProviderConfig): FsProvider {
   };
 }
 
-export function createRpcProvider(config: FsProviderConfig): FsProvider {
+export function createRpcClient(config: FsProviderConfig): FsClient {
   const { path: configPath, ...credentials } = config;
   const proxy = createRpcProxy({ ...credentials, path: '/' } as FsProviderConfig);
   const prefix = configPath?.replace(/\/+$/, '');

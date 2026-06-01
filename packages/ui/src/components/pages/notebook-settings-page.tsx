@@ -1,9 +1,8 @@
 import {
   type FsProviderEntry,
   getDefaultRemotePath,
-  getProviderId,
   parseNotebookId,
-  parseSourceUrl,
+  providerFacade,
 } from '@timenote/core';
 import { ArrowLeft, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -41,8 +40,8 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
     store.getRemoteConfig(projectId).then((entry) => {
       if (entry?.url) {
         try {
-          const parsed = parseSourceUrl(entry.url);
-          const providerId = getProviderId(parsed);
+          const parsed = providerFacade.parseUrl(entry.url);
+          const providerId = providerFacade.getProviderId(parsed);
           setRemoteConfig({ providerId, path: parsed.path, enabled: entry.default === true });
           setSelectedProviderId(providerId);
           setCustomPath(parsed.path);

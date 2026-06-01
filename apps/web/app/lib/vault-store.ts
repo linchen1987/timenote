@@ -1,10 +1,10 @@
 import { createOpfsVaultRegistry, VaultOrchestrator } from '@timenote/core';
 import { createBoundVaultStore, createLocalStorageProviderStore } from '@timenote/ui';
-import { createRpcProvider } from './web-transport';
+import { createRpcClient } from './web-transport';
 
 const orchestrator = new VaultOrchestrator(
   createOpfsVaultRegistry,
   createLocalStorageProviderStore(),
-  createRpcProvider,
+  createRpcClient,
 );
 export const useVaultStore = createBoundVaultStore(orchestrator);

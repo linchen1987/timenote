@@ -1,5 +1,5 @@
-import type { FsProvider } from '../fs/provider';
-import { createOpfsProvider } from '../fs/providers/fs/opfs';
+import type { FsClient } from '../fs/client';
+import { createOpfsClient } from '../fs/providers/fs/opfs';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
 
 export async function createOpfsVaultRegistry(): Promise<VaultRegistry> {
@@ -43,9 +43,9 @@ class OpfsVaultRegistryImpl implements VaultRegistry {
     await this.vaultsDir.removeEntry(projectId, { recursive: true });
   }
 
-  async getProvider(projectId: string): Promise<FsProvider> {
+  async getProvider(projectId: string): Promise<FsClient> {
     const dir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
-    return createOpfsProvider(dir);
+    return createOpfsClient(dir);
   }
 
   private toEntry(projectId: string, name?: string): VaultRegistryEntry {

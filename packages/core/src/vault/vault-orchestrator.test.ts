@@ -1,26 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import type { FsProvider, FsProviderStat } from '../fs/provider';
+import type { FsClient, FsClientStat } from '../fs/client';
+import { scopeToPath } from '../fs/client';
 import {
-  type AnyProviderModule,
+  type FsProvider,
   type FsProviderAccount,
   type FsProviderConfig,
   type FsProviderIdentity,
   type FsProviderStore,
-  registerModule,
+  providerFacade,
+  registerProvider,
 } from '../fs/providers';
 import { VaultOrchestrator } from './vault-orchestrator';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
 
-function createMemoryProvider(): FsProvider {
+function createMemoryProvider(): FsClient {
   const files = new Map<string, string>();
   const bins = new Map<string, ArrayBuffer>();
   const dirs = new Set<string>();
 
   return {
-    async list(path: string): Promise<FsProviderStat[]> {
+    async list(path: string): Promise<FsClientStat[]> {
       const prefix = path ? `${path}/` : '';
       const seen = new Set<string>();
-      const stats: FsProviderStat[] = [];
+      const stats: FsClientStat[] = [];
       for (const key of [...files.keys(), ...bins.keys()]) {
         if (!key.startsWith(prefix)) continue;
         const rest = key.slice(prefix.length);
@@ -72,7 +74,7 @@ function createMemoryProvider(): FsProvider {
   };
 }
 
-function createRecordingProvider(): { provider: FsProvider; paths: string[] } {
+function createRecordingProvider(): { provider: FsClient; paths: string[] } {
   const paths: string[] = [];
   const inner = createMemoryProvider();
   const record =
@@ -108,7 +110,7 @@ const S3_ACCOUNT: FsProviderAccount = {
 };
 const S3_CONFIG: FsProviderConfig = { ...S3_ACCOUNT, path: '/' };
 
-const mockS3Module: AnyProviderModule = {
+const mockS3Provider: FsProvider = {
   scheme: 's3',
   getProviderId: (i: FsProviderIdentity) => {
     const s3 = i as { type: 's3'; endpoint: string; bucket: string };
@@ -136,7 +138,27 @@ const mockS3Module: AnyProviderModule = {
       path: slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1),
     };
   },
+  buildUrl: (endpoint: any) => {
+    const id = `s3://${(endpoint as any).endpoint}@${(endpoint as any).bucket}`;
+    return endpoint.path && endpoint.path !== '/' ? `${id}/${endpoint.path}` : id;
+  },
   create: () => {
+    throw new Error('use recording provider');
+  },
+  testConnection: async () => true,
+  toEntry: (account: any) => {
+    const m = mockS3Provider;
+    return { ...account, id: m.getProviderId(account) };
+  },
+  resolveConfigFromUrl: (url: string, store: FsProviderStore) => {
+    const m = mockS3Provider;
+    const endpoint = m.parseUrl(url);
+    const id = m.getProviderId(endpoint);
+    const stored = store.getProvider(id);
+    if (!stored || stored.type !== 's3') throw new Error(`S3 provider not configured: ${id}`);
+    return { ...stored, path: endpoint.path };
+  },
+  createFromUrl: () => {
     throw new Error('use recording provider');
   },
 };
@@ -151,7 +173,7 @@ function createMockStore(): FsProviderStore {
 }
 
 function createMemoryRegistry(): VaultRegistry {
-  const providers = new Map<string, FsProvider>();
+  const providers = new Map<string, FsClient>();
 
   return {
     async list(): Promise<VaultRegistryEntry[]> {
@@ -174,7 +196,7 @@ function createMemoryRegistry(): VaultRegistry {
     async destroy(projectId: string) {
       providers.delete(projectId);
     },
-    async getProvider(projectId: string): Promise<FsProvider> {
+    async getProvider(projectId: string): Promise<FsClient> {
       let p = providers.get(projectId);
       if (!p) {
         p = createMemoryProvider();
@@ -186,12 +208,16 @@ function createMemoryRegistry(): VaultRegistry {
 }
 
 describe('VaultOrchestrator', () => {
-  it('sync uses path prefix via createFsProvider (direct path)', async () => {
+  it('sync uses path prefix via createFsClient (direct path)', async () => {
     const recording = createRecordingProvider();
 
-    registerModule('s3', {
-      ...mockS3Module,
-      create: () => recording.provider,
+    registerProvider('s3', {
+      ...mockS3Provider,
+      create: (config: any) => {
+        const provider = recording.provider;
+        if (config.path && config.path !== '/') return scopeToPath(config.path, provider);
+        return provider;
+      },
     });
 
     const orchestrator = new VaultOrchestrator(createMemoryRegistry(), createMockStore());
@@ -212,7 +238,7 @@ describe('VaultOrchestrator', () => {
   it('sync uses path prefix via rpcProviderFactory (RPC path)', async () => {
     const recording = createRecordingProvider();
 
-    const rpcProviderFactory = (config: FsProviderConfig): FsProvider => {
+    const rpcProviderFactory = (config: FsProviderConfig): FsClient => {
       if (config.type !== 's3') throw new Error(`Unexpected type: ${config.type}`);
       const s3Config = config as FsProviderConfig & { type: 's3' };
       if (s3Config.path !== 'timenote/vaults/abc')

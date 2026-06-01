@@ -1,4 +1,4 @@
-import { createProviderFromConfig, type FsProviderConfig } from '@timenote/core';
+import { type FsProviderConfig, providerFacade } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
 
 type BinaryReadRequest = {
@@ -31,7 +31,7 @@ async function handleRead(request: Request) {
     if (!config) return data({ error: 'Missing config' }, { status: 400 });
     if (!path) return data({ error: 'Missing path' }, { status: 400 });
 
-    const transport = createProviderFromConfig(config);
+    const transport = providerFacade.create(config);
     const buffer = await transport.readBinary(path);
 
     return new Response(buffer, {
@@ -64,7 +64,7 @@ async function handleWrite(request: Request) {
     if (!config) return data({ error: 'Missing config' }, { status: 400 });
     if (!path) return data({ error: 'Missing path' }, { status: 400 });
 
-    const transport = createProviderFromConfig(config);
+    const transport = providerFacade.create(config);
     const buffer = await file.arrayBuffer();
     await transport.writeBinary(path, buffer);
 

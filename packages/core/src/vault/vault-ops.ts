@@ -1,4 +1,4 @@
-import type { FsProvider } from '../fs/provider';
+import type { FsClient } from '../fs/client';
 import { createEmptyDeleteLog, type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
 import { createManifest, type Manifest } from '../spec/manifest';
 import { createMenuData } from '../spec/menu';
@@ -6,7 +6,7 @@ import { createEmptySyncLedger } from '../spec/sync-ledger';
 import { META_DIR, metaPath } from '../spec/vault-layout';
 
 export async function initVault(
-  transport: FsProvider,
+  transport: FsClient,
   projectId: string,
   name: string,
 ): Promise<void> {
@@ -25,7 +25,7 @@ export async function initVault(
   await transport.write(metaPath('syncLedger'), JSON.stringify(createEmptySyncLedger(), null, 2));
 }
 
-export async function appendDeleteLog(transport: FsProvider, noteId: string): Promise<void> {
+export async function appendDeleteLog(transport: FsClient, noteId: string): Promise<void> {
   let log: DeleteLog;
   try {
     const raw = await transport.read(metaPath('deleteLog'));

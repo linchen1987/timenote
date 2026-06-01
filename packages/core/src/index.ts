@@ -12,28 +12,24 @@ export {
 
 // ─── FS Transport ────────────────────────────────────────────
 
-export type { FsProvider, FsProviderStat } from './fs/provider';
+export type { FsClient, FsClientStat } from './fs/client';
 export type { VaultRegistry, VaultRegistryEntry } from './vault/vault-registry';
 export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
 
-// NodeFS transport not exported from barrel (node:fs breaks browser builds)
-// CLI imports directly: import { createNodeFsProvider } from '@timenote/core/fs/providers/fs/node'
+// NodeFS client not exported from barrel (node:fs breaks browser builds)
+// CLI imports directly: import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node'
 
 // ─── FsProvider Config ────────────────────────────────────────
 
 export {
-  buildSourceUrl,
-  configToUrl,
-  createFsProvider,
-  createFsProviderFromUrl,
-  createOpfsProvider,
-  createProviderFromConfig,
-  createS3Provider,
-  createWebdavProvider,
+  createOpfsClient,
+  createS3Client,
+  createWebdavClient,
   type FsAccount,
   type FsConfig,
   type FsEndpoint,
   type FsIdentity,
+  type FsProvider,
   type FsProviderAccount,
   type FsProviderConfig,
   type FsProviderEndpoint,
@@ -41,20 +37,15 @@ export {
   type FsProviderIdentity,
   type FsProviderStore,
   type FsProviderType,
-  getProviderId,
   getRuntimeFactory,
-  type ProviderModule,
-  parseSourceUrl,
+  providerFacade,
+  registerProvider,
   registerRuntimeFactory,
-  resolveProviderConfigFromUrl,
   type S3Account,
   type S3Config,
   type S3Credentials,
   type S3Endpoint,
   type S3Identity,
-  testConnection,
-  testConnection as testProviderConnection,
-  toProviderEntry,
   type WebdavAccount,
   type WebdavConfig,
   type WebdavCredentials,

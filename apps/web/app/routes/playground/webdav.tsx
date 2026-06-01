@@ -1,4 +1,4 @@
-import type { FsProviderStat } from '@timenote/core';
+import type { FsClientStat } from '@timenote/core';
 import {
   Button,
   Card,
@@ -42,7 +42,7 @@ export default function WebDAVPlayground() {
 
   const [currentPath, setCurrentPath] = useState('/');
 
-  const [items, setItems] = useState<FsProviderStat[]>([]);
+  const [items, setItems] = useState<FsClientStat[]>([]);
   const [fileContent, setFileContent] = useState('');
   const [viewingFile, setViewingFile] = useState<string | null>(null);
 
@@ -77,7 +77,7 @@ export default function WebDAVPlayground() {
 
   const handleList = async (path = currentPath) => {
     try {
-      const result = await callApi<FsProviderStat | FsProviderStat[]>('list', path);
+      const result = await callApi<FsClientStat | FsClientStat[]>('list', path);
       const list = Array.isArray(result) ? result : [result];
       setItems(list);
       setCurrentPath(path);
@@ -85,7 +85,7 @@ export default function WebDAVPlayground() {
     } catch (_e) {}
   };
 
-  const handleRead = async (item: FsProviderStat) => {
+  const handleRead = async (item: FsClientStat) => {
     try {
       const content = await callApi<string>('read', item.filename);
       setFileContent(content);
