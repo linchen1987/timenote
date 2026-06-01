@@ -59,7 +59,11 @@ export function getProviderId(identity: FsProviderIdentity): string {
 
 export function configToUrl(config: FsProviderEndpoint): string {
   const id = getProviderId(config);
-  return config.path && config.path !== '/' ? `${id}/${config.path}` : id;
+  return buildSourceUrl(id, config.path);
+}
+
+export function buildSourceUrl(providerId: string, path: string): string {
+  return path && path !== '/' ? `${providerId}/${path}` : providerId;
 }
 
 export function parseSourceUrl(url: string): FsProviderEndpoint {
@@ -105,12 +109,19 @@ export function createFsProvider(config: FsProviderConfig): FsProvider {
   return config.path && config.path !== '/' ? scopeToPath(config.path, provider) : provider;
 }
 
-export function createFsProviderFromUrl(url: string, store: FsProviderStore): FsProvider {
+export function resolveProviderConfigFromUrl(url: string, store: FsProviderStore): FsProviderConfig {
   const endpoint = parseSourceUrl(url);
   const providerId = getProviderId(endpoint);
-  const stored = store.getProvider(providerId) ?? { type: endpoint.type };
-  const config = { ...stored, path: endpoint.path } as FsProviderConfig;
-  return createFsProvider(config);
+  const stored = store.getProvider(providerId);
+  if (!stored) {
+    if (endpoint.type === 'fs') return { type: 'fs', path: endpoint.path };
+    throw new Error(`Provider not configured: ${providerId}`);
+  }
+  return { ...stored, path: endpoint.path } as FsProviderConfig;
+}
+
+export function createFsProviderFromUrl(url: string, store: FsProviderStore): FsProvider {
+  return createFsProvider(resolveProviderConfigFromUrl(url, store));
 }
 
 export function createProviderFromConfig(config: FsProviderConfig): FsProvider {

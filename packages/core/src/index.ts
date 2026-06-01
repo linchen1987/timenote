@@ -22,6 +22,7 @@ export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
 // ─── FsProvider Config ────────────────────────────────────────
 
 export {
+  buildSourceUrl,
   configToUrl,
   createFsProvider,
   createFsProviderFromUrl,
@@ -45,6 +46,7 @@ export {
   type ProviderModule,
   parseSourceUrl,
   registerRuntimeFactory,
+  resolveProviderConfigFromUrl,
   type S3Account,
   type S3Config,
   type S3Credentials,

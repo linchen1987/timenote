@@ -2,6 +2,7 @@ export type { FsProvider, FsProviderStat } from './provider';
 
 export {
   type AnyProviderModule,
+  buildSourceUrl,
   configToUrl,
   createFsProvider,
   createFsProviderFromUrl,
@@ -26,6 +27,7 @@ export {
   parseSourceUrl,
   registerModule,
   registerRuntimeFactory,
+  resolveProviderConfigFromUrl,
   type S3Account,
   type S3Config,
   type S3Credentials,

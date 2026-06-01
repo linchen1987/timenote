@@ -2,14 +2,14 @@ import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
 import type { FsProvider } from '../fs/provider';
 import {
+  buildSourceUrl,
   createFsProvider,
   createFsProviderFromUrl,
-  type FsProviderAccount,
   type FsProviderConfig,
-  type FsProviderEndpoint,
   type FsProviderStore,
   getProviderId,
   parseSourceUrl,
+  resolveProviderConfigFromUrl,
 } from '../fs/providers';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
@@ -310,7 +310,7 @@ export class VaultOrchestrator {
 
   async configureRemote(projectId: string, providerId: string, path?: string): Promise<void> {
     const service = this.getRemoteConfigService(projectId);
-    const url = path ? `${providerId}/${path}` : providerId;
+    const url = buildSourceUrl(providerId, path ?? '/');
     await service.setRemote({
       url,
       name: DEFAULT_REMOTE_NAME,
@@ -342,13 +342,6 @@ export class VaultOrchestrator {
       ? await service.getRemote(remoteName)
       : await service.getDefaultRemote();
     return remote;
-  }
-
-  private resolveFsProviderConfig(
-    endpoint: FsProviderEndpoint,
-    account: FsProviderAccount,
-  ): FsProviderConfig {
-    return { ...account, path: endpoint.path } as FsProviderConfig;
   }
 
   private createRemoteFsProvider(config: FsProviderConfig): FsProvider {
@@ -437,7 +430,7 @@ export class VaultOrchestrator {
 
     const service = this.getRemoteConfigService(projectId);
     await service.setRemote({
-      url: `${providerId}/${path}`,
+      url: buildSourceUrl(providerId, path),
       name: DEFAULT_REMOTE_NAME,
       default: true,
     });
@@ -497,19 +490,19 @@ export class VaultOrchestrator {
     const remote = await service.getDefaultRemote();
     if (!remote?.url) return null;
 
-    const parsed = parseSourceUrl(remote.url);
-    const providerId = getProviderId(parsed);
-    const provider = this.providerStore.getProvider(providerId);
-    if (!provider) return null;
-
-    const config = this.resolveFsProviderConfig(parsed, provider);
-    const transport = this.createRemoteFsProvider(config);
-    return {
-      provider: transport,
-      remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
-      providerId,
-      path: parsed.path,
-    };
+    try {
+      const config = resolveProviderConfigFromUrl(remote.url, this.providerStore);
+      const transport = this.createRemoteFsProvider(config);
+      const parsed = parseSourceUrl(remote.url);
+      return {
+        provider: transport,
+        remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
+        providerId: getProviderId(parsed),
+        path: parsed.path,
+      };
+    } catch {
+      return null;
+    }
   }
 
   private async executeSync(
