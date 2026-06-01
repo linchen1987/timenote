@@ -23,8 +23,12 @@ export const fsModule: ProviderModule<FsIdentity> = {
     return 'fs://';
   },
 
-  parseSource(_userinfo: string, _host: string, path: string): FsConfig {
-    return { type: 'fs', path };
+  parseUrl(url: string): FsConfig {
+    const protoIdx = url.indexOf('://');
+    if (protoIdx < 0 || url.slice(0, protoIdx) !== 'fs') {
+      throw new Error(`Invalid fs URL: ${url}`);
+    }
+    return { type: 'fs', path: url.slice(protoIdx + 3) || '/' };
   },
 
   create(config: FsConfig): FsProvider {

@@ -106,8 +106,29 @@ export const webdavModule: ProviderModule<WebdavIdentity> = {
     return `webdav://${username}@${host}`;
   },
 
-  parseSource(userinfo: string, host: string, path: string): WebdavEndpoint {
-    return { type: 'webdav', username: userinfo, host, path };
+  parseUrl(url: string): WebdavEndpoint {
+    const protoIdx = url.indexOf('://');
+    if (protoIdx < 0 || url.slice(0, protoIdx) !== 'webdav') {
+      throw new Error(`Invalid webdav URL: ${url}`);
+    }
+    const rest = url.slice(protoIdx + 3);
+    const lastAt = rest.lastIndexOf('@');
+    let username: string;
+    let host: string;
+    let path: string;
+    if (lastAt < 0) {
+      const slashIdx = rest.indexOf('/');
+      host = slashIdx < 0 ? rest : rest.slice(0, slashIdx);
+      path = slashIdx < 0 ? '/' : rest.slice(slashIdx + 1);
+      username = '';
+    } else {
+      username = rest.slice(0, lastAt);
+      const afterAt = rest.slice(lastAt + 1);
+      const slashIdx = afterAt.indexOf('/');
+      host = slashIdx < 0 ? afterAt : afterAt.slice(0, slashIdx);
+      path = slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1);
+    }
+    return { type: 'webdav', username, host, path };
   },
 
   create(config: WebdavConfig): FsProvider {

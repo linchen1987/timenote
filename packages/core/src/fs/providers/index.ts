@@ -1,6 +1,12 @@
 import type { FsProvider } from '../provider';
 import { fsModule } from './fs/def';
-import type { AnyProviderModule, FsProviderAccount, FsProviderConfig, FsProviderEndpoint, FsProviderIdentity } from './module';
+import type {
+  AnyProviderModule,
+  FsProviderAccount,
+  FsProviderConfig,
+  FsProviderEndpoint,
+  FsProviderIdentity,
+} from './module';
 import { s3Module } from './s3/s3';
 import { webdavModule } from './webdav/webdav';
 
@@ -18,7 +24,13 @@ export type {
 } from './module';
 export type { S3Account, S3Config, S3Credentials, S3Endpoint, S3Identity } from './s3/s3';
 export { createS3Provider } from './s3/s3';
-export type { WebdavAccount, WebdavConfig, WebdavCredentials, WebdavEndpoint, WebdavIdentity } from './webdav/webdav';
+export type {
+  WebdavAccount,
+  WebdavConfig,
+  WebdavCredentials,
+  WebdavEndpoint,
+  WebdavIdentity,
+} from './webdav/webdav';
 export { createWebdavProvider } from './webdav/webdav';
 
 const modules: Record<string, AnyProviderModule> = {
@@ -54,26 +66,8 @@ export function parseSourceUrl(url: string): FsProviderEndpoint {
   const protoIdx = url.indexOf('://');
   if (protoIdx < 0) throw new Error(`Invalid source URL: ${url}`);
   const scheme = url.slice(0, protoIdx);
-
   const module = findModule(scheme);
-
-  const rest = url.slice(protoIdx + 3);
-  const lastAt = rest.lastIndexOf('@');
-
-  if (lastAt < 0) {
-    const slashIdx = rest.indexOf('/');
-    const host = slashIdx < 0 ? rest : rest.slice(0, slashIdx);
-    const path = slashIdx < 0 ? '/' : rest.slice(slashIdx + 1);
-    return module.parseSource('', host, path) as FsProviderEndpoint;
-  }
-
-  const userinfo = rest.slice(0, lastAt);
-  const afterAt = rest.slice(lastAt + 1);
-  const slashIdx = afterAt.indexOf('/');
-  const host = slashIdx < 0 ? afterAt : afterAt.slice(0, slashIdx);
-  const path = slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1);
-
-  return module.parseSource(userinfo, host, path) as FsProviderEndpoint;
+  return module.parseUrl(url) as FsProviderEndpoint;
 }
 
 export interface FsProviderStore {
@@ -114,14 +108,7 @@ export function createFsProvider(config: FsProviderConfig): FsProvider {
 export function createFsProviderFromUrl(url: string, store: FsProviderStore): FsProvider {
   const endpoint = parseSourceUrl(url);
   const providerId = getProviderId(endpoint);
-
-  if (endpoint.type === 'fs') {
-    return createFsProvider({ type: 'fs', path: endpoint.path });
-  }
-
-  const stored = store.getProvider(providerId);
-  if (!stored) throw new Error(`Provider not configured: ${providerId}`);
-
+  const stored = store.getProvider(providerId) ?? { type: endpoint.type };
   const config = { ...stored, path: endpoint.path } as FsProviderConfig;
   return createFsProvider(config);
 }

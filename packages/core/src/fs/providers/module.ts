@@ -16,7 +16,7 @@ export type FsProviderConfig = FsConfig | S3Config | WebdavConfig;
 export interface ProviderModule<I extends FsProviderIdentity = FsProviderIdentity> {
   scheme: string;
   getProviderId(identity: I): string;
-  parseSource(userinfo: string, host: string, path: string): FsProviderEndpoint & { type: I['type'] };
+  parseUrl(fullUrl: string): FsProviderEndpoint & { type: I['type'] };
   create(config: FsProviderConfig & { type: I['type'] }): FsProvider;
 }
 

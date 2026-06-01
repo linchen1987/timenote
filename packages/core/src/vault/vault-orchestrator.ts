@@ -344,10 +344,10 @@ export class VaultOrchestrator {
     return remote;
   }
 
-  private resolveFsProviderConfig(endpoint: FsProviderEndpoint, account: FsProviderAccount): FsProviderConfig {
-    if (endpoint.type === 'fs') {
-      return { type: 'fs', path: endpoint.path };
-    }
+  private resolveFsProviderConfig(
+    endpoint: FsProviderEndpoint,
+    account: FsProviderAccount,
+  ): FsProviderConfig {
     return { ...account, path: endpoint.path } as FsProviderConfig;
   }
 

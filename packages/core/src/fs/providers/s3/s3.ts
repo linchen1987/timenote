@@ -129,8 +129,29 @@ export const s3Module: ProviderModule<S3Identity> = {
     return `s3://${bucket}@${endpoint}`;
   },
 
-  parseSource(userinfo: string, host: string, path: string): S3Endpoint {
-    return { type: 's3', bucket: userinfo, endpoint: host, path };
+  parseUrl(url: string): S3Endpoint {
+    const protoIdx = url.indexOf('://');
+    if (protoIdx < 0 || url.slice(0, protoIdx) !== 's3') {
+      throw new Error(`Invalid s3 URL: ${url}`);
+    }
+    const rest = url.slice(protoIdx + 3);
+    const lastAt = rest.lastIndexOf('@');
+    let bucket: string;
+    let endpoint: string;
+    let path: string;
+    if (lastAt < 0) {
+      const slashIdx = rest.indexOf('/');
+      endpoint = slashIdx < 0 ? rest : rest.slice(0, slashIdx);
+      path = slashIdx < 0 ? '/' : rest.slice(slashIdx + 1);
+      bucket = '';
+    } else {
+      bucket = rest.slice(0, lastAt);
+      const afterAt = rest.slice(lastAt + 1);
+      const slashIdx = afterAt.indexOf('/');
+      endpoint = slashIdx < 0 ? afterAt : afterAt.slice(0, slashIdx);
+      path = slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1);
+    }
+    return { type: 's3', bucket, endpoint, path };
   },
 
   create(config: S3Config): FsProvider {

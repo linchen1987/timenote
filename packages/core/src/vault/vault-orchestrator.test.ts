@@ -114,12 +114,28 @@ const mockS3Module: AnyProviderModule = {
     const s3 = i as { type: 's3'; endpoint: string; bucket: string };
     return `s3://${s3.endpoint}@${s3.bucket}`;
   },
-  parseSource: (userinfo: string, host: string, path: string) => ({
-    type: 's3' as const,
-    endpoint: userinfo,
-    bucket: host,
-    path,
-  }),
+  parseUrl: (url: string) => {
+    const protoIdx = url.indexOf('://');
+    const rest = url.slice(protoIdx + 3);
+    const lastAt = rest.lastIndexOf('@');
+    if (lastAt < 0) {
+      const slashIdx = rest.indexOf('/');
+      return {
+        type: 's3' as const,
+        endpoint: slashIdx < 0 ? rest : rest.slice(0, slashIdx),
+        bucket: '',
+        path: slashIdx < 0 ? '/' : rest.slice(slashIdx + 1),
+      };
+    }
+    const afterAt = rest.slice(lastAt + 1);
+    const slashIdx = afterAt.indexOf('/');
+    return {
+      type: 's3' as const,
+      endpoint: rest.slice(0, lastAt),
+      bucket: slashIdx < 0 ? afterAt : afterAt.slice(0, slashIdx),
+      path: slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1),
+    };
+  },
   create: () => {
     throw new Error('use recording provider');
   },
