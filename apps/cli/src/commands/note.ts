@@ -1,5 +1,10 @@
-import { appendDeleteLog, createNoteOp, deleteNoteOp, updateNoteOp } from '@timenote/core';
-import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node';
+import {
+  appendDeleteLog,
+  createNoteOp,
+  deleteNoteOp,
+  providerFacade,
+  updateNoteOp,
+} from '@timenote/core';
 import type { Command } from 'commander';
 import { resolveVaultDir } from '../lib/vault.js';
 
@@ -24,7 +29,7 @@ export function registerNoteCommand(program: Command) {
       }) => {
         const vaultDir = resolveVaultDir(opts.dir);
         const content = await resolveContent(opts.content, opts.file, opts.tag);
-        const transport = createNodeFsClient(vaultDir);
+        const transport = providerFacade.create({ type: 'fs', path: vaultDir });
         const noteId = await createNoteOp(transport, content);
 
         if (opts.json) {
@@ -49,7 +54,7 @@ export function registerNoteCommand(program: Command) {
         opts: { content?: string; file?: string; append?: string; dir?: string },
       ) => {
         const vaultDir = resolveVaultDir(opts.dir);
-        const transport = createNodeFsClient(vaultDir);
+        const transport = providerFacade.create({ type: 'fs', path: vaultDir });
 
         if (opts.content !== undefined) {
           await updateNoteOp(transport, noteId, opts.content);
@@ -69,7 +74,7 @@ export function registerNoteCommand(program: Command) {
           const raw = readFileSync(fullPath, 'utf-8');
           const fmEnd = raw.indexOf('---', 3);
           const existingBody = fmEnd >= 0 ? raw.slice(fmEnd + 3).trimStart() : raw;
-          await updateNoteOp(transport, noteId, existingBody + '\n' + opts.append);
+          await updateNoteOp(transport, noteId, `${existingBody}\n${opts.append}`);
         } else {
           console.error('Provide --content, --file, or --append');
           process.exit(1);
@@ -86,7 +91,7 @@ export function registerNoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (noteId: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const transport = createNodeFsClient(vaultDir);
+      const transport = providerFacade.create({ type: 'fs', path: vaultDir });
       await deleteNoteOp(transport, (id) => appendDeleteLog(transport, id), noteId);
       console.log(`Deleted: ${noteId}`);
     });
@@ -121,5 +126,5 @@ async function resolveContent(
 function appendTags(content: string, tags?: string[]): string {
   if (!tags || tags.length === 0) return content;
   const tagLine = tags.map((t) => (t.startsWith('#') ? t : `#${t}`)).join(' ');
-  return content.trimEnd() + '\n' + tagLine;
+  return `${content.trimEnd()}\n${tagLine}`;
 }

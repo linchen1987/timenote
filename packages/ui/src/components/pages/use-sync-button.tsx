@@ -27,7 +27,7 @@ export function useSyncButton(
   const isSyncing = useStore((s) => s.isSyncing);
   const syncSuccess = useStore((s) => s.syncSuccess);
   const lastSyncError = useStore((s) => s.lastSyncError);
-  const noteVersion = useStore((s) => s.noteVersion);
+  const _noteVersion = useStore((s) => s.noteVersion);
   const activeProjectId = useStore((s) => s.activeProjectId);
 
   const [hasRemote, setHasRemote] = useState(false);
@@ -46,7 +46,7 @@ export function useSyncButton(
       .catch(() => {
         setHasRemote(false);
       });
-  }, [projectId, activeProjectId, noteVersion, useStore]);
+  }, [projectId, activeProjectId, useStore]);
 
   useEffect(() => {
     if (!lastSyncError) return;

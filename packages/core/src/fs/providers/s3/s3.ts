@@ -1,7 +1,7 @@
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
 import type { FsClient, FsClientStat } from '../../client';
 import { scopeToPath } from '../../client';
-import type { FsProviderEntry, FsProviderStore, FsProvider } from '../provider';
+import type { FsProvider, FsProviderEntry, FsProviderStore } from '../provider';
 
 export type S3Identity = { type: 's3'; endpoint: string; bucket: string };
 
@@ -104,7 +104,7 @@ function createS3Client(config: S3Config): FsClient {
         return true;
       } catch {
         try {
-          const prefix = filePath.endsWith('/') ? filePath : filePath + '/';
+          const prefix = filePath.endsWith('/') ? filePath : `${filePath}/`;
           for await (const _item of c.listObjectsGrouped({
             prefix,
             delimiter: '/' as any,

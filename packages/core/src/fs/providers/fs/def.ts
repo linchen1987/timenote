@@ -1,5 +1,5 @@
 import type { FsClient } from '../../client';
-import type { FsProviderEntry, FsProviderStore, FsProvider } from '../provider';
+import type { FsProvider, FsProviderEntry, FsProviderStore } from '../provider';
 
 export type FsIdentity = { type: 'fs' };
 export type FsEndpoint = FsIdentity & { path: string };

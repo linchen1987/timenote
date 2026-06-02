@@ -12,7 +12,7 @@ import { s3Provider } from './s3/s3';
 import { webdavProvider } from './webdav/webdav';
 
 export type { FsAccount, FsConfig, FsEndpoint, FsIdentity } from './fs/def';
-export { getRuntimeFactory, registerRuntimeFactory } from './fs/def';
+export { fsProvider, getRuntimeFactory, registerRuntimeFactory } from './fs/def';
 export { createOpfsClient } from './fs/opfs';
 export type {
   FsProvider,
@@ -41,7 +41,9 @@ const providers: Record<string, FsProvider> = {
   webdav: webdavProvider,
 };
 
-const SCHEME_MAP = new Map<string, string>(Object.values(providers).map((m) => [m.scheme, m.scheme]));
+const SCHEME_MAP = new Map<string, string>(
+  Object.values(providers).map((m) => [m.scheme, m.scheme]),
+);
 
 function findProvider(scheme: string): FsProvider {
   const key = SCHEME_MAP.get(scheme);

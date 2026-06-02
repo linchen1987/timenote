@@ -1,6 +1,6 @@
 import type { FsClient } from '../fs/client';
 import { createEmptyDeleteLog, type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
-import { createManifest, type Manifest } from '../spec/manifest';
+import { createManifest } from '../spec/manifest';
 import { createMenuData } from '../spec/menu';
 import { createEmptySyncLedger } from '../spec/sync-ledger';
 import { META_DIR, metaPath } from '../spec/vault-layout';

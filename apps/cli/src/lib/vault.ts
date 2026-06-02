@@ -11,7 +11,6 @@ import {
   type RemoteConfigService,
   type SyncResult,
 } from '@timenote/core';
-import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node';
 
 const META_DIR = '.timenote';
 
@@ -48,7 +47,7 @@ export function createRemoteProviderFromUrl(url: string, store: FsProviderStore)
 }
 
 export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfigService {
-  const transport = createNodeFsClient(vaultDir);
+  const transport = providerFacade.create({ type: 'fs', path: vaultDir });
   return createRemoteConfigService(() => transport);
 }
 
@@ -60,7 +59,7 @@ export function buildRemoteUrl(providerId: string, remotePath: string): string {
 }
 
 export function createSyncService(vaultDir: string) {
-  const transport = createNodeFsClient(vaultDir);
+  const transport = providerFacade.create({ type: 'fs', path: vaultDir });
 
   const vaultServiceLike = {
     async getTransport(_projectId: string) {

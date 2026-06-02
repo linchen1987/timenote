@@ -1,7 +1,7 @@
 import { createClient } from 'webdav';
 import type { FsClient, FsClientStat } from '../../client';
 import { scopeToPath } from '../../client';
-import type { FsProviderEntry, FsProviderStore, FsProvider } from '../provider';
+import type { FsProvider, FsProviderEntry, FsProviderStore } from '../provider';
 
 export type WebdavIdentity = { type: 'webdav'; host: string; username: string };
 
@@ -89,7 +89,7 @@ function createWebdavClient(baseUrl: string, username: string, password?: string
       const parts = dirPath.split('/').filter(Boolean);
       let current = '';
       for (const part of parts) {
-        current += '/' + part;
+        current += `/${part}`;
         try {
           await c.stat(current);
         } catch {

@@ -7,7 +7,6 @@ import {
   type FsProviderConfig,
   type FsProviderIdentity,
   type FsProviderStore,
-  providerFacade,
   registerProvider,
 } from '../fs/providers';
 import { VaultOrchestrator } from './vault-orchestrator';
@@ -100,7 +99,7 @@ function createRecordingProvider(): { provider: FsClient; paths: string[] } {
 }
 
 const S3_PROVIDER_ID = 's3://test-endpoint@test-bucket';
-const S3_URL_WITH_PATH = 's3://test-endpoint@test-bucket/timenote/vaults/abc';
+const _S3_URL_WITH_PATH = 's3://test-endpoint@test-bucket/timenote/vaults/abc';
 const S3_ACCOUNT: FsProviderAccount = {
   type: 's3',
   endpoint: 'test-endpoint',
@@ -108,7 +107,7 @@ const S3_ACCOUNT: FsProviderAccount = {
   accessKeyId: 'key',
   secretAccessKey: 'secret',
 };
-const S3_CONFIG: FsProviderConfig = { ...S3_ACCOUNT, path: '/' };
+const _S3_CONFIG: FsProviderConfig = { ...S3_ACCOUNT, path: '/' };
 
 const mockS3Provider: FsProvider = {
   scheme: 's3',

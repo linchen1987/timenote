@@ -52,7 +52,7 @@ export async function resolveProviderPath(
   const providers = await readProviders();
   const sorted = [...providers].sort((a, b) => b.id.length - a.id.length);
   for (const p of sorted) {
-    const prefix = p.id + ':';
+    const prefix = `${p.id}:`;
     if (providerPath.startsWith(prefix)) {
       return { provider: p, remotePath: providerPath.slice(prefix.length) };
     }
@@ -63,7 +63,7 @@ export async function resolveProviderPath(
 }
 
 export async function saveProvider(
-  type: FsProviderType,
+  _type: FsProviderType,
   options: FsProviderAccount,
 ): Promise<FsProviderEntry> {
   const id = providerFacade.getProviderId(options);

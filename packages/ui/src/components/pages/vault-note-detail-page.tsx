@@ -9,7 +9,7 @@ import {
 } from '@timenote/core';
 import { ChevronLeft, ImagePlus, Save } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import type { VaultStore } from '../../stores/vault-store';
 import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';

@@ -57,7 +57,7 @@ export function useProviderScanner(
 
   const refreshProviders = useCallback(() => {
     setProviders(useStore.getState().listProviders());
-  }, []);
+  }, [useStore.getState]);
 
   const handleScan = useCallback(
     async (providerId: string) => {

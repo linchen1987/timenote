@@ -133,13 +133,13 @@ export class VaultOrchestrator {
     this.vaultService = createVaultService(registry);
     this.noteService = createVaultNoteService(this.vaultService, {
       onDeleteNote: async (projectId, noteId) => {
-        const transport = await this.vaultService!.getProvider(projectId);
+        const transport = await this.vaultService?.getProvider(projectId);
         await appendDeleteLog(transport, noteId);
       },
     });
     this.menuService = createVaultMenuService(this.vaultService);
     this.syncService = createVaultSyncService(this.vaultService, {
-      onPullComplete: (projectId) => this.noteService!.rebuildIndex(projectId),
+      onPullComplete: (projectId) => this.noteService?.rebuildIndex(projectId),
     });
     this.exportService = createVaultExportService(this.vaultService, this.syncService);
     this.importService = createVaultImportService(this.vaultService, this.syncService);

@@ -37,6 +37,7 @@ export {
   type FsProviderIdentity,
   type FsProviderStore,
   type FsProviderType,
+  fsProvider,
   getRuntimeFactory,
   providerFacade,
   registerProvider,
