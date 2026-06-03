@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import type { SyncPlan } from './sync-algorithm';
 
 const META_DIR = '.timenote';

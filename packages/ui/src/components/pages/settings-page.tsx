@@ -1,4 +1,4 @@
-import type { FsProviderAccount, FsProviderConfig, FsProviderEntry } from '@timenote/core';
+import type { FsClientConfig, FsVolumeAccess } from '@timenote/core';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -8,14 +8,16 @@ import { ProviderListCard } from '../provider-list-card';
 import { Button } from '../ui/button';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
+type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+
 export interface SettingsPageProps {
   useVaultStore: UseVaultStoreHook;
-  testProviderConnection: (provider: FsProviderConfig) => Promise<boolean>;
+  testProviderConnection: (provider: FsClientConfig) => Promise<boolean>;
 }
 
 export function SettingsPage({ useVaultStore, testProviderConnection }: SettingsPageProps) {
-  const [providers, setProviders] = useState<FsProviderEntry[]>(() =>
-    useVaultStore.getState().listProviders(),
+  const [providers, setProviders] = useState<VolumeAccessEntry[]>(() =>
+    useVaultStore.getState().listVolumeAccesses(),
   );
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<ProviderFormState>({ ...emptyProviderForm });
@@ -23,35 +25,35 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
     'idle' | 'testing' | 'success' | 'error'
   >('idle');
 
-  const refreshList = () => setProviders(useVaultStore.getState().listProviders());
+  const refreshList = () => setProviders(useVaultStore.getState().listVolumeAccesses());
 
   const handleSave = () => {
     try {
-      if (form.type === 'webdav') {
+      if (form.scheme === 'webdav') {
         if (!form.webdav.url || !form.webdav.username) {
           toast.error('URL and Username are required');
           return;
         }
-        useVaultStore.getState().saveProvider({
-          type: 'webdav',
+        useVaultStore.getState().saveVolumeAccess({
+          scheme: 'webdav',
           host: form.webdav.url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
           username: form.webdav.username,
           password: form.webdav.password,
           tls: form.webdav.url.startsWith('https'),
-        } as FsProviderAccount);
+        } as FsVolumeAccess);
       } else {
         if (!form.s3.bucket || !form.s3.accessKeyId) {
           toast.error('Bucket and Access Key ID are required');
           return;
         }
-        useVaultStore.getState().saveProvider({
-          type: 's3',
+        useVaultStore.getState().saveVolumeAccess({
+          scheme: 's3',
           endpoint: form.s3.endpoint || '',
           region: form.s3.region || undefined,
           bucket: form.s3.bucket,
           accessKeyId: form.s3.accessKeyId,
           secretAccessKey: form.s3.secretAccessKey,
-        } as FsProviderAccount);
+        } as FsVolumeAccess);
       }
       refreshList();
       setIsAdding(false);
@@ -63,8 +65,8 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
     }
   };
 
-  const handleDelete = (id: string) => {
-    useVaultStore.getState().deleteProvider(id);
+  const handleDelete = (volumeUrl: string) => {
+    useVaultStore.getState().deleteVolumeAccess(volumeUrl);
     refreshList();
     toast.success('Provider deleted');
   };
@@ -72,24 +74,24 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
   const handleTest = async () => {
     setConnectionStatus('testing');
     try {
-      const config: FsProviderConfig =
-        form.type === 'webdav'
+      const config: FsClientConfig =
+        form.scheme === 'webdav'
           ? {
-              type: 'webdav',
+              scheme: 'webdav',
               host: form.webdav.url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
               username: form.webdav.username,
               password: form.webdav.password,
               tls: form.webdav.url.startsWith('https'),
-              path: '/',
+              rootPath: '/',
             }
           : {
-              type: 's3',
+              scheme: 's3',
               endpoint: form.s3.endpoint || '',
               region: form.s3.region || undefined,
               bucket: form.s3.bucket,
               accessKeyId: form.s3.accessKeyId,
               secretAccessKey: form.s3.secretAccessKey,
-              path: '/',
+              rootPath: '/',
             };
       const ok = await testProviderConnection(config);
       if (ok) {

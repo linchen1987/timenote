@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import { createEmptyDeleteLog, type DeleteLog, DeleteLogSchema } from '../spec/delete-log';
 import { createManifest } from '../spec/manifest';
 import { createMenuData } from '../spec/menu';

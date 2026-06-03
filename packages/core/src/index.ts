@@ -12,47 +12,49 @@ export {
 
 // ─── FS Transport ────────────────────────────────────────────
 
-export type { FsClient, FsClientStat } from './fs/client';
+export type { FsClient, FsClientStat } from './fs/types';
+export {
+  computeVolumeUrl,
+  createFsClient,
+  extractScheme,
+  parseVolumeUrl,
+  resolveFsConfig,
+} from './fs';
+export type { FsClientDriver } from './fs/driver-registry';
+export { clearDrivers, getDriver, registerDriver } from './fs/driver-registry';
 export type { VaultRegistry, VaultRegistryEntry } from './vault/vault-registry';
 export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
 
 // NodeFS client not exported from barrel (node:fs breaks browser builds)
-// CLI imports directly: import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node'
+// CLI imports directly: import { createNodeFsClient } from '@timenote/core/fs/adapters/localfs/node'
 
-// ─── FsProvider Config ────────────────────────────────────────
+// ─── FS Config ────────────────────────────────────────────
 
 export {
   createOpfsClient,
   createS3Client,
   createWebdavClient,
-  type FsAccount,
-  type FsConfig,
+  S3Driver,
+  WebdavDriver,
+  type FsClientConfig,
+  type FsCredentials,
   type FsEndpoint,
-  type FsIdentity,
-  type FsProvider,
-  type FsProviderAccount,
-  type FsProviderConfig,
-  type FsProviderEndpoint,
-  type FsProviderEntry,
-  type FsProviderIdentity,
-  type FsProviderStore,
-  type FsProviderType,
-  fsProvider,
-  getRuntimeFactory,
-  providerFacade,
-  registerProvider,
-  registerRuntimeFactory,
-  type S3Account,
-  type S3Config,
+  type FsRootPath,
+  type FsScheme,
+  type FsVolume,
+  type FsVolumeAccess,
+  type FsVolumeAccessStore,
+  type S3ClientConfig,
   type S3Credentials,
   type S3Endpoint,
-  type S3Identity,
-  type WebdavAccount,
-  type WebdavConfig,
+  type S3Volume,
+  type S3VolumeAccess,
+  type WebdavClientConfig,
   type WebdavCredentials,
   type WebdavEndpoint,
-  type WebdavIdentity,
-} from './fs/providers';
+  type WebdavVolume,
+  type WebdavVolumeAccess,
+} from './fs';
 
 // ─── Remote Bindings ─────────────────────────────────────────
 

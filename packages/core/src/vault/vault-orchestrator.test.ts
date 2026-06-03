@@ -1,16 +1,36 @@
-import { describe, expect, it } from 'vitest';
-import type { FsClient, FsClientStat } from '../fs/client';
-import { scopeToPath } from '../fs/client';
+import { afterEach, describe, expect, it } from 'vitest';
+import type { FsClient, FsClientStat } from '../fs/types';
+import { clearDrivers, registerDriver } from '../fs/driver-registry';
+import type { FsClientDriver } from '../fs/driver-registry';
 import {
-  type FsProvider,
-  type FsProviderAccount,
-  type FsProviderConfig,
-  type FsProviderIdentity,
-  type FsProviderStore,
-  registerProvider,
-} from '../fs/providers';
+  type FsClientConfig,
+  type FsVolumeAccess,
+  type FsVolumeAccessStore,
+} from '../fs/types';
 import { VaultOrchestrator } from './vault-orchestrator';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
+
+function prefixClient(prefix: string, inner: FsClient): FsClient {
+  const p = prefix.replace(/\/+$/, '');
+  const resolve = (path: string) => (path ? `${p}/${path}` : p);
+  return {
+    list: (path) => inner.list(resolve(path)),
+    read: (path) => inner.read(resolve(path)),
+    write: (path, content) => inner.write(resolve(path), content),
+    readBinary: (path) => inner.readBinary(resolve(path)),
+    writeBinary: (path, data) => inner.writeBinary(resolve(path), data),
+    exists: (path) => inner.exists(resolve(path)),
+    ensureDir: (path) => inner.ensureDir(resolve(path)),
+    remove: (path) => inner.remove(resolve(path)),
+
+    scheme: inner.scheme,
+    volumeUrl: inner.volumeUrl,
+    url: inner.volumeUrl && prefix ? `${inner.volumeUrl}/${prefix}` : inner.volumeUrl,
+    rootPath: prefix,
+    credentials: inner.credentials,
+    testConnection: () => inner.testConnection(),
+  };
+}
 
 function createMemoryProvider(): FsClient {
   const files = new Map<string, string>();
@@ -70,6 +90,13 @@ function createMemoryProvider(): FsClient {
       const parts = path.split('/');
       for (let i = 1; i <= parts.length; i++) dirs.add(parts.slice(0, i).join('/'));
     },
+
+    scheme: 'memory' as never,
+    volumeUrl: 'memory://',
+    url: 'memory://',
+    rootPath: '/',
+    credentials: undefined,
+    testConnection: async () => true,
   };
 }
 
@@ -94,80 +121,69 @@ function createRecordingProvider(): { provider: FsClient; paths: string[] } {
       remove: record(inner.remove as never) as never,
       exists: record(inner.exists as never) as never,
       ensureDir: record(inner.ensureDir as never) as never,
+
+      scheme: inner.scheme,
+      volumeUrl: inner.volumeUrl,
+      url: inner.url,
+      rootPath: inner.rootPath,
+      credentials: inner.credentials,
+      testConnection: () => inner.testConnection(),
     },
   };
 }
 
 const S3_PROVIDER_ID = 's3://test-endpoint@test-bucket';
 const _S3_URL_WITH_PATH = 's3://test-endpoint@test-bucket/timenote/vaults/abc';
-const S3_ACCOUNT: FsProviderAccount = {
-  type: 's3',
+const S3_ACCOUNT: FsVolumeAccess = {
+  scheme: 's3',
   endpoint: 'test-endpoint',
   bucket: 'test-bucket',
   accessKeyId: 'key',
   secretAccessKey: 'secret',
 };
-const _S3_CONFIG: FsProviderConfig = { ...S3_ACCOUNT, path: '/' };
+const _S3_CONFIG: FsClientConfig = { ...S3_ACCOUNT, rootPath: '/' };
 
-const mockS3Provider: FsProvider = {
-  scheme: 's3',
-  getProviderId: (i: FsProviderIdentity) => {
-    const s3 = i as { type: 's3'; endpoint: string; bucket: string };
-    return `s3://${s3.endpoint}@${s3.bucket}`;
-  },
-  parseUrl: (url: string) => {
-    const protoIdx = url.indexOf('://');
-    const rest = url.slice(protoIdx + 3);
-    const lastAt = rest.lastIndexOf('@');
-    if (lastAt < 0) {
-      const slashIdx = rest.indexOf('/');
-      return {
-        type: 's3' as const,
-        endpoint: slashIdx < 0 ? rest : rest.slice(0, slashIdx),
-        bucket: '',
-        path: slashIdx < 0 ? '/' : rest.slice(slashIdx + 1),
-      };
-    }
-    const afterAt = rest.slice(lastAt + 1);
-    const slashIdx = afterAt.indexOf('/');
+function mockComputeS3VolumeUrl(i: { endpoint: string; bucket: string }): string {
+  return `s3://${i.endpoint}@${i.bucket}`;
+}
+
+function mockParseS3Url(url: string) {
+  const protoIdx = url.indexOf('://');
+  const rest = url.slice(protoIdx + 3);
+  const lastAt = rest.lastIndexOf('@');
+  if (lastAt < 0) {
+    const slashIdx = rest.indexOf('/');
     return {
-      type: 's3' as const,
-      endpoint: rest.slice(0, lastAt),
-      bucket: slashIdx < 0 ? afterAt : afterAt.slice(0, slashIdx),
-      path: slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1),
+      scheme: 's3' as const,
+      endpoint: slashIdx < 0 ? rest : rest.slice(0, slashIdx),
+      bucket: '',
+      rootPath: slashIdx < 0 ? '/' : rest.slice(slashIdx + 1),
     };
-  },
-  buildUrl: (endpoint: any) => {
-    const id = `s3://${(endpoint as any).endpoint}@${(endpoint as any).bucket}`;
-    return endpoint.path && endpoint.path !== '/' ? `${id}/${endpoint.path}` : id;
-  },
-  create: () => {
-    throw new Error('use recording provider');
-  },
-  testConnection: async () => true,
-  toEntry: (account: any) => {
-    const m = mockS3Provider;
-    return { ...account, id: m.getProviderId(account) };
-  },
-  resolveConfigFromUrl: (url: string, store: FsProviderStore) => {
-    const m = mockS3Provider;
-    const endpoint = m.parseUrl(url);
-    const id = m.getProviderId(endpoint);
-    const stored = store.getProvider(id);
-    if (!stored || stored.type !== 's3') throw new Error(`S3 provider not configured: ${id}`);
-    return { ...stored, path: endpoint.path };
-  },
-  createFromUrl: () => {
-    throw new Error('use recording provider');
-  },
-};
-
-function createMockStore(): FsProviderStore {
+  }
+  const afterAt = rest.slice(lastAt + 1);
+  const slashIdx = afterAt.indexOf('/');
   return {
-    getProvider: (id: string) => (id === S3_PROVIDER_ID ? S3_ACCOUNT : null),
-    saveProvider: () => ({ ...S3_ACCOUNT, id: S3_PROVIDER_ID }),
-    listProviders: () => [{ ...S3_ACCOUNT, id: S3_PROVIDER_ID }],
-    deleteProvider: () => {},
+    scheme: 's3' as const,
+    endpoint: rest.slice(0, lastAt),
+    bucket: slashIdx < 0 ? afterAt : afterAt.slice(0, slashIdx),
+    rootPath: slashIdx < 0 ? '/' : afterAt.slice(slashIdx + 1),
+  };
+}
+
+function mockResolveS3ConfigFromUrl(url: string, store: FsVolumeAccessStore): FsClientConfig {
+  const endpoint = mockParseS3Url(url);
+  const id = mockComputeS3VolumeUrl(endpoint);
+  const stored = store.getVolumeAccess(id);
+  if (!stored || stored.scheme !== 's3') throw new Error(`S3 provider not configured: ${id}`);
+  return { ...stored, rootPath: endpoint.rootPath } as FsClientConfig;
+}
+
+function createMockStore(): FsVolumeAccessStore {
+  return {
+    getVolumeAccess: (id: string) => (id === S3_PROVIDER_ID ? S3_ACCOUNT : null),
+    saveVolumeAccess: () => ({ ...S3_ACCOUNT, volumeUrl: S3_PROVIDER_ID }),
+    listVolumeAccesses: () => [{ ...S3_ACCOUNT, volumeUrl: S3_PROVIDER_ID }],
+    deleteVolumeAccess: () => {},
   };
 }
 
@@ -178,18 +194,18 @@ function createMemoryRegistry(): VaultRegistry {
     async list(): Promise<VaultRegistryEntry[]> {
       return Array.from(providers.keys()).map((id) => ({
         projectId: id,
-        sourceUrl: `fs:///vaults/${id}`,
+        sourceUrl: `localfs:///vaults/${id}`,
         name: id,
       }));
     },
     async get(projectId: string): Promise<VaultRegistryEntry | null> {
       return providers.has(projectId)
-        ? { projectId, sourceUrl: `fs:///vaults/${projectId}`, name: projectId }
+        ? { projectId, sourceUrl: `localfs:///vaults/${projectId}`, name: projectId }
         : null;
     },
     async register(projectId: string, _name: string): Promise<VaultRegistryEntry> {
       providers.set(projectId, createMemoryProvider());
-      return { projectId, sourceUrl: `fs:///vaults/${projectId}`, name: projectId };
+      return { projectId, sourceUrl: `localfs:///vaults/${projectId}`, name: projectId };
     },
     async unregister() {},
     async destroy(projectId: string) {
@@ -207,17 +223,22 @@ function createMemoryRegistry(): VaultRegistry {
 }
 
 describe('VaultOrchestrator', () => {
+  afterEach(() => {
+    clearDrivers();
+  });
+
   it('sync uses path prefix via createFsClient (direct path)', async () => {
     const recording = createRecordingProvider();
 
-    registerProvider('s3', {
-      ...mockS3Provider,
-      create: (config: any) => {
+    const mockDriver: FsClientDriver = {
+      create(config: any) {
         const provider = recording.provider;
-        if (config.path && config.path !== '/') return scopeToPath(config.path, provider);
+        if (config.rootPath && config.rootPath !== '/') return prefixClient(config.rootPath, provider);
         return provider;
       },
-    });
+    };
+
+    registerDriver('s3', mockDriver);
 
     const orchestrator = new VaultOrchestrator(createMemoryRegistry(), createMockStore());
 
@@ -234,33 +255,24 @@ describe('VaultOrchestrator', () => {
     expect(recording.paths.every((p) => p.startsWith('timenote/vaults/abc'))).toBe(true);
   });
 
-  it('sync uses path prefix via rpcProviderFactory (RPC path)', async () => {
+  it('sync uses registered driver (replaces rpcProviderFactory)', async () => {
     const recording = createRecordingProvider();
 
-    const rpcProviderFactory = (config: FsProviderConfig): FsClient => {
-      if (config.type !== 's3') throw new Error(`Unexpected type: ${config.type}`);
-      const s3Config = config as FsProviderConfig & { type: 's3' };
-      if (s3Config.path !== 'timenote/vaults/abc')
-        throw new Error(`Unexpected path: ${s3Config.path}`);
-      const prefix = 'timenote/vaults/abc';
-      const resolve = (path: string) => (path ? `${prefix}/${path}` : prefix);
-      const inner = recording.provider;
-      return {
-        list: (path) => inner.list(resolve(path)),
-        read: (path) => inner.read(resolve(path)),
-        write: (path, content) => inner.write(resolve(path), content),
-        readBinary: (path) => inner.readBinary(resolve(path)),
-        writeBinary: (path, data) => inner.writeBinary(resolve(path), data),
-        exists: (path) => inner.exists(resolve(path)),
-        ensureDir: (path) => inner.ensureDir(resolve(path)),
-        remove: (path) => inner.remove(resolve(path)),
-      };
+    const rpcDriver: FsClientDriver = {
+      create(config: FsClientConfig): FsClient {
+        if (config.scheme !== 's3') throw new Error(`Unexpected type: ${config.scheme}`);
+        const s3Config = config as FsClientConfig & { scheme: 's3' };
+        if (s3Config.rootPath !== 'timenote/vaults/abc')
+          throw new Error(`Unexpected path: ${s3Config.rootPath}`);
+        return prefixClient('timenote/vaults/abc', recording.provider);
+      },
     };
+
+    registerDriver('s3', rpcDriver);
 
     const orchestrator = new VaultOrchestrator(
       createMemoryRegistry(),
       createMockStore(),
-      rpcProviderFactory,
     );
 
     await orchestrator.init();

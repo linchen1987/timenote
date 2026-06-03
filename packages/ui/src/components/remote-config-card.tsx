@@ -1,9 +1,11 @@
-import type { FsProviderEntry } from '@timenote/core';
+import type { FsVolumeAccess } from '@timenote/core';
 import { Check, Cloud, CloudOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+
+type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
 
 export interface RemoteDisplayConfig {
   providerId: string;
@@ -12,7 +14,7 @@ export interface RemoteDisplayConfig {
 }
 
 export interface RemoteConfigCardProps {
-  providers: FsProviderEntry[];
+  providers: VolumeAccessEntry[];
   remoteConfig: RemoteDisplayConfig | null;
   selectedProviderId: string;
   customPath: string;
@@ -87,8 +89,8 @@ export function RemoteConfigCard({
               >
                 <option value="">Select a provider...</option>
                 {providers.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.id}
+                  <option key={p.volumeUrl} value={p.volumeUrl}>
+                    {p.volumeUrl}
                   </option>
                 ))}
               </select>

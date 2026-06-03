@@ -7,7 +7,7 @@ import { Label } from './ui/label';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 
 export type ProviderFormState = {
-  type: 'webdav' | 's3';
+  scheme: 'webdav' | 's3';
   webdav: { url: string; username: string; password: string };
   s3: {
     endpoint: string;
@@ -19,7 +19,7 @@ export type ProviderFormState = {
 };
 
 export const emptyProviderForm: ProviderFormState = {
-  type: 'webdav',
+  scheme: 'webdav',
   webdav: { url: 'https://dav.jianguoyun.com/dav/', username: '', password: '' },
   s3: { endpoint: '', region: '', bucket: '', accessKeyId: '', secretAccessKey: '' },
 };
@@ -60,9 +60,9 @@ export function ProviderForm({
         <div>
           <Label className="block mb-4">Type</Label>
           <RadioGroup
-            value={form.type}
+            value={form.scheme}
             onValueChange={(v) => {
-              onFormChange({ ...form, type: v as 'webdav' | 's3' });
+              onFormChange({ ...form, scheme: v as 'webdav' | 's3' });
             }}
             className="flex gap-4"
           >
@@ -77,7 +77,7 @@ export function ProviderForm({
           </RadioGroup>
         </div>
 
-        {form.type === 'webdav' && (
+        {form.scheme === 'webdav' && (
           <>
             <div className="space-y-2">
               <Label>URL</Label>
@@ -121,7 +121,7 @@ export function ProviderForm({
           </>
         )}
 
-        {form.type === 's3' && (
+        {form.scheme === 's3' && (
           <>
             <div className="space-y-2">
               <Label>Endpoint</Label>

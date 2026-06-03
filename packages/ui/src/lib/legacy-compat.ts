@@ -1,14 +1,15 @@
-import type { FsProviderAccount, FsProviderEntry, FsProviderIdentity } from '@timenote/core';
-import { providerFacade } from '@timenote/core';
+import type { FsVolume, FsVolumeAccess } from '@timenote/core';
+import { computeVolumeUrl } from '@timenote/core';
 
+type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
 type RawEntry = Record<string, unknown>;
 
 function flattenNested(raw: RawEntry): RawEntry {
-  if (raw.type === 's3' && raw.s3 && typeof raw.s3 === 'object') {
+  if (raw.scheme === 's3' && raw.s3 && typeof raw.s3 === 'object') {
     const { s3, ...rest } = raw;
     return { ...rest, ...(s3 as Record<string, unknown>) };
   }
-  if (raw.type === 'webdav' && raw.webdav && typeof raw.webdav === 'object') {
+  if (raw.scheme === 'webdav' && raw.webdav && typeof raw.webdav === 'object') {
     const { webdav, ...rest } = raw;
     const wd = webdav as Record<string, unknown>;
     const result: RawEntry = { ...rest };
@@ -23,12 +24,12 @@ function flattenNested(raw: RawEntry): RawEntry {
   return raw;
 }
 
-function toAccount(raw: RawEntry): FsProviderAccount | null {
-  if (raw.type === 's3') {
+function toAccount(raw: RawEntry): FsVolumeAccess | null {
+  if (raw.scheme === 's3') {
     if (typeof raw.endpoint !== 'string' || typeof raw.bucket !== 'string') return null;
     if (typeof raw.accessKeyId !== 'string' || typeof raw.secretAccessKey !== 'string') return null;
     return {
-      type: 's3',
+      scheme: 's3',
       endpoint: raw.endpoint,
       bucket: raw.bucket,
       accessKeyId: raw.accessKeyId,
@@ -36,10 +37,10 @@ function toAccount(raw: RawEntry): FsProviderAccount | null {
       region: typeof raw.region === 'string' ? raw.region : undefined,
     };
   }
-  if (raw.type === 'webdav') {
+  if (raw.scheme === 'webdav') {
     if (typeof raw.host !== 'string' || typeof raw.username !== 'string') return null;
     return {
-      type: 'webdav',
+      scheme: 'webdav',
       host: raw.host,
       username: raw.username,
       password: typeof raw.password === 'string' ? raw.password : undefined,
@@ -50,26 +51,27 @@ function toAccount(raw: RawEntry): FsProviderAccount | null {
   return null;
 }
 
-function toIdentity(account: FsProviderAccount): FsProviderIdentity {
-  switch (account.type) {
+function toIdentity(account: FsVolumeAccess): FsVolume {
+  switch (account.scheme) {
     case 's3':
-      return { type: 's3', endpoint: account.endpoint, bucket: account.bucket };
+      return { scheme: 's3', endpoint: account.endpoint, bucket: account.bucket };
     case 'webdav':
-      return { type: 'webdav', host: account.host, username: account.username };
+      return { scheme: 'webdav', host: account.host, username: account.username };
     default:
-      throw new Error(`Unknown provider type: ${(account as { type: string }).type}`);
+      throw new Error(`Unknown provider scheme: ${(account as { scheme: string }).scheme}`);
   }
 }
 
 export function normalizeLegacyEntry(
   raw: RawEntry,
-): { entry: FsProviderEntry; oldId: string | null } | null {
-  const flat = flattenNested(raw);
+): { entry: VolumeAccessEntry; oldId: string | null } | null {
+  const compat: RawEntry = !raw.scheme && raw.type ? { ...raw, scheme: raw.type } : raw;
+  const flat = flattenNested(compat);
   const account = toAccount(flat);
   if (!account) return null;
 
-  const newId = providerFacade.getProviderId(toIdentity(account));
+  const newId = computeVolumeUrl(toIdentity(account));
   const oldId = typeof raw.id === 'string' && raw.id !== newId ? raw.id : null;
 
-  return { entry: { ...account, id: newId }, oldId };
+  return { entry: { ...account, volumeUrl: newId }, oldId };
 }

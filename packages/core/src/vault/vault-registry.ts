@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 
 export interface VaultRegistryEntry {
   projectId: string;

@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import { computeBinaryHash } from '../spec/hash';
 import { ASSETS_DIR, assetPath } from '../spec/vault-layout';
 

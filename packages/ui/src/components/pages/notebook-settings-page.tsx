@@ -1,8 +1,9 @@
 import {
-  type FsProviderEntry,
+  type FsVolumeAccess,
+  computeVolumeUrl,
   getDefaultRemotePath,
   parseNotebookId,
-  providerFacade,
+  parseVolumeUrl,
 } from '@timenote/core';
 import { ArrowLeft, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -15,6 +16,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { useExportVault } from './use-export-vault';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
+type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+
 export interface NotebookSettingsPageProps {
   useVaultStore: UseVaultStoreHook;
   notebookToken: string;
@@ -23,7 +26,9 @@ export interface NotebookSettingsPageProps {
 export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookSettingsPageProps) {
   const projectId = notebookToken ? parseNotebookId(notebookToken) : null;
 
-  const [providers] = useState<FsProviderEntry[]>(() => useVaultStore.getState().listProviders());
+  const [providers] = useState<VolumeAccessEntry[]>(() =>
+    useVaultStore.getState().listVolumeAccesses(),
+  );
   const [remoteConfig, setRemoteConfig] = useState<{
     providerId: string;
     path: string;
@@ -40,8 +45,8 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
     store.getRemoteConfig(projectId).then((entry) => {
       if (entry?.url) {
         try {
-          const parsed = providerFacade.parseUrl(entry.url);
-          const providerId = providerFacade.getProviderId(parsed);
+          const parsed = parseVolumeUrl(entry.url) as any;
+          const providerId = computeVolumeUrl(parsed);
           setRemoteConfig({ providerId, path: parsed.path, enabled: entry.default === true });
           setSelectedProviderId(providerId);
           setCustomPath(parsed.path);

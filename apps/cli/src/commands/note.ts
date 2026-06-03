@@ -1,8 +1,8 @@
 import {
   appendDeleteLog,
+  createFsClient,
   createNoteOp,
   deleteNoteOp,
-  providerFacade,
   updateNoteOp,
 } from '@timenote/core';
 import type { Command } from 'commander';
@@ -29,7 +29,7 @@ export function registerNoteCommand(program: Command) {
       }) => {
         const vaultDir = resolveVaultDir(opts.dir);
         const content = await resolveContent(opts.content, opts.file, opts.tag);
-        const transport = providerFacade.create({ type: 'fs', path: vaultDir });
+        const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
         const noteId = await createNoteOp(transport, content);
 
         if (opts.json) {
@@ -54,7 +54,7 @@ export function registerNoteCommand(program: Command) {
         opts: { content?: string; file?: string; append?: string; dir?: string },
       ) => {
         const vaultDir = resolveVaultDir(opts.dir);
-        const transport = providerFacade.create({ type: 'fs', path: vaultDir });
+        const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
 
         if (opts.content !== undefined) {
           await updateNoteOp(transport, noteId, opts.content);
@@ -91,7 +91,7 @@ export function registerNoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (noteId: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const transport = providerFacade.create({ type: 'fs', path: vaultDir });
+      const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
       await deleteNoteOp(transport, (id) => appendDeleteLog(transport, id), noteId);
       console.log(`Deleted: ${noteId}`);
     });

@@ -1,1 +1,1 @@
-export type { FsClientStat, FsProviderConfig as FsConfig } from '@timenote/core';
+export type { FsClientConfig as FsConfig, FsClientStat } from '@timenote/core';

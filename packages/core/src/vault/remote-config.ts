@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import {
   type ConfigLocal,
   ConfigLocalSchema,

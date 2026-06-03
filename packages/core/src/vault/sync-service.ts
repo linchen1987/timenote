@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import type { SyncLedger } from '../spec/sync-ledger';
 import { META_DIR } from '../spec/vault-layout';
 import type { DirtyEntry } from './build-ledger';

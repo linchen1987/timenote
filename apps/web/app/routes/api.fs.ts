@@ -1,8 +1,8 @@
-import { type FsProviderConfig, providerFacade } from '@timenote/core';
+import { createFsClient, type FsClientConfig } from '@timenote/core';
 import { type ActionFunctionArgs, data } from 'react-router';
 
 type BaseRequest = {
-  config: FsProviderConfig;
+  config: FsClientConfig;
   path: string;
 };
 
@@ -56,7 +56,7 @@ export async function action({ request }: ActionFunctionArgs) {
     if (!config) return data({ error: 'Missing config' }, { status: 400 });
     if (!method) return data({ error: 'Missing method' }, { status: 400 });
 
-    const transport = providerFacade.create(config);
+    const transport = createFsClient(config);
 
     let result: unknown;
     switch (method) {

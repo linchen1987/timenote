@@ -1,5 +1,5 @@
-import { registerRuntimeFactory } from '@timenote/core';
-import { createNodeFsClient } from '@timenote/core/fs/providers/fs/node';
+import { registerDriver } from '@timenote/core';
+import { LocalFsDriver } from '@timenote/core/fs/adapters/localfs/node';
 import { Command } from 'commander';
 import { registerCloneCommand } from './commands/clone.js';
 import { registerConfigCommand } from './commands/config.js';
@@ -7,7 +7,7 @@ import { registerNoteCommand } from './commands/note.js';
 import { registerRemoteCommand } from './commands/remote.js';
 import { registerPullCommand, registerPushCommand, registerSyncCommand } from './commands/sync.js';
 
-registerRuntimeFactory('fs://', createNodeFsClient);
+registerDriver('localfs', LocalFsDriver);
 
 const program = new Command();
 

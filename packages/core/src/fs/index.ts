@@ -1,34 +1,13 @@
-export type { FsClient, FsClientStat } from './client';
+export type { FsClient, FsClientConfig, FsClientStat, FsCredentials, FsEndpoint, FsRootPath, FsScheme, FsVolume, FsVolumeAccess, FsVolumeAccessStore, LocalFsClientConfig, LocalFsEndpoint, LocalFsVolume, LocalFsVolumeAccess, S3ClientConfig, S3Credentials, S3Endpoint, S3Volume, S3VolumeAccess, WebdavClientConfig, WebdavCredentials, WebdavEndpoint, WebdavVolume, WebdavVolumeAccess } from './types';
+export { createFsClient } from './client';
+export type { FsClientDriver } from './driver-registry';
+export { clearDrivers, getDriver, registerDriver } from './driver-registry';
+export { computeVolumeUrl, extractScheme, parseVolumeUrl, resolveFsConfig } from './url';
 
 export {
   createOpfsClient,
   createS3Client,
   createWebdavClient,
-  type FsAccount,
-  type FsConfig,
-  type FsEndpoint,
-  type FsIdentity,
-  type FsProvider,
-  type FsProviderAccount,
-  type FsProviderConfig,
-  type FsProviderEndpoint,
-  type FsProviderEntry,
-  type FsProviderIdentity,
-  type FsProviderStore,
-  type FsProviderType,
-  fsProvider,
-  getRuntimeFactory,
-  providerFacade,
-  registerProvider,
-  registerRuntimeFactory,
-  type S3Account,
-  type S3Config,
-  type S3Credentials,
-  type S3Endpoint,
-  type S3Identity,
-  type WebdavAccount,
-  type WebdavConfig,
-  type WebdavCredentials,
-  type WebdavEndpoint,
-  type WebdavIdentity,
-} from './providers';
+  S3Driver,
+  WebdavDriver,
+} from './adapters';

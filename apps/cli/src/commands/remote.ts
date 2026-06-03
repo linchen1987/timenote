@@ -13,7 +13,8 @@ export function registerRemoteCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (name: string, providerPath: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      let provider: import('@timenote/core').FsProviderEntry, remotePathStr: string;
+      let provider: import('@timenote/core').FsVolumeAccess & { volumeUrl: string },
+        remotePathStr: string;
       try {
         ({ provider, remotePath: remotePathStr } =
           await configStore.resolveProviderPath(providerPath));
@@ -22,7 +23,7 @@ export function registerRemoteCommand(program: Command) {
         process.exit(1);
       }
 
-      const url = remotePathStr ? `${provider.id}/${remotePathStr}` : provider.id;
+      const url = remotePathStr ? `${provider.volumeUrl}/${remotePathStr}` : provider.volumeUrl;
       const service = createRemoteConfigServiceForVault(vaultDir);
       await service.setRemote({ url, name, default: name === 'origin' });
       console.log(`Remote "${name}" set.`);

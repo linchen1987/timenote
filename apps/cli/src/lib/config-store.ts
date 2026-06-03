@@ -1,13 +1,9 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  type FsProviderAccount,
-  type FsProviderEntry,
-  type FsProviderStore,
-  type FsProviderType,
-  providerFacade,
-} from '@timenote/core';
+import { computeVolumeUrl, type FsVolumeAccess, type FsVolumeAccessStore } from '@timenote/core';
+
+type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
 
 function configDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
@@ -23,7 +19,7 @@ async function ensureConfigDir(): Promise<void> {
   await fs.mkdir(configDir(), { recursive: true });
 }
 
-async function readProviders(): Promise<FsProviderEntry[]> {
+async function readVolumeAccesses(): Promise<VolumeAccessEntry[]> {
   try {
     const raw = await fs.readFile(providersPath(), 'utf-8');
     return JSON.parse(raw);
@@ -32,82 +28,79 @@ async function readProviders(): Promise<FsProviderEntry[]> {
   }
 }
 
-async function writeProviders(providers: FsProviderEntry[]): Promise<void> {
+async function writeVolumeAccesses(accesses: VolumeAccessEntry[]): Promise<void> {
   await ensureConfigDir();
-  await fs.writeFile(providersPath(), JSON.stringify(providers, null, 2));
+  await fs.writeFile(providersPath(), JSON.stringify(accesses, null, 2));
 }
 
-export async function listProviders(): Promise<FsProviderEntry[]> {
-  return readProviders();
+export async function listVolumeAccesses(): Promise<VolumeAccessEntry[]> {
+  return readVolumeAccesses();
 }
 
-export async function getProvider(id: string): Promise<FsProviderEntry | null> {
-  const providers = await readProviders();
-  return providers.find((p) => p.id === id) ?? null;
+export async function getVolumeAccess(volumeUrl: string): Promise<VolumeAccessEntry | null> {
+  const accesses = await readVolumeAccesses();
+  return accesses.find((a) => a.volumeUrl === volumeUrl) ?? null;
 }
 
 export async function resolveProviderPath(
   providerPath: string,
-): Promise<{ provider: FsProviderEntry; remotePath: string }> {
-  const providers = await readProviders();
-  const sorted = [...providers].sort((a, b) => b.id.length - a.id.length);
-  for (const p of sorted) {
-    const prefix = `${p.id}:`;
+): Promise<{ provider: VolumeAccessEntry; remotePath: string }> {
+  const accesses = await readVolumeAccesses();
+  const sorted = [...accesses].sort((a, b) => b.volumeUrl.length - a.volumeUrl.length);
+  for (const a of sorted) {
+    const prefix = `${a.volumeUrl}:`;
     if (providerPath.startsWith(prefix)) {
-      return { provider: p, remotePath: providerPath.slice(prefix.length) };
+      return { provider: a, remotePath: providerPath.slice(prefix.length) };
     }
   }
   throw new Error(
-    `No matching provider for "${providerPath}". Available: ${providers.map((p) => p.id).join(', ') || '(none)'}`,
+    `No matching provider for "${providerPath}". Available: ${accesses.map((a) => a.volumeUrl).join(', ') || '(none)'}`,
   );
 }
 
-export async function saveProvider(
-  _type: FsProviderType,
-  options: FsProviderAccount,
-): Promise<FsProviderEntry> {
-  const id = providerFacade.getProviderId(options);
-  const entry: FsProviderEntry = { ...options, id };
-  const providers = await readProviders();
-  const idx = providers.findIndex((p) => p.id === id);
+export async function saveVolumeAccess(access: FsVolumeAccess): Promise<VolumeAccessEntry> {
+  const volumeUrl = computeVolumeUrl(access);
+  const entry: VolumeAccessEntry = { ...access, volumeUrl };
+  const accesses = await readVolumeAccesses();
+  const idx = accesses.findIndex((a) => a.volumeUrl === volumeUrl);
   if (idx >= 0) {
-    providers[idx] = entry;
+    accesses[idx] = entry;
   } else {
-    providers.push(entry);
+    accesses.push(entry);
   }
-  await writeProviders(providers);
+  await writeVolumeAccesses(accesses);
   return entry;
 }
 
-export async function deleteProvider(id: string): Promise<void> {
-  const providers = (await readProviders()).filter((p) => p.id !== id);
-  await writeProviders(providers);
+export async function deleteVolumeAccess(volumeUrl: string): Promise<void> {
+  const accesses = (await readVolumeAccesses()).filter((a) => a.volumeUrl !== volumeUrl);
+  await writeVolumeAccesses(accesses);
 }
 
-export async function createFileProviderStore(): Promise<FsProviderStore> {
-  let cache = await readProviders();
+export async function createFileProviderStore(): Promise<FsVolumeAccessStore> {
+  let cache = await readVolumeAccesses();
 
   return {
-    listProviders(): FsProviderEntry[] {
+    listVolumeAccesses(): VolumeAccessEntry[] {
       return cache;
     },
-    getProvider(id: string): FsProviderAccount | null {
-      return cache.find((p) => p.id === id) ?? null;
+    getVolumeAccess(volumeUrl: string): FsVolumeAccess | null {
+      return cache.find((a) => a.volumeUrl === volumeUrl) ?? null;
     },
-    saveProvider(account: FsProviderAccount): FsProviderEntry {
-      const entry = providerFacade.toEntry(account);
-      const idx = cache.findIndex((p) => p.id === entry.id);
+    saveVolumeAccess(access: FsVolumeAccess): VolumeAccessEntry {
+      const entry: VolumeAccessEntry = { ...access, volumeUrl: computeVolumeUrl(access) };
+      const idx = cache.findIndex((a) => a.volumeUrl === entry.volumeUrl);
       if (idx >= 0) {
         cache[idx] = entry;
       } else {
         cache.push(entry);
       }
-      writeProviders(cache).catch(() => {});
+      writeVolumeAccesses(cache).catch(() => {});
       return entry;
     },
-    deleteProvider(id: string): void {
-      cache = cache.filter((p) => p.id !== id);
-      writeProviders(cache).catch(() => {});
+    deleteVolumeAccess(volumeUrl: string): void {
+      cache = cache.filter((a) => a.volumeUrl !== volumeUrl);
+      writeVolumeAccesses(cache).catch(() => {});
     },
   };
 }

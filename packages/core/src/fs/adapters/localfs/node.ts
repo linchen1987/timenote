@@ -1,11 +1,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { FsClient, FsClientStat } from '../../client';
+import type { FsClient, FsClientConfig, FsClientStat } from '../../types';
+import type { FsClientDriver } from '../../driver-registry';
+import type { LocalFsClientConfig } from './types';
 
 export function createNodeFsClient(rootDir: string): FsClient {
   const resolve = (p: string) => path.join(rootDir, p);
 
-  return {
+  const client: FsClient = {
     async list(dirPath: string): Promise<FsClientStat[]> {
       const entries = await fs.readdir(resolve(dirPath), { withFileTypes: true });
       return entries.map((e) => ({
@@ -52,5 +54,26 @@ export function createNodeFsClient(rootDir: string): FsClient {
     async ensureDir(dirPath: string): Promise<void> {
       await fs.mkdir(resolve(dirPath), { recursive: true });
     },
+
+    scheme: 'localfs',
+    volumeUrl: 'localfs://',
+    url: rootDir ? `localfs://${rootDir}` : 'localfs://',
+    rootPath: rootDir,
+    credentials: undefined,
+    testConnection: async () => {
+      try {
+        return await client.exists('/');
+      } catch {
+        return false;
+      }
+    },
   };
+  return client;
 }
+
+export const LocalFsDriver: FsClientDriver = {
+  create(config: FsClientConfig): FsClient {
+    const localConfig = config as LocalFsClientConfig;
+    return createNodeFsClient(localConfig.rootPath || '/');
+  },
+};

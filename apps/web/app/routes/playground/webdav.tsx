@@ -57,7 +57,7 @@ export default function WebDAVPlayground() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          connection: { type: 'webdav', url, username, password },
+          connection: { scheme: 'webdav', url, username, password },
           method,
           path,
           args,

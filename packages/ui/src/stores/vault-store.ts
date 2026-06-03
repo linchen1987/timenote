@@ -1,6 +1,5 @@
 import type {
-  FsProviderAccount,
-  FsProviderEntry,
+  FsVolumeAccess,
   ImportResult,
   RemoteConfig,
   RuntimeMenuItem,
@@ -10,6 +9,8 @@ import type {
   VaultOrchestrator,
 } from '@timenote/core';
 import { create } from 'zustand';
+
+type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
 
 export type VaultStore = {
   vaultService: null;
@@ -86,9 +87,9 @@ export type VaultStore = {
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
 
-  listProviders: () => FsProviderEntry[];
-  saveProvider: (account: FsProviderAccount) => FsProviderEntry;
-  deleteProvider: (id: string) => void;
+  listVolumeAccesses: () => VolumeAccessEntry[];
+  saveVolumeAccess: (access: FsVolumeAccess) => VolumeAccessEntry;
+  deleteVolumeAccess: (volumeUrl: string) => void;
 };
 
 import { migrateRemotesFromLocalStorage } from '../lib/remote-config-migration';
@@ -328,14 +329,14 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       return result;
     },
 
-    listProviders: () => {
-      return orchestrator.getProviderStore().listProviders();
+    listVolumeAccesses: () => {
+      return orchestrator.getProviderStore().listVolumeAccesses();
     },
-    saveProvider: (account: FsProviderAccount): FsProviderEntry => {
-      return orchestrator.getProviderStore().saveProvider(account);
+    saveVolumeAccess: (access: FsVolumeAccess): VolumeAccessEntry => {
+      return orchestrator.getProviderStore().saveVolumeAccess(access);
     },
-    deleteProvider: (id: string) => {
-      orchestrator.getProviderStore().deleteProvider(id);
+    deleteVolumeAccess: (volumeUrl: string) => {
+      orchestrator.getProviderStore().deleteVolumeAccess(volumeUrl);
     },
   }));
 }

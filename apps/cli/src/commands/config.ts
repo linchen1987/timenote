@@ -25,45 +25,42 @@ export function registerConfigCommand(program: Command) {
         process.exit(1);
       }
 
-      const provider = await configStore.saveProvider(
-        type as 'webdav' | 's3',
-        {
-          type,
-          ...(type === 'webdav'
-            ? {
-                host: opts.host!,
-                username: opts.username ?? '',
-                password: opts.password,
-                token: opts.token,
-                tls: opts.tls !== false ? undefined : false,
-                port: opts.port,
-              }
-            : {
-                endpoint: opts.endpoint!,
-                bucket: opts.bucket!,
-                accessKeyId: opts.accessKeyId!,
-                secretAccessKey: opts.secretAccessKey!,
-                region: opts.region,
-              }),
-        } as any,
-      );
-      console.log(`Provider saved: ${provider.id}`);
+      const entry = await configStore.saveVolumeAccess({
+        type,
+        ...(type === 'webdav'
+          ? {
+              host: opts.host!,
+              username: opts.username ?? '',
+              password: opts.password,
+              token: opts.token,
+              tls: opts.tls !== false ? undefined : false,
+              port: opts.port,
+            }
+          : {
+              endpoint: opts.endpoint!,
+              bucket: opts.bucket!,
+              accessKeyId: opts.accessKeyId!,
+              secretAccessKey: opts.secretAccessKey!,
+              region: opts.region,
+            }),
+      } as any);
+      console.log(`Provider saved: ${entry.volumeUrl}`);
     });
 
   config
     .command('list-providers')
     .description('List all configured providers')
     .action(async () => {
-      const providers = await configStore.listProviders();
-      if (providers.length === 0) {
+      const accesses = await configStore.listVolumeAccesses();
+      if (accesses.length === 0) {
         console.log('No providers configured.');
         return;
       }
-      for (const p of providers) {
-        if ('host' in p) {
-          console.log(`${p.id}  (webdav: ${p.host})`);
-        } else if ('bucket' in p) {
-          console.log(`${p.id}  (s3: ${p.bucket})`);
+      for (const a of accesses) {
+        if ('host' in a) {
+          console.log(`${a.volumeUrl}  (webdav: ${a.host})`);
+        } else if ('bucket' in a) {
+          console.log(`${a.volumeUrl}  (s3: ${a.bucket})`);
         }
       }
     });
@@ -73,7 +70,7 @@ export function registerConfigCommand(program: Command) {
     .description('Remove a provider by ID')
     .argument('<id>', 'Provider ID')
     .action(async (id: string) => {
-      await configStore.deleteProvider(id);
+      await configStore.deleteVolumeAccess(id);
       console.log(`Provider removed: ${id}`);
     });
 }

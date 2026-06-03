@@ -1,13 +1,13 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import {
+  createFsClient,
   createRemoteConfigService,
   createVaultSyncService,
   type FsClient,
-  type FsProviderStore,
+  type FsVolumeAccessStore,
   type Manifest,
   ManifestSchema,
-  providerFacade,
   type RemoteConfigService,
   type SyncResult,
 } from '@timenote/core';
@@ -42,12 +42,12 @@ export function resolveVaultDir(explicit?: string): string {
   throw new Error('Not a timenote vault (or any parent). Use --dir to specify a vault directory.');
 }
 
-export function createRemoteProviderFromUrl(url: string, store: FsProviderStore): FsClient {
-  return providerFacade.createFromUrl(url, store);
+export function createRemoteProviderFromUrl(url: string, store: FsVolumeAccessStore): FsClient {
+  return createFsClient(url, store);
 }
 
 export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfigService {
-  const transport = providerFacade.create({ type: 'fs', path: vaultDir });
+  const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
   return createRemoteConfigService(() => transport);
 }
 
@@ -59,7 +59,7 @@ export function buildRemoteUrl(providerId: string, remotePath: string): string {
 }
 
 export function createSyncService(vaultDir: string) {
-  const transport = providerFacade.create({ type: 'fs', path: vaultDir });
+  const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
 
   const vaultServiceLike = {
     async getTransport(_projectId: string) {

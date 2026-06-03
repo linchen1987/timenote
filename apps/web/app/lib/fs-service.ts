@@ -1,3 +1,5 @@
-import { providerFacade } from '@timenote/core';
+import { createFsClient } from '@timenote/core';
 
-export const testProviderConnection = providerFacade.testConnection.bind(providerFacade);
+export function testProviderConnection(config: Parameters<typeof createFsClient>[0]) {
+  return createFsClient(config).testConnection();
+}

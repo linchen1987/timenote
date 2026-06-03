@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { type FsProviderEntry, initVault, metaPath, providerFacade } from '@timenote/core';
+import { createFsClient, type FsVolumeAccess, initVault, metaPath } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -19,7 +19,7 @@ export function registerCloneCommand(program: Command) {
     )
     .argument('[dir]', 'Local directory name (defaults to notebook name)')
     .action(async (providerPath: string, dir?: string) => {
-      let provider: FsProviderEntry, remotePath: string;
+      let provider: FsVolumeAccess & { volumeUrl: string }, remotePath: string;
       try {
         ({ provider, remotePath } = await configStore.resolveProviderPath(providerPath));
       } catch (e: any) {
@@ -28,7 +28,7 @@ export function registerCloneCommand(program: Command) {
       }
 
       const store = await configStore.createFileProviderStore();
-      const remoteUrl = buildRemoteUrl(provider.id, remotePath);
+      const remoteUrl = buildRemoteUrl(provider.volumeUrl, remotePath);
       const remote = createRemoteProviderFromUrl(remoteUrl, store);
 
       let manifest: Record<string, unknown>;
@@ -43,7 +43,7 @@ export function registerCloneCommand(program: Command) {
       const localDir = dir || (manifest.name as string) || (manifest.project_id as string);
       const vaultDir = path.resolve(localDir);
 
-      const transport = providerFacade.create({ type: 'fs', path: vaultDir });
+      const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
       await initVault(transport, manifest.project_id as string, manifest.name as string);
 
       const service = createRemoteConfigServiceForVault(vaultDir);

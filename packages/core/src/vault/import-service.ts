@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { FsClient, FsClientStat } from '../fs/client';
+import type { FsClient, FsClientStat } from '../fs/types';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import { MAX_ZIP_SIZE, metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
@@ -163,6 +163,13 @@ class VaultImportServiceImpl implements VaultImportService {
         return zip.file(resolvePath(path)) !== null;
       },
       async ensureDir(): Promise<void> {},
+
+      scheme: 'zip' as never,
+      volumeUrl: 'zip://',
+      url: 'zip://',
+      rootPath: '/',
+      credentials: undefined,
+      testConnection: async () => true,
     };
   }
 

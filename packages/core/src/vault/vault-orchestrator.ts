@@ -1,7 +1,13 @@
 import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import type { FsClient } from '../fs/client';
-import { type FsProviderConfig, type FsProviderStore, providerFacade } from '../fs/providers';
+import type { FsClient } from '../fs/types';
+import {
+  computeVolumeUrl,
+  createFsClient,
+  parseVolumeUrl,
+  resolveFsConfig,
+} from '../fs';
+import type { FsClientConfig, FsVolumeAccessStore } from '../fs/types';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -37,7 +43,6 @@ const DEFAULT_REMOTE_NAME = 'origin';
 const EMPTY_SYNC_RESULT: SyncResult = {
   pulled: 0,
   pushed: 0,
-  deletedLocal: 0,
   conflicts: 0,
   errors: [],
 };
@@ -83,9 +88,10 @@ function getSyncCacheTime(projectId: string): number | null {
   try {
     const raw = sessionStorage.getItem(syncCacheKey(projectId));
     return raw ? Number(raw) : null;
-  } catch {
-    return null;
-  }
+    } catch (e) {
+      console.error('[resolveProvider] failed for', projectId, e);
+      return null;
+    }
 }
 
 function touchSyncCache(projectId: string): void {
@@ -111,11 +117,10 @@ export class VaultOrchestrator {
 
   constructor(
     private readonly registry: VaultRegistry | (() => Promise<VaultRegistry>),
-    private readonly providerStore: FsProviderStore,
-    private readonly rpcProviderFactory?: (config: FsProviderConfig) => FsClient,
+    private readonly providerStore: FsVolumeAccessStore,
   ) {}
 
-  getProviderStore(): FsProviderStore {
+  getProviderStore(): FsVolumeAccessStore {
     return this.providerStore;
   }
 
@@ -134,12 +139,12 @@ export class VaultOrchestrator {
     this.noteService = createVaultNoteService(this.vaultService, {
       onDeleteNote: async (projectId, noteId) => {
         const transport = await this.vaultService?.getProvider(projectId);
-        await appendDeleteLog(transport, noteId);
+        if (transport) await appendDeleteLog(transport, noteId);
       },
     });
     this.menuService = createVaultMenuService(this.vaultService);
     this.syncService = createVaultSyncService(this.vaultService, {
-      onPullComplete: (projectId) => this.noteService?.rebuildIndex(projectId),
+      onPullComplete: (projectId) => this.noteService!.rebuildIndex(projectId),
     });
     this.exportService = createVaultExportService(this.vaultService, this.syncService);
     this.importService = createVaultImportService(this.vaultService, this.syncService);
@@ -335,19 +340,12 @@ export class VaultOrchestrator {
     return remote;
   }
 
-  private createRemoteFsClient(config: FsProviderConfig): FsClient {
-    if (this.rpcProviderFactory) {
-      return this.rpcProviderFactory(config);
-    }
-    return providerFacade.create(config);
-  }
-
   async listRemoteVaults(providerId: string): Promise<VaultMeta[]> {
-    const provider = this.providerStore.getProvider(providerId);
+    const provider = this.providerStore.getVolumeAccess(providerId);
     if (!provider) return [];
     try {
-      const config = { ...provider, path: '/' } as FsProviderConfig;
-      const transport = this.createRemoteFsClient(config);
+      const config = { ...provider, rootPath: '/' } as FsClientConfig;
+      const transport = createFsClient(config);
       const entries = await transport.list(VAULTS_REMOTE_PREFIX);
       const vaults: VaultMeta[] = [];
       for (const entry of entries) {
@@ -400,11 +398,11 @@ export class VaultOrchestrator {
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
 
-    const provider = this.providerStore.getProvider(providerId);
+    const provider = this.providerStore.getVolumeAccess(providerId);
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
-    const config = { ...provider, path } as FsProviderConfig;
-    const transport = this.createRemoteFsClient(config);
+    const config = { ...provider, rootPath: path } as FsClientConfig;
+    const transport = createFsClient(config);
     let manifest: Manifest;
     try {
       const raw = await transport.read(metaPath('manifest'));
@@ -482,13 +480,13 @@ export class VaultOrchestrator {
     if (!remote?.url) return null;
 
     try {
-      const config = providerFacade.resolveConfigFromUrl(remote.url, this.providerStore);
-      const transport = this.createRemoteFsClient(config);
-      const parsed = providerFacade.parseUrl(remote.url);
+      const config = resolveFsConfig(remote.url, this.providerStore);
+      const transport = createFsClient(config);
+      const parsed = parseVolumeUrl(remote.url) as any;
       return {
         provider: transport,
         remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
-        providerId: providerFacade.getProviderId(parsed),
+        providerId: computeVolumeUrl(parsed),
         path: parsed.path,
       };
     } catch {
@@ -521,7 +519,7 @@ export class VaultOrchestrator {
 
     touchSyncCache(projectId);
 
-    const noteChanged = result.pulled > 0 || result.deletedLocal > 0;
+    const noteChanged = result.pulled > 0;
     let menuItems: RuntimeMenuItem[] = [];
     if (direction !== 'push') {
       menuItems = await this.loadMenu(projectId);

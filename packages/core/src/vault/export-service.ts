@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { FsClient, FsClientStat } from '../fs/client';
+import type { FsClient, FsClientStat } from '../fs/types';
 import { ManifestSchema } from '../spec/manifest';
 import { metaPath } from '../spec/vault-layout';
 import type { VaultSyncService } from './sync-service';
@@ -84,5 +84,12 @@ function createZipWriteFs(zip: JSZip): FsClient {
       return false;
     },
     async ensureDir(): Promise<void> {},
+
+    scheme: 'zip' as never,
+    volumeUrl: 'zip://',
+    url: 'zip://',
+    rootPath: '/',
+    credentials: undefined,
+    testConnection: async () => true,
   };
 }

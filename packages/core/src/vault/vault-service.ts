@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import { ManifestSchema } from '../spec/manifest';
 import { generateProjectId } from '../spec/project-id';
 import { metaPath } from '../spec/vault-layout';

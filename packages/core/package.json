@@ -9,7 +9,7 @@
     ".": "./src/index.ts",
     "./fs": "./src/fs/index.ts",
     "./hooks": "./src/hooks/index.ts",
-    "./fs/providers/fs/node": "./src/fs/providers/fs/node.ts"
+    "./fs/providers/localfs/node": "./src/fs/providers/localfs/node.ts"
   },
   "dependencies": {
     "@bradenmacdonald/s3-lite-client": "jsr:^0.9.4",

@@ -1,10 +1,14 @@
-import { createOpfsVaultRegistry, VaultOrchestrator } from '@timenote/core';
+import { createOpfsVaultRegistry, registerDriver, VaultOrchestrator } from '@timenote/core';
 import { createBoundVaultStore, createLocalStorageProviderStore } from '@timenote/ui';
-import { createRpcClient } from './web-transport';
+import { S3RpcDriver, WebdavRpcDriver } from './web-transport';
+
+if (typeof window !== 'undefined') {
+  registerDriver('s3', S3RpcDriver);
+  registerDriver('webdav', WebdavRpcDriver);
+}
 
 const orchestrator = new VaultOrchestrator(
   createOpfsVaultRegistry,
   createLocalStorageProviderStore(),
-  createRpcClient,
 );
 export const useVaultStore = createBoundVaultStore(orchestrator);

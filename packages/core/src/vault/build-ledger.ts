@@ -1,4 +1,4 @@
-import type { FsClient } from '../fs/client';
+import type { FsClient } from '../fs/types';
 import { DeleteLogSchema } from '../spec/delete-log';
 import { computeBinaryHash, computeContentHash } from '../spec/hash';
 import { type NoteId, parseNoteSafe } from '../spec/note';
