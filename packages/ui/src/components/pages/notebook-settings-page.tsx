@@ -5,7 +5,7 @@ import {
   parseNotebookId,
   parseVolumeUrl,
 } from '@timenote/core';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Database, Download } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -62,6 +62,21 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
   const store = useVaultStore;
 
   const { isExporting, handleExport } = useExportVault(useVaultStore, projectId);
+
+  const [isRebuilding, setIsRebuilding] = useState(false);
+
+  const handleRebuildIndex = async () => {
+    if (!projectId) return;
+    setIsRebuilding(true);
+    try {
+      await store.getState().rebuildIndex(projectId);
+      toast.success('Index rebuilt successfully');
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    } finally {
+      setIsRebuilding(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!projectId || !selectedProviderId) return;
@@ -149,6 +164,22 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
               <Button variant="outline" onClick={handleExport} disabled={isExporting || !projectId}>
                 <Download className="w-4 h-4" />
                 {isExporting ? 'Exporting...' : 'Export'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Index</CardTitle>
+              <CardDescription>
+                Rebuild the search index from the original note files. Use this if search results
+                appear incorrect or out of date.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" onClick={handleRebuildIndex} disabled={isRebuilding || !projectId}>
+                <Database className="w-4 h-4" />
+                {isRebuilding ? 'Rebuilding...' : 'Rebuild Index'}
               </Button>
             </CardContent>
           </Card>
