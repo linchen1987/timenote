@@ -88,7 +88,7 @@ export function createSyncService(vaultDir: string) {
     },
     async initFromSource(source: FsClient): Promise<SyncResult> {
       const manifest = readManifest(vaultDir);
-      await syncSvc.loadLedgerCache(manifest.project_id);
+      await syncSvc.loadLedgerFromVault(manifest.project_id);
       return syncSvc.initFromSource(manifest.project_id, source);
     },
   };

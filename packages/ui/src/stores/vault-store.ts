@@ -85,6 +85,7 @@ export type VaultStore = {
   scheduleAutoSync: (projectId: string) => void;
 
   rebuildIndex: (projectId: string) => Promise<void>;
+  rebuildLedger: (projectId: string) => Promise<void>;
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
 
@@ -323,6 +324,10 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
     rebuildIndex: async (projectId: string) => {
       await orchestrator.getNoteService().rebuildIndex(projectId);
       set((s) => ({ noteVersion: s.noteVersion + 1 }));
+    },
+
+    rebuildLedger: async (projectId: string) => {
+      await orchestrator.rebuildLedger(projectId);
     },
 
     exportVault: async (projectId: string) => {

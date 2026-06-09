@@ -5,7 +5,7 @@ import {
   parseNotebookId,
   parseVolumeUrl,
 } from '@timenote/core';
-import { ArrowLeft, Database, Download } from 'lucide-react';
+import { ArrowLeft, Database, Download, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -64,6 +64,7 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
   const { isExporting, handleExport } = useExportVault(useVaultStore, projectId);
 
   const [isRebuilding, setIsRebuilding] = useState(false);
+  const [isRebuildingLedger, setIsRebuildingLedger] = useState(false);
 
   const handleRebuildIndex = async () => {
     if (!projectId) return;
@@ -75,6 +76,19 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
       toast.error(`Failed: ${(e as Error).message}`);
     } finally {
       setIsRebuilding(false);
+    }
+  };
+
+  const handleRebuildLedger = async () => {
+    if (!projectId) return;
+    setIsRebuildingLedger(true);
+    try {
+      await store.getState().rebuildLedger(projectId);
+      toast.success('Sync ledger rebuilt successfully');
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    } finally {
+      setIsRebuildingLedger(false);
     }
   };
 
@@ -180,6 +194,26 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
               <Button variant="outline" onClick={handleRebuildIndex} disabled={isRebuilding || !projectId}>
                 <Database className="w-4 h-4" />
                 {isRebuilding ? 'Rebuilding...' : 'Rebuild Index'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Sync Ledger</CardTitle>
+              <CardDescription>
+                Rebuild the sync ledger from the local file system. Use this if sync is not
+                detecting changes or manifest is missing on remote.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                onClick={handleRebuildLedger}
+                disabled={isRebuildingLedger || !projectId}
+              >
+                <RefreshCw className="w-4 h-4" />
+                {isRebuildingLedger ? 'Rebuilding...' : 'Rebuild Sync Ledger'}
               </Button>
             </CardContent>
           </Card>

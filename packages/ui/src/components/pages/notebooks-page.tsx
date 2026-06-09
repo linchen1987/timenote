@@ -125,7 +125,7 @@ function ProviderScanner({
           className="ml-auto"
           onClick={() => {
             scanner.setShowManualPull(!scanner.showManualPull);
-            scanner.setManualProviderId(scanner.providers[0]?.id ?? '');
+            scanner.setManualProviderId(scanner.providers[0]?.volumeUrl ?? '');
           }}
         >
           手动拉取
@@ -134,15 +134,18 @@ function ProviderScanner({
 
       <div className="flex flex-wrap gap-3">
         {scanner.providers.map((p) => (
-          <div key={p.id} className="flex items-center gap-2 p-3 rounded-xl border bg-card">
-            <span className="font-mono text-xs truncate max-w-[200px]">{p.id}</span>
+          <div key={p.volumeUrl} className="flex items-center gap-2 p-3 rounded-xl border bg-card">
+            <div className="min-w-0 flex-1">
+              <p className="font-mono text-xs truncate max-w-[200px]">{p.volumeUrl}</p>
+              <p className="text-[10px] text-muted-foreground">{p.scheme?.toUpperCase()}</p>
+            </div>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => scanner.handleScan(p.id)}
-              disabled={scanner.scanningId === p.id}
+              onClick={() => scanner.handleScan(p.volumeUrl)}
+              disabled={scanner.scanningId === p.volumeUrl}
             >
-              {scanner.scanningId === p.id ? (
+              {scanner.scanningId === p.volumeUrl ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <RefreshCw className="w-4 h-4" />
@@ -167,8 +170,8 @@ function ProviderScanner({
                 onChange={(e) => scanner.setManualProviderId(e.target.value)}
               >
                 {scanner.providers.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.id}
+                  <option key={p.volumeUrl} value={p.volumeUrl}>
+                    {p.volumeUrl}
                   </option>
                 ))}
               </select>

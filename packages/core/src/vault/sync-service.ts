@@ -42,7 +42,8 @@ export interface VaultSyncService {
   ): Promise<SyncResult>;
   syncWithSource(projectId: string, source: FsClient, options?: SyncOptions): Promise<SyncResult>;
   getSyncStatus(projectId: string): Promise<SyncStatus>;
-  loadLedgerCache(projectId: string): Promise<void>;
+  loadLedgerFromVault(projectId: string): Promise<void>;
+  rebuildLedger(projectId: string): Promise<void>;
   markDirty(projectId: string, entries: DirtyEntry[]): void;
 }
 
@@ -126,14 +127,23 @@ class VaultSyncServiceImpl implements VaultSyncService {
     return { isSyncing: false };
   }
 
-  async loadLedgerCache(projectId: string): Promise<void> {
+  async loadLedgerFromVault(projectId: string): Promise<void> {
+    const fs = await this.vaultService.getProvider(projectId);
+    let ledger: SyncLedger;
     try {
-      const fs = await this.vaultService.getProvider(projectId);
-      const ledger = await buildLedgerFromFile(fs);
-      this.ledgerCache.set(projectId, ledger);
+      ledger = await buildLedgerFromFile(fs);
     } catch {
-      this.ledgerCache.set(projectId, buildEmptyLedger());
+      ledger = await buildLedgerFromFs(fs);
     }
+    this.ledgerCache.set(projectId, ledger);
+    this.dirtyMap.delete(projectId);
+  }
+
+  async rebuildLedger(projectId: string): Promise<void> {
+    const fs = await this.vaultService.getProvider(projectId);
+    const ledger = await buildLedgerFromFs(fs);
+    await writeLedger(fs, ledger);
+    this.ledgerCache.set(projectId, ledger);
     this.dirtyMap.delete(projectId);
   }
 

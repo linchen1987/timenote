@@ -204,7 +204,12 @@ export class VaultOrchestrator {
     await this.init();
     await this.requireVaultService().listVaults();
     await this.requireNoteService().activateVault(projectId);
-    await this.requireSyncService().loadLedgerCache(projectId);
+    await this.requireSyncService().loadLedgerFromVault(projectId);
+  }
+
+  async rebuildLedger(projectId: string): Promise<void> {
+    await this.init();
+    await this.requireSyncService().rebuildLedger(projectId);
   }
 
   deactivateVault(): void {
