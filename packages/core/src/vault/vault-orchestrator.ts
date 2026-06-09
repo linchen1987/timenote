@@ -360,9 +360,13 @@ export class VaultOrchestrator {
           const manifestPath = `${VAULTS_REMOTE_PREFIX}/${projectId}/${metaPath('manifest')}`;
           const raw = await transport.read(manifestPath);
           const manifest: Manifest = ManifestSchema.parse(JSON.parse(raw));
-          vaults.push({ projectId: manifest.project_id, name: manifest.name });
+          vaults.push({
+            projectId: manifest.project_id,
+            name: manifest.name,
+            remotePath: getDefaultRemotePath(projectId),
+          });
         } catch {
-          vaults.push({ projectId, name: projectId });
+          vaults.push({ projectId, name: projectId, remotePath: getDefaultRemotePath(projectId) });
         }
       }
       return vaults;

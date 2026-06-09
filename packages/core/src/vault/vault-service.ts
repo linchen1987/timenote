@@ -8,6 +8,7 @@ import type { VaultRegistry } from './vault-registry';
 export interface VaultMeta {
   projectId: string;
   name: string;
+  remotePath?: string;
 }
 
 export interface VaultService {

@@ -51,7 +51,7 @@ export function useProviderScanner(
         remoteOnlyVaults.push({
           ...v,
           providerId,
-          path: getDefaultRemotePath(v.projectId),
+          path: v.remotePath ?? getDefaultRemotePath(v.projectId),
         });
       }
     }
