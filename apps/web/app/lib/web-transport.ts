@@ -40,7 +40,6 @@ function createRpcProxy(config: FsClientConfig): FsClient {
     async writeBinary(path: string, data: ArrayBuffer) {
       const res = await fetch('/api/fs/binary', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: (() => {
           const fd = new FormData();
           fd.append('meta', JSON.stringify({ config, path }));

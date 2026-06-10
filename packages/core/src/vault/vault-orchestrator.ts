@@ -366,7 +366,7 @@ export class VaultOrchestrator {
             remotePath: getDefaultRemotePath(projectId),
           });
         } catch {
-          vaults.push({ projectId, name: projectId, remotePath: getDefaultRemotePath(projectId) });
+          continue;
         }
       }
       return vaults;
