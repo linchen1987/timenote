@@ -1,6 +1,6 @@
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
-import type { FsClient, FsClientConfig, FsClientStat, FsVolumeAccessStore } from '../../types';
 import type { FsClientDriver } from '../../driver-registry';
+import type { FsClient, FsClientConfig, FsClientStat, FsVolumeAccessStore } from '../../types';
 
 export type S3Volume = { scheme: 's3'; endpoint: string; bucket: string };
 
@@ -35,7 +35,8 @@ function createS3Client(config: S3ClientConfig): FsClient {
   }
 
   const volumeUrl = `s3://${config.bucket}@${config.endpoint}`;
-  const prefix = config.rootPath && config.rootPath !== '/' ? config.rootPath.replace(/\/+$/, '') : '';
+  const prefix =
+    config.rootPath && config.rootPath !== '/' ? config.rootPath.replace(/\/+$/, '') : '';
   const resolve = (path: string) => {
     if (!prefix) return path;
     return path ? `${prefix}/${path}` : prefix;

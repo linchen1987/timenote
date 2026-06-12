@@ -1,11 +1,10 @@
-import type { FsScheme } from './types';
 import { computeS3VolumeUrl, parseS3Url, resolveS3ConfigFromUrl } from './adapters/s3/s3';
-import type { FsClientConfig, FsVolumeAccessStore } from './types';
 import {
   computeWebdavVolumeUrl,
   parseWebdavUrl,
   resolveWebdavConfigFromUrl,
 } from './adapters/webdav/webdav';
+import type { FsClientConfig, FsScheme, FsVolumeAccessStore } from './types';
 
 export function resolveFsConfig(url: string, store?: FsVolumeAccessStore): FsClientConfig {
   const scheme = extractScheme(url);

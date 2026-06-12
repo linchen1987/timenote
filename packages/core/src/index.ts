@@ -12,7 +12,6 @@ export {
 
 // ─── FS Transport ────────────────────────────────────────────
 
-export type { FsClient, FsClientStat } from './fs/types';
 export {
   computeVolumeUrl,
   createFsClient,
@@ -22,6 +21,7 @@ export {
 } from './fs';
 export type { FsClientDriver } from './fs/driver-registry';
 export { clearDrivers, getDriver, registerDriver } from './fs/driver-registry';
+export type { FsClient, FsClientStat } from './fs/types';
 export type { VaultRegistry, VaultRegistryEntry } from './vault/vault-registry';
 export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
 
@@ -34,8 +34,6 @@ export {
   createOpfsClient,
   createS3Client,
   createWebdavClient,
-  S3Driver,
-  WebdavDriver,
   type FsClientConfig,
   type FsCredentials,
   type FsEndpoint,
@@ -46,11 +44,13 @@ export {
   type FsVolumeAccessStore,
   type S3ClientConfig,
   type S3Credentials,
+  S3Driver,
   type S3Endpoint,
   type S3Volume,
   type S3VolumeAccess,
   type WebdavClientConfig,
   type WebdavCredentials,
+  WebdavDriver,
   type WebdavEndpoint,
   type WebdavVolume,
   type WebdavVolumeAccess,

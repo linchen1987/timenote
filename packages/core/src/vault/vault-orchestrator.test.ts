@@ -1,11 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import type { FsClient, FsClientStat } from '../fs/types';
-import { clearDrivers, registerDriver } from '../fs/driver-registry';
 import type { FsClientDriver } from '../fs/driver-registry';
-import {
-  type FsClientConfig,
-  type FsVolumeAccess,
-  type FsVolumeAccessStore,
+import { clearDrivers, registerDriver } from '../fs/driver-registry';
+import type {
+  FsClient,
+  FsClientConfig,
+  FsClientStat,
+  FsVolumeAccess,
+  FsVolumeAccessStore,
 } from '../fs/types';
 import { VaultOrchestrator } from './vault-orchestrator';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
@@ -233,7 +234,8 @@ describe('VaultOrchestrator', () => {
     const mockDriver: FsClientDriver = {
       create(config: any) {
         const provider = recording.provider;
-        if (config.rootPath && config.rootPath !== '/') return prefixClient(config.rootPath, provider);
+        if (config.rootPath && config.rootPath !== '/')
+          return prefixClient(config.rootPath, provider);
         return provider;
       },
     };
@@ -270,10 +272,7 @@ describe('VaultOrchestrator', () => {
 
     registerDriver('s3', rpcDriver);
 
-    const orchestrator = new VaultOrchestrator(
-      createMemoryRegistry(),
-      createMockStore(),
-    );
+    const orchestrator = new VaultOrchestrator(createMemoryRegistry(), createMockStore());
 
     await orchestrator.init();
     const projectId = await orchestrator.createVault('test-vault');

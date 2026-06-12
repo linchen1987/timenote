@@ -246,17 +246,26 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
     },
 
     tryEntrySync: async (projectId: string) => {
-      const outcome = await orchestrator.tryEntrySync(projectId);
-      if (outcome) {
-        const errorMsg = outcome.result.errors.length > 0 ? outcome.result.errors.join('; ') : null;
-        set({
-          isSyncing: false,
-          syncSuccess: outcome.result.errors.length === 0,
-          lastSyncError: errorMsg,
-          lastSyncTime: new Date().toISOString(),
-          menuItems: outcome.menuItems,
-          noteVersion: outcome.noteChanged ? get().noteVersion + 1 : get().noteVersion,
-        });
+      set({ isSyncing: true, syncSuccess: false, lastSyncError: null });
+      try {
+        const outcome = await orchestrator.tryEntrySync(projectId);
+        if (outcome) {
+          const errorMsg =
+            outcome.result.errors.length > 0 ? outcome.result.errors.join('; ') : null;
+          set({
+            isSyncing: false,
+            syncSuccess: outcome.result.errors.length === 0,
+            lastSyncError: errorMsg,
+            lastSyncTime: new Date().toISOString(),
+            menuItems: outcome.menuItems,
+            noteVersion: outcome.noteChanged ? get().noteVersion + 1 : get().noteVersion,
+          });
+        } else {
+          set({ isSyncing: false });
+        }
+      } catch (e) {
+        const msg = (e as Error).message;
+        set({ isSyncing: false, syncSuccess: false, lastSyncError: msg });
       }
     },
 

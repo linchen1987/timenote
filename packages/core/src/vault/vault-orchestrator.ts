@@ -1,13 +1,7 @@
 import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
-import type { FsClient } from '../fs/types';
-import {
-  computeVolumeUrl,
-  createFsClient,
-  parseVolumeUrl,
-  resolveFsConfig,
-} from '../fs';
-import type { FsClientConfig, FsVolumeAccessStore } from '../fs/types';
+import { computeVolumeUrl, createFsClient, parseVolumeUrl, resolveFsConfig } from '../fs';
+import type { FsClient, FsClientConfig, FsVolumeAccessStore } from '../fs/types';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -88,10 +82,10 @@ function getSyncCacheTime(projectId: string): number | null {
   try {
     const raw = sessionStorage.getItem(syncCacheKey(projectId));
     return raw ? Number(raw) : null;
-    } catch (e) {
-      console.error('[resolveProvider] failed for', projectId, e);
-      return null;
-    }
+  } catch (e) {
+    console.error('[resolveProvider] failed for', projectId, e);
+    return null;
+  }
 }
 
 function touchSyncCache(projectId: string): void {
@@ -365,9 +359,7 @@ export class VaultOrchestrator {
             name: manifest.name,
             remotePath: getDefaultRemotePath(projectId),
           });
-        } catch {
-          continue;
-        }
+        } catch {}
       }
       return vaults;
     } catch {

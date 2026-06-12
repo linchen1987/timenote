@@ -1,22 +1,25 @@
 import { describe, expect, it } from 'vitest';
+import { computeContentHash } from '../spec/hash';
+import { SyncLedgerSchema } from '../spec/sync-ledger';
+import { META_DIR, metaPath, SYNCABLE_META_FILES } from '../spec/vault-layout';
 import { createMemoryProvider } from '../test/memory-fs';
 import {
-  buildLedgerFromFs,
-  buildLedgerFromFile,
-  buildEmptyLedger,
   applyDirtyEntries,
+  buildEmptyLedger,
+  buildLedgerFromFile,
+  buildLedgerFromFs,
   type DirtyEntry,
 } from './build-ledger';
-import { computeContentHash } from '../spec/hash';
-import { META_DIR, metaPath, SYNCABLE_META_FILES } from '../spec/vault-layout';
-import { SyncLedgerSchema } from '../spec/sync-ledger';
 
 describe('buildLedgerFromFs', () => {
   it('includes all syncable meta files in ledger', async () => {
     const fs = createMemoryProvider();
     await fs.ensureDir(META_DIR);
     for (const mf of SYNCABLE_META_FILES) {
-      await fs.write(`${META_DIR}/${mf}`, JSON.stringify({ data: mf, updated_at: '2026-01-01T00:00:00Z' }));
+      await fs.write(
+        `${META_DIR}/${mf}`,
+        JSON.stringify({ data: mf, updated_at: '2026-01-01T00:00:00Z' }),
+      );
     }
 
     const ledger = await buildLedgerFromFs(fs);
@@ -118,9 +121,7 @@ describe('applyDirtyEntries', () => {
     await fs.write(`${META_DIR}/menu.json`, content);
 
     const base = buildEmptyLedger();
-    const dirty: DirtyEntry[] = [
-      { type: 'meta', key: 'menu.json', action: 'upsert' },
-    ];
+    const dirty: DirtyEntry[] = [{ type: 'meta', key: 'menu.json', action: 'upsert' }];
 
     const updated = await applyDirtyEntries(fs, base, dirty);
     expect(updated.meta_files['menu.json']).toBeDefined();

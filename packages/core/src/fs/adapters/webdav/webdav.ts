@@ -1,6 +1,6 @@
 import { createClient } from 'webdav';
-import type { FsClient, FsClientConfig, FsClientStat, FsVolumeAccessStore } from '../../types';
 import type { FsClientDriver } from '../../driver-registry';
+import type { FsClient, FsClientConfig, FsClientStat, FsVolumeAccessStore } from '../../types';
 
 export type WebdavVolume = { scheme: 'webdav'; host: string; username: string };
 
@@ -39,7 +39,8 @@ function createWebdavClient(config: WebdavClientConfig): FsClient {
   }
 
   const volumeUrl = `webdav://${config.username}@${config.host}`;
-  const prefix = config.rootPath && config.rootPath !== '/' ? config.rootPath.replace(/\/+$/, '') : '';
+  const prefix =
+    config.rootPath && config.rootPath !== '/' ? config.rootPath.replace(/\/+$/, '') : '';
   const resolve = (path: string) => {
     if (!prefix) return path;
     return path ? `${prefix}/${path}` : prefix;

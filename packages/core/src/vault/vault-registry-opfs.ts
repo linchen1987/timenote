@@ -1,5 +1,5 @@
-import type { FsClient } from '../fs/types';
 import { createOpfsClient } from '../fs/adapters/localfs/opfs';
+import type { FsClient } from '../fs/types';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
 
 export async function createOpfsVaultRegistry(): Promise<VaultRegistry> {

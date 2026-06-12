@@ -10,7 +10,13 @@ import type {
   LocalFsVolume,
   LocalFsVolumeAccess,
 } from './adapters/localfs/types';
-import type { S3ClientConfig, S3Credentials, S3Endpoint, S3Volume, S3VolumeAccess } from './adapters/s3/s3';
+import type {
+  S3ClientConfig,
+  S3Credentials,
+  S3Endpoint,
+  S3Volume,
+  S3VolumeAccess,
+} from './adapters/s3/s3';
 import type {
   WebdavClientConfig,
   WebdavCredentials,
@@ -25,7 +31,13 @@ export type {
   LocalFsVolume,
   LocalFsVolumeAccess,
 } from './adapters/localfs/types';
-export type { S3ClientConfig, S3Credentials, S3Endpoint, S3Volume, S3VolumeAccess } from './adapters/s3/s3';
+export type {
+  S3ClientConfig,
+  S3Credentials,
+  S3Endpoint,
+  S3Volume,
+  S3VolumeAccess,
+} from './adapters/s3/s3';
 export type {
   WebdavClientConfig,
   WebdavCredentials,

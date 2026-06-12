@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { createMemoryProvider } from '../test/memory-fs';
-import { executePlan, type ExecuteResult } from './execute-plan';
-import type { SyncPlan } from './sync-algorithm';
 import { META_DIR, metaPath } from '../spec/vault-layout';
+import { createMemoryProvider } from '../test/memory-fs';
+import { type ExecuteResult, executePlan } from './execute-plan';
+import type { SyncPlan } from './sync-algorithm';
 
 describe('executePlan', () => {
   it('pushes note files to remote', async () => {
@@ -92,11 +92,7 @@ describe('executePlan', () => {
 
     const plan: SyncPlan = {
       toPull: [],
-      toPush: [
-        '2026-01/20260101-120000-abcd.md',
-        'meta:manifest.json',
-        'meta:menu.json',
-      ],
+      toPush: ['2026-01/20260101-120000-abcd.md', 'meta:manifest.json', 'meta:menu.json'],
       toDeleteLocal: [],
       toDeleteRemote: [],
       conflicts: 0,

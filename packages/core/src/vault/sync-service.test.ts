@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import type { FsClient } from '../fs/types';
+import { ManifestSchema } from '../spec/manifest';
+import { metaPath } from '../spec/vault-layout';
 import { createMemoryProvider } from '../test/memory-fs';
+import { buildLedgerFromFs } from './build-ledger';
 import { createVaultSyncService, type VaultSyncService } from './sync-service';
 import { initVault } from './vault-ops';
-import { buildLedgerFromFs } from './build-ledger';
-import { writeLedger } from './write-ledger';
-import type { FsClient } from '../fs/types';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
-import { metaPath } from '../spec/vault-layout';
-import { ManifestSchema } from '../spec/manifest';
+import { writeLedger } from './write-ledger';
 
 function createMemoryRegistry(): VaultRegistry {
   const providers = new Map<string, FsClient>();
@@ -140,7 +140,10 @@ describe('SyncService', () => {
       const localFs = await vaultService.getProvider(projectId);
       const remoteFs = createMemoryProvider();
 
-      await localFs.write('2026-06/20260609-120000-1234.md', '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nHello');
+      await localFs.write(
+        '2026-06/20260609-120000-1234.md',
+        '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nHello',
+      );
 
       await syncService.loadLedgerFromVault(projectId);
       syncService.markDirty(projectId, [
@@ -181,7 +184,10 @@ describe('SyncService', () => {
 
       const sourceFs = createMemoryProvider();
       await initVault(sourceFs, 'src1', 'SourceVault');
-      await sourceFs.write('2026-06/20260609-120000-1234.md', '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nHello');
+      await sourceFs.write(
+        '2026-06/20260609-120000-1234.md',
+        '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nHello',
+      );
       const sourceLedger = await buildLedgerFromFs(sourceFs);
       await writeLedger(sourceFs, sourceLedger);
 
@@ -230,7 +236,10 @@ describe('SyncService', () => {
       const localFs = await vaultService.getProvider(projectId);
       const remoteFs = createMemoryProvider();
 
-      await localFs.write('2026-06/20260609-120000-1234.md', '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nNote1');
+      await localFs.write(
+        '2026-06/20260609-120000-1234.md',
+        '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nNote1',
+      );
 
       await syncService.loadLedgerFromVault(projectId);
       syncService.markDirty(projectId, [

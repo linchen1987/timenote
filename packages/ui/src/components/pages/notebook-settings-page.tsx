@@ -1,6 +1,6 @@
 import {
-  type FsVolumeAccess,
   computeVolumeUrl,
+  type FsVolumeAccess,
   getDefaultRemotePath,
   parseNotebookId,
   parseVolumeUrl,
@@ -191,7 +191,11 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" onClick={handleRebuildIndex} disabled={isRebuilding || !projectId}>
+              <Button
+                variant="outline"
+                onClick={handleRebuildIndex}
+                disabled={isRebuilding || !projectId}
+              >
                 <Database className="w-4 h-4" />
                 {isRebuilding ? 'Rebuilding...' : 'Rebuild Index'}
               </Button>

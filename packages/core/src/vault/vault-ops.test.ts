@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { createMemoryProvider } from '../test/memory-fs';
-import { appendDeleteLog, initVault } from './vault-ops';
 import { computeContentHash } from '../spec/hash';
 import { SyncLedgerSchema } from '../spec/sync-ledger';
 import { META_DIR, metaPath, SYNCABLE_META_FILES } from '../spec/vault-layout';
+import { createMemoryProvider } from '../test/memory-fs';
+import { appendDeleteLog, initVault } from './vault-ops';
 
 describe('initVault', () => {
   it('writes all required meta files', async () => {

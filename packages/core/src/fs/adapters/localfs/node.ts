@@ -1,7 +1,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
-import type { FsClient, FsClientConfig, FsClientStat } from '../../types';
 import type { FsClientDriver } from '../../driver-registry';
+import type { FsClient, FsClientConfig, FsClientStat } from '../../types';
 import type { LocalFsClientConfig } from './types';
 
 export function createNodeFsClient(rootDir: string): FsClient {

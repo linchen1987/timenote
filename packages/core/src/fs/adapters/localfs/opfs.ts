@@ -1,5 +1,5 @@
-import type { FsClient, FsClientConfig, FsClientStat } from '../../types';
 import type { FsClientDriver } from '../../driver-registry';
+import type { FsClient, FsClientConfig, FsClientStat } from '../../types';
 import type { LocalFsClientConfig } from './types';
 
 export function createOpfsClient(root: FileSystemDirectoryHandle): FsClient {

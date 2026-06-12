@@ -1,7 +1,6 @@
-import type { FsClient, FsClientConfig, FsScheme } from './types';
 import { getDriver } from './driver-registry';
+import type { FsClient, FsClientConfig, FsScheme, FsVolumeAccessStore } from './types';
 import { resolveFsConfig } from './url';
-import type { FsVolumeAccessStore } from './types';
 
 export function createFsClient(
   configOrUrl: FsClientConfig | string,
