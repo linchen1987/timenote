@@ -262,30 +262,6 @@ export function VaultTimelinePage({
     return () => observer.disconnect();
   }, [ready, searchQuery, hasMore, loadingMore, loadNotes]);
 
-  const syncTagsToMenu = async (content: string) => {
-    if (!resolvedProjectId) return;
-    const hashtagRegex = /#([\w\u4e00-\u9fa5]+)/g;
-    const matches = content.matchAll(hashtagRegex);
-    const tagNames = Array.from(new Set(Array.from(matches).map((m) => m[1])));
-    if (tagNames.length === 0) return;
-
-    const currentItems = useStore.getState().menuItems;
-    const existingSearches = new Set(
-      currentItems.filter((i) => i.type === 'search').map((i) => i.search),
-    );
-
-    const store = useStore.getState();
-    for (const tag of tagNames) {
-      if (!existingSearches.has(`#${tag}`)) {
-        await store.addMenuItem(resolvedProjectId, {
-          parentId: null,
-          title: tag,
-          type: 'search',
-          search: `#${tag}`,
-        });
-      }
-    }
-  };
 
   const handleComposerSubmit = async () => {
     if (!composerContent.trim() || !resolvedProjectId) return;
@@ -301,7 +277,6 @@ export function VaultTimelinePage({
         });
       }
 
-      await syncTagsToMenu(composerContent);
       setComposerContent('');
       setComposerAttachments([]);
       composerRef.current?.setMarkdown('');
@@ -329,7 +304,6 @@ export function VaultTimelinePage({
         await svc.updateNote(resolvedProjectId, noteId, content);
       }
 
-      await syncTagsToMenu(content);
       setEditingId(null);
       setEditAttachments([]);
       setEditRemovedPaths([]);
