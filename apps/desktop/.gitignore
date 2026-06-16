@@ -1,0 +1,7 @@
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/
+
+# Vite
+dist/
+node_modules/

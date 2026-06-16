@@ -4,10 +4,12 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @timenote/web dev",
+    "dev:desktop": "pnpm --filter @timenote/desktop tauri:dev",
     "dev:ext": "pnpm --filter @timenote/extension dev",
     "dev:cli": "pnpm tsx apps/cli/src/main.ts",
     "build": "pnpm --filter @timenote/web build",
     "build:ext": "pnpm --filter @timenote/extension build",
+    "build:desktop": "pnpm --filter @timenote/desktop tauri:build",
     "deploy:web": "pnpm --filter @timenote/web run deploy",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
