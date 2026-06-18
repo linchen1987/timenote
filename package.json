@@ -10,6 +10,7 @@
     "build": "pnpm --filter @timenote/web build",
     "build:ext": "pnpm --filter @timenote/extension build",
     "build:desktop": "pnpm --filter @timenote/desktop tauri:build",
+    "desktop:install:local": "pnpm --filter @timenote/desktop tauri:build:app && rm -rf /Applications/TimeNote.app && cp -R apps/desktop/src-tauri/target/release/bundle/macos/TimeNote.app /Applications/",
     "deploy:web": "pnpm --filter @timenote/web run deploy",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",

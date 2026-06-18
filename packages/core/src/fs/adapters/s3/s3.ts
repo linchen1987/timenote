@@ -74,7 +74,10 @@ function createS3Client(config: S3ClientConfig): FsClient {
             });
           }
         }
-      } catch {}
+      } catch (e) {
+        console.error('[S3 list]', dirPath, e);
+        throw e;
+      }
       return entries;
     },
 
@@ -142,8 +145,9 @@ function createS3Client(config: S3ClientConfig): FsClient {
     testConnection: async () => {
       try {
         return await client.exists('/');
-      } catch {
-        return false;
+      } catch (e) {
+        console.error('[S3 testConnection]', e);
+        throw e;
       }
     },
   };

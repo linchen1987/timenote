@@ -28,7 +28,7 @@ import {
   type SyncResult,
   type VaultSyncService,
 } from '../vault/sync-service';
-import { appendDeleteLog } from '../vault/vault-ops';
+import { appendDeleteLog, initVault } from '../vault/vault-ops';
 import {
   clearLogs as clearLogsOnTransport,
   createLogger,
@@ -425,11 +425,14 @@ export class VaultOrchestrator {
             name: manifest.name,
             remotePath: getDefaultRemotePath(projectId),
           });
-        } catch {}
+        } catch (e) {
+          console.error('[listRemoteVaults] skip', projectId, e);
+        }
       }
       return vaults;
-    } catch {
-      return [];
+    } catch (e) {
+      console.error('[listRemoteVaults]', providerId, e);
+      throw e;
     }
   }
 
@@ -463,7 +466,11 @@ export class VaultOrchestrator {
     );
   }
 
-  async cloneFromProvider(providerId: string, path: string): Promise<string> {
+  async cloneFromProvider(
+    providerId: string,
+    path: string,
+    options?: { localPath?: string },
+  ): Promise<string> {
     await this.init();
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
@@ -484,7 +491,14 @@ export class VaultOrchestrator {
     const projectId = manifest.project_id;
     const existing = await vaultService.listVaults();
     if (!existing.find((v) => v.projectId === projectId)) {
-      await vaultService.createVaultWithId(projectId, manifest.name);
+      const registry = await this.getVaultRegistry();
+      if (options?.localPath && registry.registerExisting) {
+        await registry.registerExisting(projectId, options.localPath, manifest.name);
+        const localTransport = await registry.getLocalClient(projectId);
+        await initVault(localTransport, projectId, manifest.name);
+      } else {
+        await vaultService.createVaultWithId(projectId, manifest.name);
+      }
     }
 
     const service = this.getRemoteConfigService(projectId);

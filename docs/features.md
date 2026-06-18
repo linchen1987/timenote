@@ -45,7 +45,7 @@ vault 内所有持久化格式的 schema 与校验。格式定义详见 [vault.m
 | V4 | 注册 vault | 将 vault 加入注册表 | Web, Extension, Desktop | 统一接口 |
 | V4.1 | 创建并注册 vault | 创建空 vault（V1）并注册（V4） | Web, Extension, Desktop | 统一实现（组合 V1 + V4） |
 | V4.2 | 打开并注册已有 vault | 打开本地已有 vault 目录并注册（V4） | Desktop | 统一实现（组合 V4） |
-| V5 | 移除 vault 注册 | 从注册表移除 | Web, Extension, Desktop | 统一接口 |
+| V5 | 移除 vault 注册 | 从注册表移除，不删除磁盘数据 | Web, Extension, Desktop | 统一接口 |
 | V5.1 | 移除并删除数据 | 移除注册（V5）并销毁数据（V3） | Web, Extension | 统一实现（组合 V5 + V3） |
 | V6 | 列出已注册 vaults | 查看注册表中所有 vault | Web, Extension, Desktop | 统一接口 |
 | V7 | 激活 vault | 构建索引（D16）+ 读取菜单（D6）+ 加载同步状态到内存 | Web, Extension, Desktop | 统一实现（组合 D16 + D6） |

@@ -152,7 +152,6 @@ export function ProviderForm({
               <Input
                 value={form.s3.accessKeyId}
                 onChange={(e) => setS3({ accessKeyId: e.target.value })}
-                autoComplete="off"
               />
             </div>
             <div className="space-y-2">
@@ -163,7 +162,6 @@ export function ProviderForm({
                   value={form.s3.secretAccessKey}
                   onChange={(e) => setS3({ secretAccessKey: e.target.value })}
                   className="pr-10"
-                  autoComplete="off"
                 />
                 <Button
                   type="button"

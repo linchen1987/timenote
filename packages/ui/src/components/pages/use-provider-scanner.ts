@@ -32,6 +32,7 @@ export function useProviderScanner(
   useStore: UseVaultStoreHook,
   localVaults: VaultMeta[],
   onPullSuccess: () => Promise<void>,
+  onPickCloneDir?: () => Promise<string | null>,
 ): UseProviderScannerReturn {
   const [providers, setProviders] = useState<VolumeAccessEntry[]>(() =>
     useStore.getState().listVolumeAccesses(),
@@ -82,9 +83,15 @@ export function useProviderScanner(
 
   const handlePull = useCallback(
     async (providerId: string, path: string) => {
+      let localPath: string | undefined;
+      if (onPickCloneDir) {
+        const picked = await onPickCloneDir();
+        if (!picked) return;
+        localPath = picked;
+      }
       setIsPulling(`${providerId}:${path}`);
       try {
-        await useStore.getState().cloneFromProvider(providerId, path);
+        await useStore.getState().cloneFromProvider(providerId, path, localPath ? { localPath } : undefined);
         toast.success('Vault pulled from remote');
         await onPullSuccess();
       } catch (e) {
@@ -93,14 +100,20 @@ export function useProviderScanner(
         setIsPulling(null);
       }
     },
-    [useStore, onPullSuccess],
+    [useStore, onPullSuccess, onPickCloneDir],
   );
 
   const handleManualPull = useCallback(async () => {
     if (!manualProviderId || !manualPath) return;
     setIsPulling('manual');
     try {
-      await useStore.getState().cloneFromProvider(manualProviderId, manualPath);
+      let localPath: string | undefined;
+      if (onPickCloneDir) {
+        const picked = await onPickCloneDir();
+        if (!picked) return;
+        localPath = picked;
+      }
+      await useStore.getState().cloneFromProvider(manualProviderId, manualPath, localPath ? { localPath } : undefined);
       toast.success('Vault pulled from remote');
       setShowManualPull(false);
       setManualProviderId('');
@@ -111,7 +124,7 @@ export function useProviderScanner(
     } finally {
       setIsPulling(null);
     }
-  }, [useStore, manualProviderId, manualPath, onPullSuccess]);
+  }, [useStore, manualProviderId, manualPath, onPullSuccess, onPickCloneDir]);
 
   return {
     providers,

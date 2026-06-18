@@ -70,7 +70,7 @@ export type VaultStore = {
 
   listRemoteVaults: (providerId: string) => Promise<VaultMeta[]>;
   cloneVault: (projectId: string) => Promise<void>;
-  cloneFromProvider: (providerId: string, path: string) => Promise<void>;
+  cloneFromProvider: (providerId: string, path: string, options?: { localPath?: string }) => Promise<void>;
 
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
@@ -224,8 +224,8 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       await get().listVaults();
     },
 
-    cloneFromProvider: async (providerId: string, path: string) => {
-      await orchestrator.cloneFromProvider(providerId, path);
+    cloneFromProvider: async (providerId: string, path: string, options?: { localPath?: string }) => {
+      await orchestrator.cloneFromProvider(providerId, path, options);
       await get().listVaults();
     },
 

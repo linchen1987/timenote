@@ -153,7 +153,6 @@ export function StorageConfigCard({
               <Input
                 value={s3AccessKeyId}
                 onChange={(e) => onS3AccessKeyIdChange(e.target.value)}
-                autoComplete="off"
               />
             </div>
             <div className="space-y-2">
@@ -164,7 +163,6 @@ export function StorageConfigCard({
                   value={s3SecretAccessKey}
                   onChange={(e) => onS3SecretAccessKeyChange(e.target.value)}
                   className="pr-10"
-                  autoComplete="off"
                 />
                 <Button
                   type="button"

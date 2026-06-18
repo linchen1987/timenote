@@ -5,6 +5,7 @@ import {
   CloudDownload,
   Download,
   Edit2,
+  FolderOpen,
   Github,
   Globe,
   LayoutGrid,
@@ -54,6 +55,9 @@ export interface NotebooksPageProps {
     exported?: string;
     pulled?: string;
   };
+  onOpenVault?: () => void;
+  onCreateVault?: () => void;
+  onPickCloneDir?: () => Promise<string | null>;
 }
 
 function ThemeToggle() {
@@ -100,12 +104,14 @@ function ProviderScanner({
   useStore,
   localVaults,
   onPullSuccess,
+  onPickCloneDir,
 }: {
   useStore: UseVaultStoreHook;
   localVaults: Array<{ projectId: string; name: string }>;
   onPullSuccess: () => Promise<void>;
+  onPickCloneDir?: () => Promise<string | null>;
 }) {
-  const scanner = useProviderScanner(useStore, localVaults, onPullSuccess);
+  const scanner = useProviderScanner(useStore, localVaults, onPullSuccess, onPickCloneDir);
 
   if (scanner.providers.length === 0) return null;
 
@@ -254,7 +260,14 @@ function ProviderScanner({
   );
 }
 
-export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: NotebooksPageProps) {
+export function NotebooksPage({
+  useVaultStore: useStore,
+  logoSrc,
+  messages,
+  onOpenVault,
+  onCreateVault,
+  onPickCloneDir,
+}: NotebooksPageProps) {
   const {
     vaults,
     isCreating,
@@ -387,8 +400,18 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
               >
                 <Upload className="w-5 h-5" /> {isImporting ? '导入中...' : '导入笔记本'}
               </Button>
+              {onOpenVault && (
+                <Button
+                  onClick={onOpenVault}
+                  size="lg"
+                  variant="outline"
+                  className="h-12 rounded-2xl gap-2 px-8 font-black"
+                >
+                  <FolderOpen className="w-5 h-5" /> 打开笔记本
+                </Button>
+              )}
               <Button
-                onClick={() => setIsCreating(true)}
+                onClick={() => (onCreateVault ? onCreateVault() : setIsCreating(true))}
                 size="lg"
                 className="h-12 rounded-2xl gap-2 px-8 font-black shadow-lg shadow-primary/20 hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 transition-all duration-300"
               >
@@ -402,7 +425,7 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
               <CardContent className="p-6 flex flex-col sm:flex-row gap-4 items-center">
                 <Input
                   autoFocus
-                  className="h-14 text-lg rounded-xl flex-1 bg-background border-2 focus-visible:ring-primary"
+                  className="h-14 text-lg rounded-xl flex-1 bg-background border-2 focus-visible:ring-primary normal-case"
                   placeholder="输入笔记本名称..."
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
@@ -553,7 +576,7 @@ export function NotebooksPage({ useVaultStore: useStore, logoSrc, messages }: No
             )}
           </div>
 
-          <ProviderScanner useStore={useStore} localVaults={vaults} onPullSuccess={refresh} />
+          <ProviderScanner useStore={useStore} localVaults={vaults} onPullSuccess={refresh} onPickCloneDir={onPickCloneDir} />
         </div>
       </main>
 

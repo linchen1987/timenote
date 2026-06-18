@@ -7,6 +7,7 @@ import type { VaultStore } from '../../stores/vault-store';
 type UseVaultStoreHook = {
   (): VaultStore;
   getState: () => VaultStore;
+  setState: (partial: Partial<VaultStore>) => void;
   <T>(selector: (s: VaultStore) => T): T;
 };
 

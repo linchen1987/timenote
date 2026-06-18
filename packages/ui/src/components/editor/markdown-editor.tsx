@@ -273,6 +273,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         attributes: {
           class: `prose prose-sm dark:prose-invert max-w-none focus:outline-none ${editable ? 'p-4' : 'p-0'} ${className}`,
           style: `min-height: ${minHeight}; ${!editable ? 'user-select: text;' : ''}`,
+          spellcheck: 'false',
+          autocorrect: 'off',
+          autocapitalize: 'off',
+          autocomplete: 'off',
         },
         handleClickOn: (_view, _pos, node, _nodePos, event, _direct) => {
           if (!editable && node.type.name === 'text') {
@@ -397,6 +401,10 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               disabled={!editable}
               className={`w-full p-4 font-mono text-sm resize-none focus:outline-none ${className}`}
               style={{ minHeight, userSelect: editable ? 'auto' : 'text' }}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
             />
           ) : (
             <EditorContent editor={editor} />

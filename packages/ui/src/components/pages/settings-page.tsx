@@ -100,9 +100,10 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
       } else {
         throw new Error('Could not connect');
       }
-    } catch {
+    } catch (e) {
       setConnectionStatus('error');
-      toast.error('Connection failed');
+      const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : 'Unknown error';
+      toast.error(`Connection failed: ${msg}`);
     }
   };
 

@@ -96,7 +96,9 @@ export function useNotebooksPage(
       setIsCreating(false);
       await refresh();
     } catch (e) {
-      toast.error(`Create failed: ${(e as Error).message}`);
+      console.error('[createVault] failed:', e);
+      const msg = typeof e === 'string' ? e : (e as Error)?.message ?? String(e);
+      toast.error(`Create failed: ${msg}`);
     }
   };
 

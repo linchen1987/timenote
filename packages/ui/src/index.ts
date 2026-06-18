@@ -124,6 +124,7 @@ export {
 } from './components/ui/sheet';
 export { Toaster } from './components/ui/sonner';
 export { createLocalStorageProviderStore } from './lib/local-storage-provider-store';
+export { normalizeLegacyEntry } from './lib/legacy-compat';
 export {
   createBoundVaultStore,
   type VaultStore,

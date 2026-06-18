@@ -122,8 +122,9 @@ function createWebdavClient(config: WebdavClientConfig): FsClient {
       try {
         const exists = await client.exists('/');
         return !!exists;
-      } catch {
-        return false;
+      } catch (e) {
+        console.error('[WebDAV testConnection]', e);
+        throw e;
       }
     },
   };
