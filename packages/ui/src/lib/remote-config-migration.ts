@@ -44,7 +44,7 @@ function parseTimestamp(value: string): number | null {
 }
 
 export async function migrateRemotesFromLocalStorage(
-  getVaultProvider: (projectId: string) => Promise<FsClient>,
+  getLocalClient: (projectId: string) => Promise<FsClient>,
   listVaultProjectIds: () => Promise<string[]>,
 ): Promise<void> {
   const state = localStorage.getItem(V2_KEY);
@@ -103,7 +103,7 @@ export async function migrateRemotesFromLocalStorage(
 
     let transport: FsClient;
     try {
-      transport = await getVaultProvider(projectId);
+      transport = await getLocalClient(projectId);
     } catch {
       console.warn(`[migrateRemotes] vault transport not found for ${projectId}, skipping`);
       allSucceeded = false;

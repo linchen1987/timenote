@@ -13,6 +13,7 @@ export {
 // ─── FS Transport ────────────────────────────────────────────
 
 export {
+  type CreateFsClientOptions,
   computeVolumeUrl,
   createFsClient,
   extractScheme,
@@ -62,6 +63,8 @@ export {
   type ConfigLocal,
   ConfigLocalSchema,
   createEmptyConfigLocal,
+  type LoggingConfig,
+  LoggingConfigSchema,
   type RemoteConfig,
   RemoteConfigSchema,
 } from './spec/config-local';
@@ -88,6 +91,7 @@ export { getDefaultRemotePath } from './vault/vault-orchestrator';
 
 // ─── Sync Engine + Vault Lifecycle ────────────────────────────
 
+
 export {
   applyDirtyEntries,
   buildEmptyLedger,
@@ -106,6 +110,17 @@ export {
   type ImportResult,
   type VaultImportService,
 } from './vault/import-service';
+export {
+  clearLogs,
+  createLogger,
+  formatLine,
+  type LogConfig,
+  type LogEntry,
+  type Logger,
+  type LogLevel,
+  parseLine,
+  readLogs,
+} from './vault/log-service';
 export {
   compareEntities,
   mergeEntities,
@@ -255,6 +270,8 @@ export {
   isNoteFileEntry,
   isVolume,
   isVolumeEntry,
+  LOG_DIR,
+  logPath,
   MAX_ZIP_SIZE,
   META_DIR,
   META_FILES,

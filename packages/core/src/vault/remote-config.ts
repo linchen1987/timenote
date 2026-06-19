@@ -5,13 +5,7 @@ import {
   createEmptyConfigLocal,
   type RemoteConfig,
 } from '../spec/config-local';
-import { META_DIR } from '../spec/vault-layout';
-
-const CONFIG_LOCAL_FILENAME = 'config.local.json';
-
-function configLocalPath(): string {
-  return `${META_DIR}/${CONFIG_LOCAL_FILENAME}`;
-}
+import { META_DIR, metaPath } from '../spec/vault-layout';
 
 export interface RemoteConfigService {
   listRemotes(): Promise<RemoteConfig[]>;
@@ -24,7 +18,7 @@ export interface RemoteConfigService {
 
 async function readConfig(transport: FsClient): Promise<ConfigLocal> {
   try {
-    const raw = await transport.read(configLocalPath());
+    const raw = await transport.read(metaPath('configLocal'));
     return ConfigLocalSchema.parse(JSON.parse(raw));
   } catch {
     return createEmptyConfigLocal();
@@ -33,37 +27,37 @@ async function readConfig(transport: FsClient): Promise<ConfigLocal> {
 
 async function writeConfig(transport: FsClient, config: ConfigLocal): Promise<void> {
   await transport.ensureDir(META_DIR);
-  await transport.write(configLocalPath(), JSON.stringify(config, null, 2));
+  await transport.write(metaPath('configLocal'), JSON.stringify(config, null, 2));
 }
 
 export function createRemoteConfigService(
-  getTransport: () => Promise<FsClient> | FsClient,
+  getClient: () => Promise<FsClient> | FsClient,
 ): RemoteConfigService {
-  async function getTransportAsync(): Promise<FsClient> {
-    return await getTransport();
+  async function getClientAsync(): Promise<FsClient> {
+    return await getClient();
   }
 
   return {
     async listRemotes(): Promise<RemoteConfig[]> {
-      const transport = await getTransportAsync();
+      const transport = await getClientAsync();
       const config = await readConfig(transport);
       return config.remotes;
     },
 
     async getRemote(name: string): Promise<RemoteConfig | null> {
-      const transport = await getTransportAsync();
+      const transport = await getClientAsync();
       const config = await readConfig(transport);
       return config.remotes.find((r) => r.name === name) ?? null;
     },
 
     async getDefaultRemote(): Promise<RemoteConfig | null> {
-      const transport = await getTransportAsync();
+      const transport = await getClientAsync();
       const config = await readConfig(transport);
       return config.remotes.find((r) => r.default === true) ?? config.remotes[0] ?? null;
     },
 
     async setRemote(entry: RemoteConfig): Promise<void> {
-      const transport = await getTransportAsync();
+      const transport = await getClientAsync();
       const config = await readConfig(transport);
       const idx = config.remotes.findIndex((r) => r.name === entry.name);
       if (idx >= 0) {
@@ -75,14 +69,14 @@ export function createRemoteConfigService(
     },
 
     async removeRemote(name: string): Promise<void> {
-      const transport = await getTransportAsync();
+      const transport = await getClientAsync();
       const config = await readConfig(transport);
       config.remotes = config.remotes.filter((r) => r.name !== name);
       await writeConfig(transport, config);
     },
 
     async setDefault(name: string): Promise<void> {
-      const transport = await getTransportAsync();
+      const transport = await getClientAsync();
       const config = await readConfig(transport);
       for (const r of config.remotes) {
         r.default = r.name === name ? true : undefined;

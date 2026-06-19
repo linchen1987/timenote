@@ -12,5 +12,5 @@ export interface VaultRegistry {
   register(projectId: string, name: string): Promise<VaultRegistryEntry>;
   unregister(projectId: string): Promise<void>;
   destroy(projectId: string): Promise<void>;
-  getProvider(projectId: string): Promise<FsClient>;
+  getLocalClient(projectId: string): Promise<FsClient>;
 }

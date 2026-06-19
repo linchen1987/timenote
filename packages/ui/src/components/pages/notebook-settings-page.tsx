@@ -5,7 +5,15 @@ import {
   parseNotebookId,
   parseVolumeUrl,
 } from '@timenote/core';
-import { ArrowLeft, Database, Download, RefreshCw } from 'lucide-react';
+import {
+  ArrowLeft,
+  Database,
+  Download,
+  FileText,
+  RefreshCw,
+  ScrollText,
+  Trash2,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -65,6 +73,46 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
 
   const [isRebuilding, setIsRebuilding] = useState(false);
   const [isRebuildingLedger, setIsRebuildingLedger] = useState(false);
+  const [loggingEnabled, setLoggingEnabled] = useState(false);
+  const [isTogglingLog, setIsTogglingLog] = useState(false);
+  const [isClearingLogs, setIsClearingLogs] = useState(false);
+
+  useEffect(() => {
+    if (!projectId) return;
+    store
+      .getState()
+      .getLoggingEnabled(projectId)
+      .then(setLoggingEnabled)
+      .catch(() => {});
+  }, [projectId, store]);
+
+  const handleToggleLogging = async () => {
+    if (!projectId) return;
+    setIsTogglingLog(true);
+    try {
+      const next = !loggingEnabled;
+      await store.getState().setLoggingEnabled(projectId, next);
+      setLoggingEnabled(next);
+      toast.success(next ? 'Logging enabled' : 'Logging disabled');
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    } finally {
+      setIsTogglingLog(false);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    if (!projectId) return;
+    setIsClearingLogs(true);
+    try {
+      await store.getState().clearLogs(projectId);
+      toast.success('Logs cleared');
+    } catch (e) {
+      toast.error(`Failed: ${(e as Error).message}`);
+    } finally {
+      setIsClearingLogs(false);
+    }
+  };
 
   const handleRebuildIndex = async () => {
     if (!projectId) return;
@@ -219,6 +267,43 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
                 <RefreshCw className="w-4 h-4" />
                 {isRebuildingLedger ? 'Rebuilding...' : 'Rebuild Sync Ledger'}
               </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Diagnostics Logs</CardTitle>
+              <CardDescription>
+                Record remote requests and sync comparison results to help diagnose issues like
+                unexpected full syncs. Logs are stored locally (not synced) and capped at the most
+                recent 500 entries.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant={loggingEnabled ? 'default' : 'outline'}
+                  onClick={handleToggleLogging}
+                  disabled={isTogglingLog || !projectId}
+                >
+                  <ScrollText className="w-4 h-4" />
+                  {isTogglingLog ? '...' : loggingEnabled ? 'Logging On' : 'Enable Logging'}
+                </Button>
+                <Button variant="outline" asChild disabled={!projectId}>
+                  <Link to={`/s/${notebookToken}/logs`}>
+                    <FileText className="w-4 h-4" />
+                    View Logs
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleClearLogs}
+                  disabled={isClearingLogs || !projectId}
+                >
+                  <Trash2 className="w-4 h-4" />
+                  {isClearingLogs ? 'Clearing...' : 'Clear'}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>

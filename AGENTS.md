@@ -23,6 +23,9 @@
 ## React Router DOCS
 - Routing https://reactrouter.com/start/framework/routing 
 
+## Specs & Guides
+- **vault spec**: [`docs/specs/vault.md`](docs/specs/vault.md) — vault 持久化格式规范。修改前必读 [`docs/guides/vault-spec-guide.md`](docs/guides/vault-spec-guide.md) 了解记录范围和粒度。
+
 ## Tech Stack
 - pnpm (workspace monorepo)
 - react-router

@@ -33,7 +33,7 @@ function createMemoryRegistry(): VaultRegistry {
     async destroy(projectId: string) {
       providers.delete(projectId);
     },
-    async getProvider(projectId: string): Promise<FsClient> {
+    async getLocalClient(projectId: string): Promise<FsClient> {
       let p = providers.get(projectId);
       if (!p) {
         p = createMemoryProvider();
@@ -49,21 +49,21 @@ function createSimpleVaultService(registry: VaultRegistry) {
     async createVault(name: string): Promise<string> {
       const id = `test-${Math.random().toString(36).slice(2, 10)}`;
       await registry.register(id, name);
-      const provider = await registry.getProvider(id);
+      const provider = await registry.getLocalClient(id);
       await initVault(provider, id, name);
       return id;
     },
     async createVaultWithId(projectId: string, name: string): Promise<void> {
       await registry.register(projectId, name);
-      const provider = await registry.getProvider(projectId);
+      const provider = await registry.getLocalClient(projectId);
       await initVault(provider, projectId, name);
     },
     async deleteVault() {},
     async listVaults(): Promise<{ projectId: string; name: string }[]> {
       return [];
     },
-    async getProvider(projectId: string): Promise<FsClient> {
-      return registry.getProvider(projectId);
+    async getLocalClient(projectId: string): Promise<FsClient> {
+      return registry.getLocalClient(projectId);
     },
   };
 }
@@ -76,7 +76,7 @@ describe('SyncService', () => {
       const syncService = createVaultSyncService(vaultService);
 
       const projectId = await vaultService.createVault('TestVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
       const remoteFs = createMemoryProvider();
 
       await syncService.loadLedgerFromVault(projectId);
@@ -114,7 +114,7 @@ describe('SyncService', () => {
       const syncService = createVaultSyncService(vaultService);
 
       const projectId = await vaultService.createVault('TestVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
       const remoteFs = createMemoryProvider();
 
       const noteContent = '---\nupdated_at: 2026-06-09T12:00:00Z\n---\nHello World';
@@ -137,7 +137,7 @@ describe('SyncService', () => {
       const syncService = createVaultSyncService(vaultService);
 
       const projectId = await vaultService.createVault('TestVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
       const remoteFs = createMemoryProvider();
 
       await localFs.write(
@@ -161,7 +161,7 @@ describe('SyncService', () => {
       const syncService = createVaultSyncService(vaultService);
 
       const projectId = await vaultService.createVault('TestVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
       const remoteFs = createMemoryProvider();
 
       await syncService.loadLedgerFromVault(projectId);
@@ -192,7 +192,7 @@ describe('SyncService', () => {
       await writeLedger(sourceFs, sourceLedger);
 
       const projectId = await vaultService.createVault('LocalVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
 
       await syncService.loadLedgerFromVault(projectId);
       const result = await syncService.initFromSource(projectId, sourceFs, {
@@ -214,7 +214,7 @@ describe('SyncService', () => {
       await initVault(sourceFs, 'src1', 'SourceVault');
 
       const projectId = await vaultService.createVault('LocalVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
 
       await syncService.loadLedgerFromVault(projectId);
       await syncService.initFromSource(projectId, sourceFs);
@@ -233,7 +233,7 @@ describe('SyncService', () => {
       const syncService = createVaultSyncService(vaultService);
 
       const projectId = await vaultService.createVault('RoundTrip');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
       const remoteFs = createMemoryProvider();
 
       await localFs.write(
@@ -263,7 +263,7 @@ describe('SyncService', () => {
       const syncService = createVaultSyncService(vaultService);
 
       const projectId = await vaultService.createVault('TestVault');
-      const localFs = await vaultService.getProvider(projectId);
+      const localFs = await vaultService.getLocalClient(projectId);
       const remoteFs = createMemoryProvider();
 
       await localFs.remove(metaPath('syncLedger'));

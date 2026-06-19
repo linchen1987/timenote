@@ -98,7 +98,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async createNote(projectId: string, content?: string): Promise<string> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const body = content ?? '';
     const noteId = await createNoteOp(transport, body);
 
@@ -113,7 +113,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async getNote(projectId: string, noteId: string): Promise<ParsedNote | null> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) return null;
@@ -128,7 +128,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
       if (cached !== undefined) return cached;
     }
 
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) return '';
@@ -145,7 +145,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     if (cached.size === noteIds.length) return cached;
 
     const missing = noteIds.filter((id) => !cached.has(id));
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     for (const id of missing) {
       const path = noteFilePath(id);
       const exists = await transport.exists(path);
@@ -158,7 +158,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async updateNote(projectId: string, noteId: string, content: string): Promise<void> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     await updateNoteOp(transport, noteId, content);
 
     if (this.activeProjectId === projectId && this.indexService) {
@@ -169,7 +169,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async deleteNote(projectId: string, noteId: string): Promise<void> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
 
     const note = await this.readNoteForDelete(projectId, noteId);
     const attachmentPaths = this.extractAttachmentPaths(note);
@@ -197,7 +197,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     noteId: string,
     options: SaveNoteOptions,
   ): Promise<void> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) throw new Error(`Note not found: ${noteId}`);
@@ -243,17 +243,17 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async getAttachmentService(projectId: string): Promise<AttachmentService> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     return createAttachmentService(transport);
   }
 
   async getAttachmentBlob(projectId: string, path: string): Promise<ArrayBuffer> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     return transport.readBinary(path);
   }
 
   async garbageCollectAttachments(projectId: string): Promise<number> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const attSvc = createAttachmentService(transport);
 
     const referenced = await this.collectAllReferencedPaths(projectId);
@@ -286,7 +286,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
       }
     }
 
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const volumes = await transport.list('');
 
     const opfsNoteIds = new Set<string>();
@@ -424,7 +424,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
   private async readNoteForDelete(projectId: string, noteId: string): Promise<ParsedNote | null> {
     try {
-      const transport = await this.vaultService.getProvider(projectId);
+      const transport = await this.vaultService.getLocalClient(projectId);
       const path = noteFilePath(noteId);
       const raw = await transport.read(path);
       return parseNote(raw);
@@ -439,7 +439,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   private async collectAllReferencedPaths(projectId: string): Promise<Set<string>> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const referenced = new Set<string>();
     const volumes = await transport.list('');
     for (const vol of volumes) {
@@ -466,7 +466,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   private async deleteOrphanedAttachments(projectId: string, paths: string[]): Promise<void> {
     if (paths.length === 0) return;
     const referenced = await this.collectAllReferencedPaths(projectId);
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     for (const path of paths) {
       if (!referenced.has(path)) {
         try {

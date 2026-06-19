@@ -6,6 +6,10 @@ export { NotebookLayout, type NotebookLayoutProps } from './components/notebook-
 export { type MenuActions, NotebookSidebar } from './components/notebook-sidebar';
 export { PageHeader } from './components/page-header';
 export {
+  NotebookLogsPage,
+  type NotebookLogsPageProps,
+} from './components/pages/notebook-logs-page';
+export {
   NotebookSettingsPage,
   type NotebookSettingsPageProps,
 } from './components/pages/notebook-settings-page';

@@ -29,8 +29,18 @@ import {
   type VaultSyncService,
 } from '../vault/sync-service';
 import { appendDeleteLog } from '../vault/vault-ops';
-import { createVaultService, type VaultMeta, type VaultService } from '../vault/vault-service';
+import {
+  clearLogs as clearLogsOnTransport,
+  createLogger,
+  type LogConfig,
+  type LogEntry,
+  type Logger,
+  readLoggingConfig,
+  readLogs as readLogsFromTransport,
+  writeLoggingConfig,
+} from './log-service';
 import type { VaultRegistry } from './vault-registry';
+import { createVaultService, type VaultMeta, type VaultService } from './vault-service';
 
 const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
 const DEFAULT_REMOTE_NAME = 'origin';
@@ -105,12 +115,13 @@ export class VaultOrchestrator {
   private menuService: VaultMenuService | null = null;
   private syncService: VaultSyncService | null = null;
   private exportService: VaultExportService | null = null;
-  private resolvedRegistry: VaultRegistry | null = null;
+  private resolvedVaultRegistry: VaultRegistry | null = null;
   private importService: VaultImportService | null = null;
   private initialized = false;
+  private loggerCache = new Map<string, { logger: Logger; config: LogConfig }>();
 
   constructor(
-    private readonly registry: VaultRegistry | (() => Promise<VaultRegistry>),
+    private readonly vaultRegistry: VaultRegistry | (() => Promise<VaultRegistry>),
     private readonly providerStore: FsVolumeAccessStore,
   ) {}
 
@@ -118,22 +129,22 @@ export class VaultOrchestrator {
     return this.providerStore;
   }
 
-  private async getRegistry(): Promise<VaultRegistry> {
-    if (!this.resolvedRegistry) {
-      this.resolvedRegistry =
-        typeof this.registry === 'function' ? await this.registry() : this.registry;
+  private async getVaultRegistry(): Promise<VaultRegistry> {
+    if (!this.resolvedVaultRegistry) {
+      this.resolvedVaultRegistry =
+        typeof this.vaultRegistry === 'function' ? await this.vaultRegistry() : this.vaultRegistry;
     }
-    return this.resolvedRegistry;
+    return this.resolvedVaultRegistry;
   }
 
   async init(): Promise<void> {
     if (this.initialized) return;
-    const registry = await this.getRegistry();
-    this.vaultService = createVaultService(registry);
+    const vaultRegistry = await this.getVaultRegistry();
+    this.vaultService = createVaultService(vaultRegistry);
     this.noteService = createVaultNoteService(this.vaultService, {
       onDeleteNote: async (projectId, noteId) => {
-        const transport = await this.vaultService?.getProvider(projectId);
-        if (transport) await appendDeleteLog(transport, noteId);
+        const client = await this.vaultService?.getLocalClient(projectId);
+        if (client) await appendDeleteLog(client, noteId);
       },
     });
     this.menuService = createVaultMenuService(this.vaultService);
@@ -166,15 +177,69 @@ export class VaultOrchestrator {
   }
 
   private getRemoteConfigService(projectId: string) {
-    return createRemoteConfigService(() => this.requireVaultService().getProvider(projectId));
+    return createRemoteConfigService(() => this.requireVaultService().getLocalClient(projectId));
+  }
+
+  private getLoggerEntry(projectId: string): { logger: Logger; config: LogConfig } {
+    let entry = this.loggerCache.get(projectId);
+    if (!entry) {
+      const config: LogConfig = { enabled: false, level: 'info' };
+      const logger = createLogger(
+        () => this.requireVaultService().getLocalClient(projectId),
+        config,
+      );
+      entry = { logger, config };
+      this.loggerCache.set(projectId, entry);
+    }
+    return entry;
+  }
+
+  private async refreshLoggerConfig(projectId: string): Promise<void> {
+    const client = await this.requireVaultService().getLocalClient(projectId);
+    const logging = await readLoggingConfig(client);
+    const { config } = this.getLoggerEntry(projectId);
+    config.enabled = logging.enabled === true;
+    config.level = logging.level ?? 'info';
+  }
+
+  async getLoggingEnabled(projectId: string): Promise<boolean> {
+    await this.init();
+    await this.refreshLoggerConfig(projectId);
+    return this.getLoggerEntry(projectId).config.enabled;
+  }
+
+  async setLoggingEnabled(projectId: string, enabled: boolean): Promise<void> {
+    await this.init();
+    const client = await this.requireVaultService().getLocalClient(projectId);
+    const logging = await readLoggingConfig(client);
+    await writeLoggingConfig(client, { ...logging, enabled });
+    this.getLoggerEntry(projectId).config.enabled = enabled;
+  }
+
+  async readLogs(projectId: string): Promise<LogEntry[]> {
+    await this.init();
+    const client = await this.requireVaultService().getLocalClient(projectId);
+    return readLogsFromTransport(client);
+  }
+
+  async clearLogs(projectId: string): Promise<void> {
+    await this.init();
+    const client = await this.requireVaultService().getLocalClient(projectId);
+    await clearLogsOnTransport(client);
+  }
+
+  private createRemoteClient(projectId: string, config: FsClientConfig): FsClient {
+    return createFsClient(config, {
+      logger: this.getLoggerEntry(projectId).logger.scoped('remote'),
+    });
   }
 
   getNoteService(): VaultNoteService {
     return this.requireNoteService();
   }
 
-  async getVaultProvider(projectId: string): Promise<FsClient> {
-    return this.requireVaultService().getProvider(projectId);
+  async getLocalClient(projectId: string): Promise<FsClient> {
+    return this.requireVaultService().getLocalClient(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
@@ -199,6 +264,7 @@ export class VaultOrchestrator {
     await this.requireVaultService().listVaults();
     await this.requireNoteService().activateVault(projectId);
     await this.requireSyncService().loadLedgerFromVault(projectId);
+    await this.refreshLoggerConfig(projectId);
   }
 
   async rebuildLedger(projectId: string): Promise<void> {
@@ -344,15 +410,15 @@ export class VaultOrchestrator {
     if (!provider) return [];
     try {
       const config = { ...provider, rootPath: '/' } as FsClientConfig;
-      const transport = createFsClient(config);
-      const entries = await transport.list(VAULTS_REMOTE_PREFIX);
+      const client = createFsClient(config);
+      const entries = await client.list(VAULTS_REMOTE_PREFIX);
       const vaults: VaultMeta[] = [];
       for (const entry of entries) {
         if (entry.type !== 'directory') continue;
         const projectId = entry.basename;
         try {
           const manifestPath = `${VAULTS_REMOTE_PREFIX}/${projectId}/${metaPath('manifest')}`;
-          const raw = await transport.read(manifestPath);
+          const raw = await client.read(manifestPath);
           const manifest: Manifest = ManifestSchema.parse(JSON.parse(raw));
           vaults.push({
             projectId: manifest.project_id,
@@ -389,9 +455,12 @@ export class VaultOrchestrator {
       await vaultService.createVaultWithId(projectId, manifest.name);
     }
 
-    await syncService.initFromSource(projectId, remote, {
-      writeSourceLedger: true,
-    });
+    await syncService.initFromSource(
+      projectId,
+      remote,
+      { writeSourceLedger: true },
+      this.getLoggerEntry(projectId).logger.scoped('sync'),
+    );
   }
 
   async cloneFromProvider(providerId: string, path: string): Promise<string> {
@@ -403,10 +472,10 @@ export class VaultOrchestrator {
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
     const config = { ...provider, rootPath: path } as FsClientConfig;
-    const transport = createFsClient(config);
+    const client = createFsClient(config);
     let manifest: Manifest;
     try {
-      const raw = await transport.read(metaPath('manifest'));
+      const raw = await client.read(metaPath('manifest'));
       manifest = ManifestSchema.parse(JSON.parse(raw));
     } catch {
       throw new Error('Remote vault manifest not found');
@@ -425,9 +494,12 @@ export class VaultOrchestrator {
       default: true,
     });
 
-    await syncService.initFromSource(projectId, transport, {
-      writeSourceLedger: true,
-    });
+    await syncService.initFromSource(
+      projectId,
+      this.createRemoteClient(projectId, config),
+      { writeSourceLedger: true },
+      this.getLoggerEntry(projectId).logger.scoped('sync'),
+    );
 
     return projectId;
   }
@@ -482,10 +554,10 @@ export class VaultOrchestrator {
 
     try {
       const config = resolveFsConfig(remote.url, this.providerStore);
-      const transport = createFsClient(config);
+      const provider = this.createRemoteClient(projectId, config);
       const parsed = parseVolumeUrl(remote.url) as any;
       return {
-        provider: transport,
+        provider,
         remoteName: remote.name ?? DEFAULT_REMOTE_NAME,
         providerId: computeVolumeUrl(parsed),
         path: parsed.path,
@@ -505,16 +577,17 @@ export class VaultOrchestrator {
     }
 
     const syncService = this.requireSyncService();
+    const logger = this.getLoggerEntry(projectId).logger.scoped('sync');
     let result: SyncResult;
     switch (direction) {
       case 'sync':
-        result = await syncService.sync(projectId, resolved.provider);
+        result = await syncService.sync(projectId, resolved.provider, logger);
         break;
       case 'pull':
-        result = await syncService.pull(projectId, resolved.provider);
+        result = await syncService.pull(projectId, resolved.provider, logger);
         break;
       case 'push':
-        result = await syncService.push(projectId, resolved.provider);
+        result = await syncService.push(projectId, resolved.provider, logger);
         break;
     }
 

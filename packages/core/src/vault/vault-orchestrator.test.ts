@@ -212,7 +212,7 @@ function createMemoryRegistry(): VaultRegistry {
     async destroy(projectId: string) {
       providers.delete(projectId);
     },
-    async getProvider(projectId: string): Promise<FsClient> {
+    async getLocalClient(projectId: string): Promise<FsClient> {
       let p = providers.get(projectId);
       if (!p) {
         p = createMemoryProvider();
@@ -247,7 +247,7 @@ describe('VaultOrchestrator', () => {
     await orchestrator.init();
     const projectId = await orchestrator.createVault('test-vault');
 
-    const localProvider = await orchestrator.getVaultProvider(projectId);
+    const localProvider = await orchestrator.getLocalClient(projectId);
     await localProvider.write('2026-01/20260101-120000-abcd.md', 'test content');
 
     await orchestrator.configureRemote(projectId, S3_PROVIDER_ID, 'timenote/vaults/abc');
@@ -277,7 +277,7 @@ describe('VaultOrchestrator', () => {
     await orchestrator.init();
     const projectId = await orchestrator.createVault('test-vault');
 
-    const localProvider = await orchestrator.getVaultProvider(projectId);
+    const localProvider = await orchestrator.getLocalClient(projectId);
     await localProvider.write('2026-01/20260101-120000-abcd.md', 'test content');
 
     await orchestrator.configureRemote(projectId, S3_PROVIDER_ID, 'timenote/vaults/abc');

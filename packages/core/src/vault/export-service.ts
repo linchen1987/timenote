@@ -37,7 +37,7 @@ class VaultExportServiceImpl implements VaultExportService {
   }
 
   async downloadVault(projectId: string): Promise<void> {
-    const transport = await this.vaultService.getProvider(projectId);
+    const transport = await this.vaultService.getLocalClient(projectId);
     const raw = await transport.read(metaPath('manifest'));
     const manifest = ManifestSchema.parse(JSON.parse(raw));
     const blob = await this.exportVault(projectId);

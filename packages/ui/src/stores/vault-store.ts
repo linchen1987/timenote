@@ -1,6 +1,7 @@
 import type {
   FsVolumeAccess,
   ImportResult,
+  LogEntry,
   RemoteConfig,
   RuntimeMenuItem,
   SyncResult,
@@ -89,6 +90,11 @@ export type VaultStore = {
   exportVault: (projectId: string) => Promise<void>;
   importVault: (file: File) => Promise<ImportResult>;
 
+  getLoggingEnabled: (projectId: string) => Promise<boolean>;
+  setLoggingEnabled: (projectId: string, enabled: boolean) => Promise<void>;
+  readLogs: (projectId: string) => Promise<LogEntry[]>;
+  clearLogs: (projectId: string) => Promise<void>;
+
   listVolumeAccesses: () => VolumeAccessEntry[];
   saveVolumeAccess: (access: FsVolumeAccess) => VolumeAccessEntry;
   deleteVolumeAccess: (volumeUrl: string) => void;
@@ -119,7 +125,7 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       await orchestrator.init();
       try {
         await migrateRemotesFromLocalStorage(
-          (projectId) => orchestrator.getVaultProvider(projectId),
+          (projectId) => orchestrator.getLocalClient(projectId),
           async () => (await orchestrator.listVaults()).map((v) => v.projectId),
         );
       } catch (e) {
@@ -348,6 +354,12 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       await get().listVaults();
       return result;
     },
+
+    getLoggingEnabled: (projectId: string) => orchestrator.getLoggingEnabled(projectId),
+    setLoggingEnabled: (projectId: string, enabled: boolean) =>
+      orchestrator.setLoggingEnabled(projectId, enabled),
+    readLogs: (projectId: string) => orchestrator.readLogs(projectId),
+    clearLogs: (projectId: string) => orchestrator.clearLogs(projectId),
 
     listVolumeAccesses: () => {
       return orchestrator.getProviderStore().listVolumeAccesses();

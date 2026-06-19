@@ -43,7 +43,7 @@ export function resolveVaultDir(explicit?: string): string {
 }
 
 export function createRemoteProviderFromUrl(url: string, store: FsVolumeAccessStore): FsClient {
-  return createFsClient(url, store);
+  return createFsClient(url, { store });
 }
 
 export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfigService {
@@ -62,7 +62,7 @@ export function createSyncService(vaultDir: string) {
   const transport = createFsClient({ scheme: 'localfs', rootPath: vaultDir });
 
   const vaultServiceLike = {
-    async getTransport(_projectId: string) {
+    async getClient(_projectId: string) {
       return transport as any;
     },
   };

@@ -63,6 +63,24 @@ class OpfsClientImpl implements FsClient {
     }
   }
 
+  async append(path: string, content: string): Promise<void> {
+    const [dirPath, fileName] = this.splitPath(path);
+    const dir = await this.ensureDirInternal(dirPath);
+    const handle = await dir.getFileHandle(fileName, { create: true });
+    let offset = 0;
+    try {
+      const file = await handle.getFile();
+      offset = file.size;
+    } catch {}
+    const writable = await handle.createWritable({ keepExistingData: true });
+    try {
+      await writable.seek(offset);
+      await writable.write(content);
+    } finally {
+      await writable.close();
+    }
+  }
+
   async readBinary(path: string): Promise<ArrayBuffer> {
     const [dirPath, fileName] = this.splitPath(path);
     const dir = await this.resolveDir(dirPath);
@@ -190,6 +208,25 @@ export const LocalFsDriver: FsClientDriver = {
         const handle = await dir.getFileHandle(fileName, { create: true });
         const writable = await handle.createWritable();
         try {
+          await writable.write(content);
+        } finally {
+          await writable.close();
+        }
+      },
+
+      async append(path: string, content: string): Promise<void> {
+        const root = await getRoot();
+        const [dirPath, fileName] = splitPath(path);
+        const dir = await ensureDirInternal(root, dirPath);
+        const handle = await dir.getFileHandle(fileName, { create: true });
+        let offset = 0;
+        try {
+          const file = await handle.getFile();
+          offset = file.size;
+        } catch {}
+        const writable = await handle.createWritable({ keepExistingData: true });
+        try {
+          await writable.seek(offset);
           await writable.write(content);
         } finally {
           await writable.close();

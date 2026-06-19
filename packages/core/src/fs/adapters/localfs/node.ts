@@ -29,6 +29,12 @@ export function createNodeFsClient(rootDir: string): FsClient {
       await fs.writeFile(full, content, 'utf-8');
     },
 
+    async append(filePath: string, content: string): Promise<void> {
+      const full = resolve(filePath);
+      await fs.mkdir(path.dirname(full), { recursive: true });
+      await fs.appendFile(full, content, 'utf-8');
+    },
+
     async readBinary(filePath: string): Promise<ArrayBuffer> {
       const buf = await fs.readFile(resolve(filePath));
       return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);

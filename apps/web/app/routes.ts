@@ -9,6 +9,7 @@ export default [
     index('routes/notebook-notes.tsx'),
     route('tags', 'routes/tags.tsx'),
     route('settings', 'routes/notebook-settings.tsx'),
+    route('logs', 'routes/notebook-logs.tsx'),
     route('manifest.webmanifest', 'routes/manifest.tsx'),
     route(':noteId', 'routes/notebook-notedetail.tsx'),
   ]),

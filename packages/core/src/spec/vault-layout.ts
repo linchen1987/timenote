@@ -2,6 +2,14 @@ import { isValidNoteFilename, isValidVolumeName } from './note-id';
 
 export const META_DIR = '.timenote';
 
+export const LOG_DIR = `${META_DIR}/logs.local`;
+
+export const LOG_FILES = {
+  activity: 'activity.log',
+} as const;
+
+export type LogFileName = keyof typeof LOG_FILES;
+
 export const META_FILES = {
   manifest: 'manifest.json',
   menu: 'menu.json',
@@ -32,6 +40,10 @@ export function metaPath(name: MetaFileName): string {
 
 export function syncLedgerPath(): string {
   return metaPath('syncLedger');
+}
+
+export function logPath(name: LogFileName): string {
+  return `${LOG_DIR}/${LOG_FILES[name]}`;
 }
 
 export function noteFilePath(noteId: string, ext = 'md'): string {
@@ -72,11 +84,13 @@ export type EntryClass =
   | 'note'
   | 'attachment'
   | 'syncLedger'
+  | 'log'
   | 'unrecognized';
 
 export function classifyEntry(path: string): EntryClass {
   if (path === metaPath('manifest')) return 'manifest';
   if (path === metaPath('syncLedger')) return 'syncLedger';
+  if (path === LOG_DIR || path.startsWith(`${LOG_DIR}/`)) return 'log';
   if (path.startsWith(`${META_DIR}/`)) return 'meta';
 
   if (path === ASSETS_DIR || path.startsWith(`${ASSETS_DIR}/`)) return 'attachment';

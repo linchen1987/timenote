@@ -21,7 +21,8 @@
   │   ├── menu.json                     ← core
   │   ├── delete-log.json               ← core
   │   ├── sync-ledger.json              ← derived
-  │   └── config.local.json             ← local
+  │   ├── config.local.json             ← local
+  │   └── logs.local/                   ← local
   ├── {YYYY-MM}/                        ← core — Volume: ^[0-9]{4}-[0-9]{2}$
   │   └── {YYYYMMDD-HHmmss-SSSR}.md    ← Note: ^[0-9]{8}-[0-9]{6}-[0-9]{4}\.[a-zA-Z0-9]+$
   └── assets/                           ← core — Attachments: SHA-256 hash-based storage
@@ -37,7 +38,7 @@
 |------|------|------|------|
 | **Core** | 数据资产，vault 的 truth | 用户创造，不可重建，丢了就没了 | 笔记 .md、assets、manifest.json、menu.json、delete-log.json |
 | **Derived** | 从 core 可重建的派生数据 | 缓存性质，缺失时可从 core 完全重建 | sync-ledger.json |
-| **Local** | 本端专属配置 | 各端独立，不可同步，不可重建 | config.local.json |
+| **Local** | 本端专属数据 | 各端独立，不可同步，不可重建 | config.local.json、logs.local/ |
 
 ### 同步策略
 
@@ -50,6 +51,7 @@
 | `delete-log.json` | Yes | 删除记录 |
 | `sync-ledger.json` | 不必须 | 同步后写双端做缓存优化；缺失时从物理文件重建 |
 | `config.local.json` | 不能 | 本端配置，各端独立 |
+| `logs.local/` | 不能 | 本地诊断数据，各端独立 |
 
 ## 各文件规范
 
@@ -77,7 +79,11 @@
 
 ### config.local.json
 
-字包含在 vault 中的 per-vault 本地配置。不同步，各端独立，不需要多端兼容。vault spec 中不做具体定义。
+per-vault 本地配置。不同步，各端独立，不需要多端兼容。
+
+### logs.local/
+
+本地诊断日志目录。各端独立，不同步。
 
 ### 笔记文件 .md
 

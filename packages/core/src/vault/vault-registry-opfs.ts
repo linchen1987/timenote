@@ -43,7 +43,7 @@ class OpfsVaultRegistryImpl implements VaultRegistry {
     await this.vaultsDir.removeEntry(projectId, { recursive: true });
   }
 
-  async getProvider(projectId: string): Promise<FsClient> {
+  async getLocalClient(projectId: string): Promise<FsClient> {
     const dir = await this.vaultsDir.getDirectoryHandle(projectId, { create: true });
     return createOpfsClient(dir);
   }

@@ -16,17 +16,17 @@ export interface VaultService {
   createVaultWithId(projectId: string, name: string): Promise<void>;
   deleteVault(projectId: string): Promise<void>;
   listVaults(): Promise<VaultMeta[]>;
-  getProvider(projectId: string): Promise<FsClient>;
+  getLocalClient(projectId: string): Promise<FsClient>;
 }
 
-export function createVaultService(registry: VaultRegistry): VaultService {
-  return new VaultServiceImpl(registry);
+export function createVaultService(vaultRegistry: VaultRegistry): VaultService {
+  return new VaultServiceImpl(vaultRegistry);
 }
 
 class VaultServiceImpl implements VaultService {
-  private transports = new Map<string, FsClient>();
+  private clients = new Map<string, FsClient>();
 
-  constructor(private registry: VaultRegistry) {}
+  constructor(private vaultRegistry: VaultRegistry) {}
 
   async createVault(name: string): Promise<string> {
     const projectId = generateProjectId();
@@ -35,29 +35,29 @@ class VaultServiceImpl implements VaultService {
   }
 
   async createVaultWithId(projectId: string, name: string): Promise<void> {
-    await this.registry.register(projectId, name);
-    const transport = await this.registry.getProvider(projectId);
-    this.transports.set(projectId, transport);
-    await initVault(transport, projectId, name);
+    await this.vaultRegistry.register(projectId, name);
+    const client = await this.vaultRegistry.getLocalClient(projectId);
+    this.clients.set(projectId, client);
+    await initVault(client, projectId, name);
   }
 
   async deleteVault(projectId: string): Promise<void> {
-    await this.registry.destroy(projectId);
-    this.transports.delete(projectId);
+    await this.vaultRegistry.destroy(projectId);
+    this.clients.delete(projectId);
   }
 
   async listVaults(): Promise<VaultMeta[]> {
     const vaults: VaultMeta[] = [];
-    const entries = await this.registry.list();
+    const entries = await this.vaultRegistry.list();
 
     for (const entry of entries) {
       try {
-        let transport = this.transports.get(entry.projectId);
-        if (!transport) {
-          transport = await this.registry.getProvider(entry.projectId);
-          this.transports.set(entry.projectId, transport);
+        let client = this.clients.get(entry.projectId);
+        if (!client) {
+          client = await this.vaultRegistry.getLocalClient(entry.projectId);
+          this.clients.set(entry.projectId, client);
         }
-        const raw = await transport.read(metaPath('manifest'));
+        const raw = await client.read(metaPath('manifest'));
         const manifest = ManifestSchema.parse(JSON.parse(raw));
         vaults.push({ projectId: manifest.project_id, name: manifest.name });
       } catch {}
@@ -66,12 +66,12 @@ class VaultServiceImpl implements VaultService {
     return vaults;
   }
 
-  async getProvider(projectId: string): Promise<FsClient> {
-    let transport = this.transports.get(projectId);
-    if (!transport) {
-      transport = await this.registry.getProvider(projectId);
-      this.transports.set(projectId, transport);
+  async getLocalClient(projectId: string): Promise<FsClient> {
+    let client = this.clients.get(projectId);
+    if (!client) {
+      client = await this.vaultRegistry.getLocalClient(projectId);
+      this.clients.set(projectId, client);
     }
-    return transport;
+    return client;
   }
 }

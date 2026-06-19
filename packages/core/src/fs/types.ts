@@ -70,6 +70,7 @@ export interface FsClient {
   remove(path: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   ensureDir(path: string): Promise<void>;
+  append?(path: string, content: string): Promise<void>;
 
   readonly scheme: FsScheme;
   readonly volumeUrl: string;

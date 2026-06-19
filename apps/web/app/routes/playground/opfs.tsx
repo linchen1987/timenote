@@ -133,7 +133,7 @@ export default function OpfsPlayground() {
   const [loading, setLoading] = useState(false);
   const transportRef = useRef<FsClient | null>(null);
 
-  const getTransport = useCallback(async (): Promise<FsClient> => {
+  const getClient = useCallback(async (): Promise<FsClient> => {
     if (!transportRef.current) {
       const opfsRoot = await navigator.storage.getDirectory();
       transportRef.current = createOpfsClient(opfsRoot);
@@ -143,11 +143,11 @@ export default function OpfsPlayground() {
 
   const loadChildren = useCallback(
     async (parentPath: string): Promise<TreeNode[]> => {
-      const transport = await getTransport();
+      const transport = await getClient();
       const list = await transport.list(parentPath);
       return list.sort(sortByTypeThenName).map(statToNode);
     },
-    [getTransport],
+    [getClient],
   );
 
   const loadRoot = useCallback(async () => {
@@ -197,7 +197,7 @@ export default function OpfsPlayground() {
     setSelectedFile(entry);
     setLoading(true);
     try {
-      const transport = await getTransport();
+      const transport = await getClient();
       if (isTextFile(entry.basename, entry.size)) {
         const text = await transport.read(entry.filename);
         setFileContent(text);
@@ -215,7 +215,7 @@ export default function OpfsPlayground() {
   const handleDownload = async () => {
     if (!selectedFile) return;
     try {
-      const transport = await getTransport();
+      const transport = await getClient();
       const buffer = await transport.readBinary(selectedFile.filename);
       const blob = new Blob([buffer]);
       const url = URL.createObjectURL(blob);
