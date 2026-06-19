@@ -32,18 +32,22 @@ export async function initDesktopStores(): Promise<void> {
   _useVaultStore = createBoundVaultStore(orchestrator);
 }
 
-export function useVaultStore(...args: Parameters<BoundVaultStore>): ReturnType<BoundVaultStore> {
-  if (!_useVaultStore) throw new Error('useVaultStore called before initDesktopStores()');
-  return _useVaultStore(...args);
-}
-useVaultStore.getState = (): VaultStore => {
-  if (!_useVaultStore) throw new Error('useVaultStore called before initDesktopStores()');
-  return _useVaultStore.getState();
-};
-useVaultStore.setState = (...args: Parameters<BoundVaultStore['setState']>): void => {
-  if (!_useVaultStore) throw new Error('useVaultStore called before initDesktopStores()');
-  _useVaultStore.setState(...args);
-};
+export const useVaultStore = Object.assign(
+  (...args: Parameters<BoundVaultStore>): ReturnType<BoundVaultStore> => {
+    if (!_useVaultStore) throw new Error('useVaultStore called before initDesktopStores()');
+    return _useVaultStore(...args);
+  },
+  {
+    getState: (): VaultStore => {
+      if (!_useVaultStore) throw new Error('useVaultStore called before initDesktopStores()');
+      return _useVaultStore.getState();
+    },
+    setState: (...args: Parameters<BoundVaultStore['setState']>): void => {
+      if (!_useVaultStore) throw new Error('useVaultStore called before initDesktopStores()');
+      _useVaultStore.setState(...args);
+    },
+  },
+) as BoundVaultStore;
 
 export async function getDesktopRegistry() {
   if (!_registry) {
