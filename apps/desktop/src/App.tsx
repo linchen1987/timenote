@@ -3,6 +3,7 @@ import { HashRouter, Route, Routes } from 'react-router';
 import { NotebookLayoutWrapper } from './layout/notebook-layout';
 import { HomeRedirect } from './routes/home-redirect';
 import { NoteDetail } from './routes/note-detail';
+import { NotebookLogs } from './routes/notebook-logs';
 import { NotebookTimelinePage } from './routes/notebook-notes';
 import { NotebookSettings } from './routes/notebook-settings';
 import { NotebooksList } from './routes/notebooks';
@@ -21,6 +22,7 @@ export function App() {
             <Route index element={<NotebookTimelinePage />} />
             <Route path="tags" element={<TagsPage />} />
             <Route path="settings" element={<NotebookSettings />} />
+            <Route path="logs" element={<NotebookLogs />} />
             <Route path=":noteId" element={<NoteDetail />} />
           </Route>
         </Routes>
