@@ -4,9 +4,9 @@ import {
   parseWebdavUrl,
   resolveWebdavConfigFromUrl,
 } from './adapters/webdav/webdav';
-import type { FsClientConfig, FsScheme, FsVolumeAccessStore } from './types';
+import type { FsClientConfig, FsScheme, FsVolumeCredentialStore } from './types';
 
-export function resolveFsConfig(url: string, store?: FsVolumeAccessStore): FsClientConfig {
+export function resolveFsConfig(url: string, store?: FsVolumeCredentialStore): FsClientConfig {
   const scheme = extractScheme(url);
   if (scheme === 's3') return resolveS3ConfigFromUrl(url, store);
   if (scheme === 'webdav') return resolveWebdavConfigFromUrl(url, store);

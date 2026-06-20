@@ -5,7 +5,7 @@ import {
   createRemoteConfigService,
   createVaultSyncService,
   type FsClient,
-  type FsVolumeAccessStore,
+  type FsVolumeCredentialStore,
   type Manifest,
   ManifestSchema,
   type RemoteConfigService,
@@ -42,7 +42,7 @@ export function resolveVaultDir(explicit?: string): string {
   throw new Error('Not a timenote vault (or any parent). Use --dir to specify a vault directory.');
 }
 
-export function createRemoteProviderFromUrl(url: string, store: FsVolumeAccessStore): FsClient {
+export function createRemoteProviderFromUrl(url: string, store: FsVolumeCredentialStore): FsClient {
   return createFsClient(url, { store });
 }
 

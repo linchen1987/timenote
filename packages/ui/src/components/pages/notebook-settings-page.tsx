@@ -1,6 +1,6 @@
 import {
   computeVolumeUrl,
-  type FsVolumeAccess,
+  type FsVolumeCredential,
   getDefaultRemotePath,
   parseNotebookId,
   parseVolumeUrl,
@@ -24,7 +24,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { useExportVault } from './use-export-vault';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 export interface NotebookSettingsPageProps {
   useVaultStore: UseVaultStoreHook;
@@ -34,8 +34,8 @@ export interface NotebookSettingsPageProps {
 export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookSettingsPageProps) {
   const projectId = notebookToken ? parseNotebookId(notebookToken) : null;
 
-  const [providers] = useState<VolumeAccessEntry[]>(() =>
-    useVaultStore.getState().listVolumeAccesses(),
+  const [providers] = useState<VolumeCredentialEntry[]>(() =>
+    useVaultStore.getState().listVolumeCredentials(),
   );
   const [remoteConfig, setRemoteConfig] = useState<{
     providerId: string;

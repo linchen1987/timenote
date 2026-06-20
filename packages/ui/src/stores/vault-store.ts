@@ -1,5 +1,5 @@
 import type {
-  FsVolumeAccess,
+  FsVolumeCredential,
   ImportResult,
   LogEntry,
   RemoteConfig,
@@ -11,7 +11,7 @@ import type {
 } from '@timenote/core';
 import { create } from 'zustand';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 export type VaultStore = {
   vaultService: null;
@@ -70,7 +70,11 @@ export type VaultStore = {
 
   listRemoteVaults: (providerId: string) => Promise<VaultMeta[]>;
   cloneVault: (projectId: string) => Promise<void>;
-  cloneFromProvider: (providerId: string, path: string, options?: { localPath?: string }) => Promise<void>;
+  cloneFromProvider: (
+    providerId: string,
+    path: string,
+    options?: { localPath?: string },
+  ) => Promise<void>;
 
   sync: (projectId: string) => Promise<SyncResult>;
   pull: (projectId: string) => Promise<SyncResult>;
@@ -95,9 +99,9 @@ export type VaultStore = {
   readLogs: (projectId: string) => Promise<LogEntry[]>;
   clearLogs: (projectId: string) => Promise<void>;
 
-  listVolumeAccesses: () => VolumeAccessEntry[];
-  saveVolumeAccess: (access: FsVolumeAccess) => VolumeAccessEntry;
-  deleteVolumeAccess: (volumeUrl: string) => void;
+  listVolumeCredentials: () => VolumeCredentialEntry[];
+  saveVolumeCredential: (credential: FsVolumeCredential) => VolumeCredentialEntry;
+  deleteVolumeCredential: (volumeUrl: string) => void;
 };
 
 import { migrateRemotesFromLocalStorage } from '../lib/remote-config-migration';
@@ -224,7 +228,11 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       await get().listVaults();
     },
 
-    cloneFromProvider: async (providerId: string, path: string, options?: { localPath?: string }) => {
+    cloneFromProvider: async (
+      providerId: string,
+      path: string,
+      options?: { localPath?: string },
+    ) => {
       await orchestrator.cloneFromProvider(providerId, path, options);
       await get().listVaults();
     },
@@ -361,14 +369,14 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
     readLogs: (projectId: string) => orchestrator.readLogs(projectId),
     clearLogs: (projectId: string) => orchestrator.clearLogs(projectId),
 
-    listVolumeAccesses: () => {
-      return orchestrator.getProviderStore().listVolumeAccesses();
+    listVolumeCredentials: () => {
+      return orchestrator.getProviderStore().listVolumeCredentials();
     },
-    saveVolumeAccess: (access: FsVolumeAccess): VolumeAccessEntry => {
-      return orchestrator.getProviderStore().saveVolumeAccess(access);
+    saveVolumeCredential: (credential: FsVolumeCredential): VolumeCredentialEntry => {
+      return orchestrator.getProviderStore().saveVolumeCredential(credential);
     },
-    deleteVolumeAccess: (volumeUrl: string) => {
-      orchestrator.getProviderStore().deleteVolumeAccess(volumeUrl);
+    deleteVolumeCredential: (volumeUrl: string) => {
+      orchestrator.getProviderStore().deleteVolumeCredential(volumeUrl);
     },
   }));
 }

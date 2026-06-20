@@ -1,12 +1,12 @@
-import type { FsVolumeAccess } from '@timenote/core';
+import type { FsVolumeCredential } from '@timenote/core';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 export interface ProviderListCardProps {
-  providers: VolumeAccessEntry[];
+  providers: VolumeCredentialEntry[];
   onAdd: () => void;
   onDelete: (volumeUrl: string) => void;
 }

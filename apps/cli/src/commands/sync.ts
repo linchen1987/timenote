@@ -1,4 +1,4 @@
-import type { FsVolumeAccessStore } from '@timenote/core';
+import type { FsVolumeCredentialStore } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -73,7 +73,7 @@ export function registerSyncCommand(program: Command) {
     });
 }
 
-async function resolveRemote(vaultDir: string, store: FsVolumeAccessStore) {
+async function resolveRemote(vaultDir: string, store: FsVolumeCredentialStore) {
   const service = createRemoteConfigServiceForVault(vaultDir);
   const entry = await service.getDefaultRemote();
   if (!entry) {

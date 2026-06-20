@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
 import { computeVolumeUrl, createFsClient, parseVolumeUrl, resolveFsConfig } from '../fs';
-import type { FsClient, FsClientConfig, FsVolumeAccessStore } from '../fs/types';
+import type { FsClient, FsClientConfig, FsVolumeCredentialStore } from '../fs/types';
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
@@ -122,10 +122,10 @@ export class VaultOrchestrator {
 
   constructor(
     private readonly vaultRegistry: VaultRegistry | (() => Promise<VaultRegistry>),
-    private readonly providerStore: FsVolumeAccessStore,
+    private readonly providerStore: FsVolumeCredentialStore,
   ) {}
 
-  getProviderStore(): FsVolumeAccessStore {
+  getProviderStore(): FsVolumeCredentialStore {
     return this.providerStore;
   }
 
@@ -406,7 +406,7 @@ export class VaultOrchestrator {
   }
 
   async listRemoteVaults(providerId: string): Promise<VaultMeta[]> {
-    const provider = this.providerStore.getVolumeAccess(providerId);
+    const provider = this.providerStore.getVolumeCredential(providerId);
     if (!provider) return [];
     try {
       const config = { ...provider, rootPath: '/' } as FsClientConfig;
@@ -475,7 +475,7 @@ export class VaultOrchestrator {
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
 
-    const provider = this.providerStore.getVolumeAccess(providerId);
+    const provider = this.providerStore.getVolumeCredential(providerId);
     if (!provider) throw new Error(`Provider not found: ${providerId}`);
 
     const config = { ...provider, rootPath: path } as FsClientConfig;

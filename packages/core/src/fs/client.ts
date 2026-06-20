@@ -1,11 +1,11 @@
 import type { Logger } from '../vault/log-service';
 import { isInsideLogWrite } from '../vault/log-service';
 import { getDriver } from './driver-registry';
-import type { FsClient, FsClientConfig, FsScheme, FsVolumeAccessStore } from './types';
+import type { FsClient, FsClientConfig, FsScheme, FsVolumeCredentialStore } from './types';
 import { resolveFsConfig } from './url';
 
 export interface CreateFsClientOptions {
-  store?: FsVolumeAccessStore;
+  store?: FsVolumeCredentialStore;
   logger?: Logger;
 }
 

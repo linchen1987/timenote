@@ -1,11 +1,11 @@
-import type { FsVolumeAccess } from '@timenote/core';
+import type { FsVolumeCredential } from '@timenote/core';
 import { Check, Cloud, CloudOff } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 export interface RemoteDisplayConfig {
   providerId: string;
@@ -14,7 +14,7 @@ export interface RemoteDisplayConfig {
 }
 
 export interface RemoteConfigCardProps {
-  providers: VolumeAccessEntry[];
+  providers: VolumeCredentialEntry[];
   remoteConfig: RemoteDisplayConfig | null;
   selectedProviderId: string;
   customPath: string;

@@ -1,27 +1,27 @@
 import {
   computeVolumeUrl,
-  type FsVolumeAccess,
-  type FsVolumeAccessStore,
+  type FsVolumeCredential,
+  type FsVolumeCredentialStore,
   STORAGE_KEYS,
 } from '@timenote/core';
 import { normalizeLegacyEntry } from './legacy-compat';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 type RawEntry = Record<string, unknown>;
 
-function parseEntry(raw: RawEntry): VolumeAccessEntry | null {
+function parseEntry(raw: RawEntry): VolumeCredentialEntry | null {
   const result = normalizeLegacyEntry(raw);
   if (!result) return null;
   return result.entry;
 }
 
-export function createLocalStorageProviderStore(): FsVolumeAccessStore {
-  function read(): VolumeAccessEntry[] {
+export function createLocalStorageProviderStore(): FsVolumeCredentialStore {
+  function read(): VolumeCredentialEntry[] {
     try {
       const json = localStorage.getItem(STORAGE_KEYS.PROVIDERS);
       if (!json) return [];
       const raws: RawEntry[] = JSON.parse(json);
-      const entries: VolumeAccessEntry[] = [];
+      const entries: VolumeCredentialEntry[] = [];
       for (const raw of raws) {
         const entry = parseEntry(raw);
         if (entry) entries.push(entry);
@@ -32,19 +32,22 @@ export function createLocalStorageProviderStore(): FsVolumeAccessStore {
     }
   }
 
-  function write(entries: VolumeAccessEntry[]): void {
+  function write(entries: VolumeCredentialEntry[]): void {
     localStorage.setItem(STORAGE_KEYS.PROVIDERS, JSON.stringify(entries));
   }
 
   return {
-    listVolumeAccesses(): VolumeAccessEntry[] {
+    listVolumeCredentials(): VolumeCredentialEntry[] {
       return read();
     },
-    getVolumeAccess(volumeUrl: string): FsVolumeAccess | null {
+    getVolumeCredential(volumeUrl: string): FsVolumeCredential | null {
       return read().find((p) => p.volumeUrl === volumeUrl) ?? null;
     },
-    saveVolumeAccess(access: FsVolumeAccess): VolumeAccessEntry {
-      const entry: VolumeAccessEntry = { ...access, volumeUrl: computeVolumeUrl(access) };
+    saveVolumeCredential(credential: FsVolumeCredential): VolumeCredentialEntry {
+      const entry: VolumeCredentialEntry = {
+        ...credential,
+        volumeUrl: computeVolumeUrl(credential),
+      };
       const providers = read();
       const idx = providers.findIndex((p) => p.volumeUrl === entry.volumeUrl);
       if (idx >= 0) {
@@ -55,7 +58,7 @@ export function createLocalStorageProviderStore(): FsVolumeAccessStore {
       write(providers);
       return entry;
     },
-    deleteVolumeAccess(volumeUrl: string): void {
+    deleteVolumeCredential(volumeUrl: string): void {
       write(read().filter((p) => p.volumeUrl !== volumeUrl));
     },
   };

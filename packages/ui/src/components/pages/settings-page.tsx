@@ -1,4 +1,4 @@
-import type { FsClientConfig, FsVolumeAccess } from '@timenote/core';
+import type { FsClientConfig, FsVolumeCredential } from '@timenote/core';
 import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -8,7 +8,7 @@ import { ProviderListCard } from '../provider-list-card';
 import { Button } from '../ui/button';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 export interface SettingsPageProps {
   useVaultStore: UseVaultStoreHook;
@@ -16,8 +16,8 @@ export interface SettingsPageProps {
 }
 
 export function SettingsPage({ useVaultStore, testProviderConnection }: SettingsPageProps) {
-  const [providers, setProviders] = useState<VolumeAccessEntry[]>(() =>
-    useVaultStore.getState().listVolumeAccesses(),
+  const [providers, setProviders] = useState<VolumeCredentialEntry[]>(() =>
+    useVaultStore.getState().listVolumeCredentials(),
   );
   const [isAdding, setIsAdding] = useState(false);
   const [form, setForm] = useState<ProviderFormState>({ ...emptyProviderForm });
@@ -25,7 +25,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
     'idle' | 'testing' | 'success' | 'error'
   >('idle');
 
-  const refreshList = () => setProviders(useVaultStore.getState().listVolumeAccesses());
+  const refreshList = () => setProviders(useVaultStore.getState().listVolumeCredentials());
 
   const handleSave = () => {
     try {
@@ -34,26 +34,26 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
           toast.error('URL and Username are required');
           return;
         }
-        useVaultStore.getState().saveVolumeAccess({
+        useVaultStore.getState().saveVolumeCredential({
           scheme: 'webdav',
           host: form.webdav.url.replace(/^https?:\/\//, '').replace(/\/.*$/, ''),
           username: form.webdav.username,
           password: form.webdav.password,
           tls: form.webdav.url.startsWith('https'),
-        } as FsVolumeAccess);
+        } as FsVolumeCredential);
       } else {
         if (!form.s3.bucket || !form.s3.accessKeyId) {
           toast.error('Bucket and Access Key ID are required');
           return;
         }
-        useVaultStore.getState().saveVolumeAccess({
+        useVaultStore.getState().saveVolumeCredential({
           scheme: 's3',
           endpoint: form.s3.endpoint || '',
           region: form.s3.region || undefined,
           bucket: form.s3.bucket,
           accessKeyId: form.s3.accessKeyId,
           secretAccessKey: form.s3.secretAccessKey,
-        } as FsVolumeAccess);
+        } as FsVolumeCredential);
       }
       refreshList();
       setIsAdding(false);
@@ -66,7 +66,7 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
   };
 
   const handleDelete = (volumeUrl: string) => {
-    useVaultStore.getState().deleteVolumeAccess(volumeUrl);
+    useVaultStore.getState().deleteVolumeCredential(volumeUrl);
     refreshList();
     toast.success('Provider deleted');
   };

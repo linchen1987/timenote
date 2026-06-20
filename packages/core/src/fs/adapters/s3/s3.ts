@@ -1,6 +1,6 @@
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
 import type { FsClientDriver } from '../../driver-registry';
-import type { FsClient, FsClientConfig, FsClientStat, FsVolumeAccessStore } from '../../types';
+import type { FsClient, FsClientConfig, FsClientStat, FsVolumeCredentialStore } from '../../types';
 
 export type S3Volume = { scheme: 's3'; endpoint: string; bucket: string };
 
@@ -12,7 +12,7 @@ export type S3Credentials = {
 
 export type S3Endpoint = S3Volume & { rootPath: string };
 
-export type S3VolumeAccess = S3Volume & S3Credentials;
+export type S3VolumeCredential = S3Volume & S3Credentials;
 
 export type S3ClientConfig = S3Volume & S3Credentials & { rootPath: string };
 
@@ -189,11 +189,14 @@ export function parseS3Url(url: string): S3Endpoint {
   return { scheme: 's3', bucket, endpoint, rootPath };
 }
 
-export function resolveS3ConfigFromUrl(url: string, store?: FsVolumeAccessStore): S3ClientConfig {
+export function resolveS3ConfigFromUrl(
+  url: string,
+  store?: FsVolumeCredentialStore,
+): S3ClientConfig {
   const endpoint = parseS3Url(url);
   const volumeUrl = computeS3VolumeUrl(endpoint);
   if (!store) throw new Error(`Store required to resolve config from URL for scheme 's3'`);
-  const stored = store.getVolumeAccess(volumeUrl);
+  const stored = store.getVolumeCredential(volumeUrl);
   if (!stored || stored.scheme !== 's3')
     throw new Error(`S3 provider not configured: ${volumeUrl}`);
   return { ...stored, rootPath: endpoint.rootPath } as S3ClientConfig;

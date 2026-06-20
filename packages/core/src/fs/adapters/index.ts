@@ -7,7 +7,7 @@ export type {
   LocalFsClientConfig,
   LocalFsEndpoint,
   LocalFsVolume,
-  LocalFsVolumeAccess,
+  LocalFsVolumeCredential,
 } from './localfs/types';
 
 export type {
@@ -15,7 +15,7 @@ export type {
   S3Credentials,
   S3Endpoint,
   S3Volume,
-  S3VolumeAccess,
+  S3VolumeCredential,
 } from './s3/s3';
 export { createS3Client, S3Driver } from './s3/s3';
 export type {
@@ -23,7 +23,7 @@ export type {
   WebdavCredentials,
   WebdavEndpoint,
   WebdavVolume,
-  WebdavVolumeAccess,
+  WebdavVolumeCredential,
 } from './webdav/webdav';
 export { createWebdavClient, WebdavDriver } from './webdav/webdav';
 

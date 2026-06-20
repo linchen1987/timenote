@@ -1,7 +1,7 @@
-import type { FsVolume, FsVolumeAccess } from '@timenote/core';
+import type { FsVolume, FsVolumeCredential } from '@timenote/core';
 import { computeVolumeUrl } from '@timenote/core';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 type RawEntry = Record<string, unknown>;
 
 function flattenNested(raw: RawEntry): RawEntry {
@@ -24,7 +24,7 @@ function flattenNested(raw: RawEntry): RawEntry {
   return raw;
 }
 
-function toAccount(raw: RawEntry): FsVolumeAccess | null {
+function toAccount(raw: RawEntry): FsVolumeCredential | null {
   if (raw.scheme === 's3') {
     if (typeof raw.endpoint !== 'string' || typeof raw.bucket !== 'string') return null;
     if (typeof raw.accessKeyId !== 'string' || typeof raw.secretAccessKey !== 'string') return null;
@@ -51,7 +51,7 @@ function toAccount(raw: RawEntry): FsVolumeAccess | null {
   return null;
 }
 
-function toIdentity(account: FsVolumeAccess): FsVolume {
+function toIdentity(account: FsVolumeCredential): FsVolume {
   switch (account.scheme) {
     case 's3':
       return { scheme: 's3', endpoint: account.endpoint, bucket: account.bucket };
@@ -64,7 +64,7 @@ function toIdentity(account: FsVolumeAccess): FsVolume {
 
 export function normalizeLegacyEntry(
   raw: RawEntry,
-): { entry: VolumeAccessEntry; oldId: string | null } | null {
+): { entry: VolumeCredentialEntry; oldId: string | null } | null {
   const compat: RawEntry = !raw.scheme && raw.type ? { ...raw, scheme: raw.type } : raw;
   const flat = flattenNested(compat);
   const account = toAccount(flat);

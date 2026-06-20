@@ -1,9 +1,9 @@
-import { type FsVolumeAccess, getDefaultRemotePath, type VaultMeta } from '@timenote/core';
+import { type FsVolumeCredential, getDefaultRemotePath, type VaultMeta } from '@timenote/core';
 import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 export interface RemoteVaultMeta extends VaultMeta {
   providerId: string;
@@ -11,7 +11,7 @@ export interface RemoteVaultMeta extends VaultMeta {
 }
 
 export interface UseProviderScannerReturn {
-  providers: VolumeAccessEntry[];
+  providers: VolumeCredentialEntry[];
   scanResults: Map<string, VaultMeta[]>;
   remoteOnlyVaults: RemoteVaultMeta[];
   scanningId: string | null;
@@ -34,8 +34,8 @@ export function useProviderScanner(
   onPullSuccess: () => Promise<void>,
   onPickCloneDir?: () => Promise<string | null>,
 ): UseProviderScannerReturn {
-  const [providers, setProviders] = useState<VolumeAccessEntry[]>(() =>
-    useStore.getState().listVolumeAccesses(),
+  const [providers, setProviders] = useState<VolumeCredentialEntry[]>(() =>
+    useStore.getState().listVolumeCredentials(),
   );
   const [scanningId, setScanningId] = useState<string | null>(null);
   const [scanResults, setScanResults] = useState<Map<string, VaultMeta[]>>(new Map());
@@ -59,7 +59,7 @@ export function useProviderScanner(
   }
 
   const refreshProviders = useCallback(() => {
-    setProviders(useStore.getState().listVolumeAccesses());
+    setProviders(useStore.getState().listVolumeCredentials());
   }, [useStore.getState]);
 
   const handleScan = useCallback(
@@ -91,7 +91,9 @@ export function useProviderScanner(
       }
       setIsPulling(`${providerId}:${path}`);
       try {
-        await useStore.getState().cloneFromProvider(providerId, path, localPath ? { localPath } : undefined);
+        await useStore
+          .getState()
+          .cloneFromProvider(providerId, path, localPath ? { localPath } : undefined);
         toast.success('Vault pulled from remote');
         await onPullSuccess();
       } catch (e) {
@@ -113,7 +115,9 @@ export function useProviderScanner(
         if (!picked) return;
         localPath = picked;
       }
-      await useStore.getState().cloneFromProvider(manualProviderId, manualPath, localPath ? { localPath } : undefined);
+      await useStore
+        .getState()
+        .cloneFromProvider(manualProviderId, manualPath, localPath ? { localPath } : undefined);
       toast.success('Vault pulled from remote');
       setShowManualPull(false);
       setManualProviderId('');

@@ -1,6 +1,6 @@
 import { createClient } from 'webdav';
 import type { FsClientDriver } from '../../driver-registry';
-import type { FsClient, FsClientConfig, FsClientStat, FsVolumeAccessStore } from '../../types';
+import type { FsClient, FsClientConfig, FsClientStat, FsVolumeCredentialStore } from '../../types';
 
 export type WebdavVolume = { scheme: 'webdav'; host: string; username: string };
 
@@ -13,7 +13,7 @@ export type WebdavCredentials = {
 
 export type WebdavEndpoint = WebdavVolume & { rootPath: string };
 
-export type WebdavVolumeAccess = WebdavVolume & WebdavCredentials;
+export type WebdavVolumeCredential = WebdavVolume & WebdavCredentials;
 
 export type WebdavClientConfig = WebdavVolume & WebdavCredentials & { rootPath: string };
 
@@ -168,12 +168,12 @@ export function parseWebdavUrl(url: string): WebdavEndpoint {
 
 export function resolveWebdavConfigFromUrl(
   url: string,
-  store?: FsVolumeAccessStore,
+  store?: FsVolumeCredentialStore,
 ): WebdavClientConfig {
   const endpoint = parseWebdavUrl(url);
   const volumeUrl = computeWebdavVolumeUrl(endpoint);
   if (!store) throw new Error(`Store required to resolve config from URL for scheme 'webdav'`);
-  const stored = store.getVolumeAccess(volumeUrl);
+  const stored = store.getVolumeCredential(volumeUrl);
   if (!stored || stored.scheme !== 'webdav')
     throw new Error(`WebDAV provider not configured: ${volumeUrl}`);
   return { ...stored, rootPath: endpoint.rootPath } as WebdavClientConfig;

@@ -25,7 +25,7 @@ export function registerConfigCommand(program: Command) {
         process.exit(1);
       }
 
-      const entry = await configStore.saveVolumeAccess({
+      const entry = await configStore.saveVolumeCredential({
         type,
         ...(type === 'webdav'
           ? {
@@ -51,12 +51,12 @@ export function registerConfigCommand(program: Command) {
     .command('list-providers')
     .description('List all configured providers')
     .action(async () => {
-      const accesses = await configStore.listVolumeAccesses();
-      if (accesses.length === 0) {
+      const credentials = await configStore.listVolumeCredentials();
+      if (credentials.length === 0) {
         console.log('No providers configured.');
         return;
       }
-      for (const a of accesses) {
+      for (const a of credentials) {
         if ('host' in a) {
           console.log(`${a.volumeUrl}  (webdav: ${a.host})`);
         } else if ('bucket' in a) {
@@ -70,7 +70,7 @@ export function registerConfigCommand(program: Command) {
     .description('Remove a provider by ID')
     .argument('<id>', 'Provider ID')
     .action(async (id: string) => {
-      await configStore.deleteVolumeAccess(id);
+      await configStore.deleteVolumeCredential(id);
       console.log(`Provider removed: ${id}`);
     });
 }

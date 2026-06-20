@@ -1,6 +1,6 @@
-import { computeVolumeUrl, STORAGE_KEYS, type FsVolumeAccess } from '@timenote/core';
 import { invoke } from '@tauri-apps/api/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
+import { computeVolumeUrl, type FsVolumeCredential, STORAGE_KEYS } from '@timenote/core';
 
 export interface VaultEntry {
   projectId: string;
@@ -8,11 +8,11 @@ export interface VaultEntry {
   path: string;
 }
 
-export type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+export type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 interface DesktopConfig {
   vaults: VaultEntry[];
-  providers: VolumeAccessEntry[];
+  providers: VolumeCredentialEntry[];
 }
 
 const CONFIG_FILENAME = 'config.json';
@@ -49,7 +49,10 @@ export async function loadConfig(): Promise<DesktopConfig> {
 async function persist(): Promise<void> {
   await ensurePaths();
   await invoke<void>('fs_mkdir', { path: configDir! });
-  await invoke<void>('fs_write_text_file', { path: configPath!, content: JSON.stringify(cache, null, 2) });
+  await invoke<void>('fs_write_text_file', {
+    path: configPath!,
+    content: JSON.stringify(cache, null, 2),
+  });
 }
 
 export function getConfig(): DesktopConfig {
@@ -73,7 +76,7 @@ export async function removeVaultEntry(projectId: string): Promise<void> {
   await persist();
 }
 
-export async function saveProviders(providers: VolumeAccessEntry[]): Promise<void> {
+export async function saveProviders(providers: VolumeCredentialEntry[]): Promise<void> {
   cache.providers = providers;
   await persist();
 }

@@ -1,9 +1,13 @@
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { computeVolumeUrl, type FsVolumeAccess, type FsVolumeAccessStore } from '@timenote/core';
+import {
+  computeVolumeUrl,
+  type FsVolumeCredential,
+  type FsVolumeCredentialStore,
+} from '@timenote/core';
 
-type VolumeAccessEntry = FsVolumeAccess & { volumeUrl: string };
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 
 function configDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
@@ -19,7 +23,7 @@ async function ensureConfigDir(): Promise<void> {
   await fs.mkdir(configDir(), { recursive: true });
 }
 
-async function readVolumeAccesses(): Promise<VolumeAccessEntry[]> {
+async function readVolumeCredentials(): Promise<VolumeCredentialEntry[]> {
   try {
     const raw = await fs.readFile(providersPath(), 'utf-8');
     return JSON.parse(raw);
@@ -28,25 +32,27 @@ async function readVolumeAccesses(): Promise<VolumeAccessEntry[]> {
   }
 }
 
-async function writeVolumeAccesses(accesses: VolumeAccessEntry[]): Promise<void> {
+async function writeVolumeCredentials(credentials: VolumeCredentialEntry[]): Promise<void> {
   await ensureConfigDir();
-  await fs.writeFile(providersPath(), JSON.stringify(accesses, null, 2));
+  await fs.writeFile(providersPath(), JSON.stringify(credentials, null, 2));
 }
 
-export async function listVolumeAccesses(): Promise<VolumeAccessEntry[]> {
-  return readVolumeAccesses();
+export async function listVolumeCredentials(): Promise<VolumeCredentialEntry[]> {
+  return readVolumeCredentials();
 }
 
-export async function getVolumeAccess(volumeUrl: string): Promise<VolumeAccessEntry | null> {
-  const accesses = await readVolumeAccesses();
-  return accesses.find((a) => a.volumeUrl === volumeUrl) ?? null;
+export async function getVolumeCredential(
+  volumeUrl: string,
+): Promise<VolumeCredentialEntry | null> {
+  const credentials = await readVolumeCredentials();
+  return credentials.find((a) => a.volumeUrl === volumeUrl) ?? null;
 }
 
 export async function resolveProviderPath(
   providerPath: string,
-): Promise<{ provider: VolumeAccessEntry; remotePath: string }> {
-  const accesses = await readVolumeAccesses();
-  const sorted = [...accesses].sort((a, b) => b.volumeUrl.length - a.volumeUrl.length);
+): Promise<{ provider: VolumeCredentialEntry; remotePath: string }> {
+  const credentials = await readVolumeCredentials();
+  const sorted = [...credentials].sort((a, b) => b.volumeUrl.length - a.volumeUrl.length);
   for (const a of sorted) {
     const prefix = `${a.volumeUrl}:`;
     if (providerPath.startsWith(prefix)) {
@@ -54,53 +60,58 @@ export async function resolveProviderPath(
     }
   }
   throw new Error(
-    `No matching provider for "${providerPath}". Available: ${accesses.map((a) => a.volumeUrl).join(', ') || '(none)'}`,
+    `No matching provider for "${providerPath}". Available: ${credentials.map((a) => a.volumeUrl).join(', ') || '(none)'}`,
   );
 }
 
-export async function saveVolumeAccess(access: FsVolumeAccess): Promise<VolumeAccessEntry> {
-  const volumeUrl = computeVolumeUrl(access);
-  const entry: VolumeAccessEntry = { ...access, volumeUrl };
-  const accesses = await readVolumeAccesses();
-  const idx = accesses.findIndex((a) => a.volumeUrl === volumeUrl);
+export async function saveVolumeCredential(
+  credential: FsVolumeCredential,
+): Promise<VolumeCredentialEntry> {
+  const volumeUrl = computeVolumeUrl(credential);
+  const entry: VolumeCredentialEntry = { ...credential, volumeUrl };
+  const credentials = await readVolumeCredentials();
+  const idx = credentials.findIndex((a) => a.volumeUrl === volumeUrl);
   if (idx >= 0) {
-    accesses[idx] = entry;
+    credentials[idx] = entry;
   } else {
-    accesses.push(entry);
+    credentials.push(entry);
   }
-  await writeVolumeAccesses(accesses);
+  await writeVolumeCredentials(credentials);
   return entry;
 }
 
-export async function deleteVolumeAccess(volumeUrl: string): Promise<void> {
-  const accesses = (await readVolumeAccesses()).filter((a) => a.volumeUrl !== volumeUrl);
-  await writeVolumeAccesses(accesses);
+export async function deleteVolumeCredential(volumeUrl: string): Promise<void> {
+  const credentials = (await readVolumeCredentials()).filter((a) => a.volumeUrl !== volumeUrl);
+  await writeVolumeCredentials(credentials);
 }
 
-export async function createFileProviderStore(): Promise<FsVolumeAccessStore> {
-  let cache = await readVolumeAccesses();
+export async function createFileProviderStore(): Promise<FsVolumeCredentialStore> {
+  let cache = await readVolumeCredentials();
 
   return {
-    listVolumeAccesses(): VolumeAccessEntry[] {
+    listVolumeCredentials(): VolumeCredentialEntry[] {
       return cache;
     },
-    getVolumeAccess(volumeUrl: string): FsVolumeAccess | null {
+    getVolumeCredential(volumeUrl: string): FsVolumeCredential | null {
       return cache.find((a) => a.volumeUrl === volumeUrl) ?? null;
     },
-    saveVolumeAccess(access: FsVolumeAccess): VolumeAccessEntry {
-      const entry: VolumeAccessEntry = { ...access, volumeUrl: computeVolumeUrl(access) };
+    saveVolumeCredential(credential: FsVolumeCredential): VolumeCredentialEntry {
+      const entry: VolumeCredentialEntry = {
+        ...credential,
+        volumeUrl: computeVolumeUrl(credential),
+      };
       const idx = cache.findIndex((a) => a.volumeUrl === entry.volumeUrl);
       if (idx >= 0) {
         cache[idx] = entry;
       } else {
         cache.push(entry);
       }
-      writeVolumeAccesses(cache).catch(() => {});
+      writeVolumeCredentials(cache).catch(() => {});
       return entry;
     },
-    deleteVolumeAccess(volumeUrl: string): void {
+    deleteVolumeCredential(volumeUrl: string): void {
       cache = cache.filter((a) => a.volumeUrl !== volumeUrl);
-      writeVolumeAccesses(cache).catch(() => {});
+      writeVolumeCredentials(cache).catch(() => {});
     },
   };
 }

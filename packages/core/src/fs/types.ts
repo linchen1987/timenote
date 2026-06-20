@@ -8,57 +8,60 @@ import type {
   LocalFsClientConfig,
   LocalFsEndpoint,
   LocalFsVolume,
-  LocalFsVolumeAccess,
+  LocalFsVolumeCredential,
 } from './adapters/localfs/types';
 import type {
   S3ClientConfig,
   S3Credentials,
   S3Endpoint,
   S3Volume,
-  S3VolumeAccess,
+  S3VolumeCredential,
 } from './adapters/s3/s3';
 import type {
   WebdavClientConfig,
   WebdavCredentials,
   WebdavEndpoint,
   WebdavVolume,
-  WebdavVolumeAccess,
+  WebdavVolumeCredential,
 } from './adapters/webdav/webdav';
 
 export type {
   LocalFsClientConfig,
   LocalFsEndpoint,
   LocalFsVolume,
-  LocalFsVolumeAccess,
+  LocalFsVolumeCredential,
 } from './adapters/localfs/types';
 export type {
   S3ClientConfig,
   S3Credentials,
   S3Endpoint,
   S3Volume,
-  S3VolumeAccess,
+  S3VolumeCredential,
 } from './adapters/s3/s3';
 export type {
   WebdavClientConfig,
   WebdavCredentials,
   WebdavEndpoint,
   WebdavVolume,
-  WebdavVolumeAccess,
+  WebdavVolumeCredential,
 } from './adapters/webdav/webdav';
 
 export type FsVolume = LocalFsVolume | S3Volume | WebdavVolume;
 
-export type FsVolumeAccess = LocalFsVolumeAccess | S3VolumeAccess | WebdavVolumeAccess;
+export type FsVolumeCredential =
+  | LocalFsVolumeCredential
+  | S3VolumeCredential
+  | WebdavVolumeCredential;
 
 export type FsEndpoint = LocalFsEndpoint | S3Endpoint | WebdavEndpoint;
 
 export type FsClientConfig = LocalFsClientConfig | S3ClientConfig | WebdavClientConfig;
 
-export interface FsVolumeAccessStore {
-  getVolumeAccess(volumeUrl: string): FsVolumeAccess | null;
-  saveVolumeAccess(access: FsVolumeAccess): FsVolumeAccess & { volumeUrl: string };
-  listVolumeAccesses(): (FsVolumeAccess & { volumeUrl: string })[];
-  deleteVolumeAccess(volumeUrl: string): void;
+export interface FsVolumeCredentialStore {
+  getVolumeCredential(volumeUrl: string): FsVolumeCredential | null;
+  saveVolumeCredential(credential: FsVolumeCredential): FsVolumeCredential & { volumeUrl: string };
+  listVolumeCredentials(): (FsVolumeCredential & { volumeUrl: string })[];
+  deleteVolumeCredential(volumeUrl: string): void;
 }
 
 export interface FsClient {

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createFsClient, type FsVolumeAccess, initVault, metaPath } from '@timenote/core';
+import { createFsClient, type FsVolumeCredential, initVault, metaPath } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -19,7 +19,7 @@ export function registerCloneCommand(program: Command) {
     )
     .argument('[dir]', 'Local directory name (defaults to notebook name)')
     .action(async (providerPath: string, dir?: string) => {
-      let provider: FsVolumeAccess & { volumeUrl: string }, remotePath: string;
+      let provider: FsVolumeCredential & { volumeUrl: string }, remotePath: string;
       try {
         ({ provider, remotePath } = await configStore.resolveProviderPath(providerPath));
       } catch (e: any) {

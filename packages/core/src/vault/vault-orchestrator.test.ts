@@ -5,8 +5,8 @@ import type {
   FsClient,
   FsClientConfig,
   FsClientStat,
-  FsVolumeAccess,
-  FsVolumeAccessStore,
+  FsVolumeCredential,
+  FsVolumeCredentialStore,
 } from '../fs/types';
 import { VaultOrchestrator } from './vault-orchestrator';
 import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
@@ -135,7 +135,7 @@ function createRecordingProvider(): { provider: FsClient; paths: string[] } {
 
 const S3_PROVIDER_ID = 's3://test-endpoint@test-bucket';
 const _S3_URL_WITH_PATH = 's3://test-endpoint@test-bucket/timenote/vaults/abc';
-const S3_ACCOUNT: FsVolumeAccess = {
+const S3_ACCOUNT: FsVolumeCredential = {
   scheme: 's3',
   endpoint: 'test-endpoint',
   bucket: 'test-bucket',
@@ -171,20 +171,20 @@ function mockParseS3Url(url: string) {
   };
 }
 
-function mockResolveS3ConfigFromUrl(url: string, store: FsVolumeAccessStore): FsClientConfig {
+function mockResolveS3ConfigFromUrl(url: string, store: FsVolumeCredentialStore): FsClientConfig {
   const endpoint = mockParseS3Url(url);
   const id = mockComputeS3VolumeUrl(endpoint);
-  const stored = store.getVolumeAccess(id);
+  const stored = store.getVolumeCredential(id);
   if (!stored || stored.scheme !== 's3') throw new Error(`S3 provider not configured: ${id}`);
   return { ...stored, rootPath: endpoint.rootPath } as FsClientConfig;
 }
 
-function createMockStore(): FsVolumeAccessStore {
+function createMockStore(): FsVolumeCredentialStore {
   return {
-    getVolumeAccess: (id: string) => (id === S3_PROVIDER_ID ? S3_ACCOUNT : null),
-    saveVolumeAccess: () => ({ ...S3_ACCOUNT, volumeUrl: S3_PROVIDER_ID }),
-    listVolumeAccesses: () => [{ ...S3_ACCOUNT, volumeUrl: S3_PROVIDER_ID }],
-    deleteVolumeAccess: () => {},
+    getVolumeCredential: (id: string) => (id === S3_PROVIDER_ID ? S3_ACCOUNT : null),
+    saveVolumeCredential: () => ({ ...S3_ACCOUNT, volumeUrl: S3_PROVIDER_ID }),
+    listVolumeCredentials: () => [{ ...S3_ACCOUNT, volumeUrl: S3_PROVIDER_ID }],
+    deleteVolumeCredential: () => {},
   };
 }
 
