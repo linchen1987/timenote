@@ -97,7 +97,7 @@ function createRpcProxy(config: FsClientConfig): FsClient {
       return undefined;
     },
     async testConnection() {
-      return true;
+      return callApi<boolean>('testConnection', '/');
     },
   };
 }

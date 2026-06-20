@@ -3,7 +3,12 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
-import { emptyProviderForm, ProviderForm, type ProviderFormState } from '../provider-form';
+import {
+  emptyProviderForm,
+  ProviderForm,
+  type ProviderFormState,
+  providerFormFromEntry,
+} from '../provider-form';
 import { ProviderListCard } from '../provider-list-card';
 import { Button } from '../ui/button';
 import type { UseVaultStoreHook } from './use-notebooks-page';
@@ -20,11 +25,13 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
     useVaultStore.getState().listVolumeCredentials(),
   );
   const [isAdding, setIsAdding] = useState(false);
+  const [editingUrl, setEditingUrl] = useState<string | null>(null);
   const [form, setForm] = useState<ProviderFormState>({ ...emptyProviderForm });
   const [connectionStatus, setConnectionStatus] = useState<
     'idle' | 'testing' | 'success' | 'error'
   >('idle');
 
+  const isEditing = editingUrl !== null;
   const refreshList = () => setProviders(useVaultStore.getState().listVolumeCredentials());
 
   const handleSave = () => {
@@ -57,16 +64,34 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
       }
       refreshList();
       setIsAdding(false);
+      setEditingUrl(null);
       setForm({ ...emptyProviderForm });
       setConnectionStatus('idle');
-      toast.success('Provider saved');
+      toast.success(isEditing ? 'Provider updated' : 'Provider saved');
     } catch (e) {
       toast.error(`Failed: ${(e as Error).message}`);
     }
   };
 
+  const handleEdit = (volumeUrl: string) => {
+    const entry = useVaultStore
+      .getState()
+      .listVolumeCredentials()
+      .find((p) => p.volumeUrl === volumeUrl);
+    if (!entry) return;
+    setIsAdding(false);
+    setEditingUrl(volumeUrl);
+    setForm(providerFormFromEntry(entry));
+    setConnectionStatus('idle');
+  };
+
   const handleDelete = (volumeUrl: string) => {
     useVaultStore.getState().deleteVolumeCredential(volumeUrl);
+    if (editingUrl === volumeUrl) {
+      setEditingUrl(null);
+      setForm({ ...emptyProviderForm });
+      setConnectionStatus('idle');
+    }
     refreshList();
     toast.success('Provider deleted');
   };
@@ -122,24 +147,28 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
         <ProviderListCard
           providers={providers}
           onAdd={() => {
+            setEditingUrl(null);
             setIsAdding(true);
             setForm({ ...emptyProviderForm });
             setConnectionStatus('idle');
           }}
+          onEdit={handleEdit}
           onDelete={handleDelete}
         />
 
-        {isAdding && (
+        {(isAdding || isEditing) && (
           <ProviderForm
             form={form}
             onFormChange={setForm}
             onSave={handleSave}
             onCancel={() => {
               setIsAdding(false);
+              setEditingUrl(null);
               setConnectionStatus('idle');
             }}
             onTest={handleTest}
             connectionStatus={connectionStatus}
+            isEdit={isEditing}
           />
         )}
       </div>

@@ -1,5 +1,5 @@
 import type { FsVolumeCredential } from '@timenote/core';
-import { Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 
@@ -8,10 +8,11 @@ type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 export interface ProviderListCardProps {
   providers: VolumeCredentialEntry[];
   onAdd: () => void;
+  onEdit: (volumeUrl: string) => void;
   onDelete: (volumeUrl: string) => void;
 }
 
-export function ProviderListCard({ providers, onAdd, onDelete }: ProviderListCardProps) {
+export function ProviderListCard({ providers, onAdd, onEdit, onDelete }: ProviderListCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -35,9 +36,14 @@ export function ProviderListCard({ providers, onAdd, onDelete }: ProviderListCar
               <p className="font-mono text-sm truncate">{p.volumeUrl}</p>
               <p className="text-xs text-muted-foreground">{p.scheme?.toUpperCase()}</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={() => onDelete(p.volumeUrl)}>
-              <Trash2 className="w-4 h-4 text-destructive" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" onClick={() => onEdit(p.volumeUrl)}>
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => onDelete(p.volumeUrl)}>
+                <Trash2 className="w-4 h-4 text-destructive" />
+              </Button>
+            </div>
           </div>
         ))}
         {providers.length === 0 && (

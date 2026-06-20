@@ -144,9 +144,20 @@ function createS3Client(config: S3ClientConfig): FsClient {
     },
     testConnection: async () => {
       try {
-        return await client.exists('/');
+        const c = getClient();
+        for await (const _item of c.listObjects({ prefix: '', maxResults: 1 })) {
+          break;
+        }
+        return true;
       } catch (e) {
+        const err = e as { statusCode?: number };
         console.error('[S3 testConnection]', e);
+        if (err.statusCode === 403) {
+          throw new Error('Access denied — check access key / secret key');
+        }
+        if (err.statusCode === 404) {
+          throw new Error('Bucket not found — check bucket name / endpoint');
+        }
         throw e;
       }
     },

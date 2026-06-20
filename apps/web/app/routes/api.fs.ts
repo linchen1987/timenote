@@ -36,13 +36,19 @@ type EnsureDirRequest = BaseRequest & {
   args?: never;
 };
 
+type TestConnectionRequest = BaseRequest & {
+  method: 'testConnection';
+  args?: never;
+};
+
 type FsApiRequest =
   | ListRequest
   | ReadRequest
   | WriteRequest
   | RemoveRequest
   | ExistsRequest
-  | EnsureDirRequest;
+  | EnsureDirRequest
+  | TestConnectionRequest;
 
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== 'POST') {
@@ -81,6 +87,9 @@ export async function action({ request }: ActionFunctionArgs) {
       case 'ensureDir':
         await transport.ensureDir(path);
         result = { success: true };
+        break;
+      case 'testConnection':
+        result = await transport.testConnection();
         break;
       default:
         throw new Error(`Unknown method: ${method}`);

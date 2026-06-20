@@ -1,3 +1,4 @@
+import type { FsVolumeCredential } from '@timenote/core';
 import { AlertCircle, Check, Eye, EyeOff } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from './ui/button';
@@ -24,6 +25,37 @@ export const emptyProviderForm: ProviderFormState = {
   s3: { endpoint: '', region: '', bucket: '', accessKeyId: '', secretAccessKey: '' },
 };
 
+type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
+
+export function providerFormFromEntry(entry: VolumeCredentialEntry): ProviderFormState {
+  if (entry.scheme === 'webdav') {
+    const protocol = entry.tls !== false ? 'https' : 'http';
+    return {
+      scheme: 'webdav',
+      webdav: {
+        url: `${protocol}://${entry.host}`,
+        username: entry.username,
+        password: entry.password ?? '',
+      },
+      s3: { endpoint: '', region: '', bucket: '', accessKeyId: '', secretAccessKey: '' },
+    };
+  }
+  if (entry.scheme === 's3') {
+    return {
+      scheme: 's3',
+      webdav: { url: 'https://dav.jianguoyun.com/dav/', username: '', password: '' },
+      s3: {
+        endpoint: entry.endpoint ?? '',
+        region: entry.region ?? '',
+        bucket: entry.bucket ?? '',
+        accessKeyId: entry.accessKeyId ?? '',
+        secretAccessKey: entry.secretAccessKey ?? '',
+      },
+    };
+  }
+  return { ...emptyProviderForm };
+}
+
 export interface ProviderFormProps {
   form: ProviderFormState;
   onFormChange: (form: ProviderFormState) => void;
@@ -31,6 +63,7 @@ export interface ProviderFormProps {
   onCancel: () => void;
   onTest: () => void;
   connectionStatus: 'idle' | 'testing' | 'success' | 'error';
+  isEdit?: boolean;
 }
 
 export function ProviderForm({
@@ -40,6 +73,7 @@ export function ProviderForm({
   onCancel,
   onTest,
   connectionStatus,
+  isEdit = false,
 }: ProviderFormProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -54,7 +88,7 @@ export function ProviderForm({
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Add Provider</CardTitle>
+        <CardTitle>{isEdit ? 'Edit Provider' : 'Add Provider'}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
@@ -62,8 +96,10 @@ export function ProviderForm({
           <RadioGroup
             value={form.scheme}
             onValueChange={(v) => {
+              if (isEdit) return;
               onFormChange({ ...form, scheme: v as 'webdav' | 's3' });
             }}
+            disabled={isEdit}
             className="flex gap-4"
           >
             <div className="flex items-center space-x-2">
@@ -85,6 +121,7 @@ export function ProviderForm({
                 value={form.webdav.url}
                 onChange={(e) => setWebdav({ url: e.target.value })}
                 placeholder="https://..."
+                disabled={isEdit}
               />
             </div>
             <div className="space-y-2">
@@ -92,6 +129,7 @@ export function ProviderForm({
               <Input
                 value={form.webdav.username}
                 onChange={(e) => setWebdav({ username: e.target.value })}
+                disabled={isEdit}
               />
             </div>
             <div className="space-y-2">
@@ -129,6 +167,7 @@ export function ProviderForm({
                 value={form.s3.endpoint}
                 onChange={(e) => setS3({ endpoint: e.target.value })}
                 placeholder="https://s3.example.com"
+                disabled={isEdit}
               />
             </div>
             <div className="space-y-2">
@@ -145,6 +184,7 @@ export function ProviderForm({
                 value={form.s3.bucket}
                 onChange={(e) => setS3({ bucket: e.target.value })}
                 placeholder="my-bucket"
+                disabled={isEdit}
               />
             </div>
             <div className="space-y-2">
@@ -185,7 +225,7 @@ export function ProviderForm({
           <Button onClick={onTest} disabled={connectionStatus === 'testing'}>
             {connectionStatus === 'testing' ? 'Testing...' : 'Test Connection'}
           </Button>
-          <Button onClick={onSave}>Save Provider</Button>
+          <Button onClick={onSave}>{isEdit ? 'Update Provider' : 'Save Provider'}</Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancel
           </Button>
