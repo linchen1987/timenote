@@ -20,8 +20,10 @@ export {
   extractScheme,
   type FileVolumeStoreIo,
   normalizeVolumeEntry,
+  parseS3Url,
   parseVolumeEntries,
   parseVolumeUrl,
+  parseWebdavUrl,
   resolveFsConfig,
   type VolumeCredentialEntry,
 } from './fs';

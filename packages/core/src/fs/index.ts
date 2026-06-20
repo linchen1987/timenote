@@ -5,6 +5,8 @@ export {
   S3Driver,
   WebdavDriver,
 } from './adapters';
+export { parseS3Url } from './adapters/s3/s3';
+export { parseWebdavUrl } from './adapters/webdav/webdav';
 export { type CreateFsClientOptions, createFsClient } from './client';
 export type { FsClientDriver } from './driver-registry';
 export { clearDrivers, getDriver, registerDriver } from './driver-registry';

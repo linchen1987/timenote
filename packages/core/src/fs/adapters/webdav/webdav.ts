@@ -170,6 +170,29 @@ export function resolveWebdavConfigFromUrl(
   url: string,
   store?: FsVolumeCredentialStore,
 ): WebdavClientConfig {
+  // A password may be embedded in the userinfo
+  // (e.g. webdav://user:password@host/path), self-containing the connection.
+  const protoIdx = url.indexOf('://');
+  const rest = url.slice(protoIdx + 3);
+  const lastAt = rest.lastIndexOf('@');
+  if (lastAt >= 0) {
+    const userinfo = rest.slice(0, lastAt);
+    const colonIdx = userinfo.indexOf(':');
+    if (colonIdx >= 0) {
+      const password = decodeURIComponent(userinfo.slice(colonIdx + 1));
+      // Strip the password so parseWebdavUrl only sees `username@host`.
+      const stripped = `${url.slice(0, protoIdx)}://${userinfo.slice(0, colonIdx)}@${rest.slice(lastAt + 1)}`;
+      const endpoint = parseWebdavUrl(stripped);
+      return {
+        scheme: 'webdav',
+        host: endpoint.host,
+        username: endpoint.username,
+        password,
+        rootPath: endpoint.rootPath,
+      };
+    }
+  }
+
   const endpoint = parseWebdavUrl(url);
   const volumeUrl = computeWebdavVolumeUrl(endpoint);
   if (!store) throw new Error(`Store required to resolve config from URL for scheme 'webdav'`);

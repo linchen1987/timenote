@@ -204,7 +204,31 @@ export function resolveS3ConfigFromUrl(
   url: string,
   store?: FsVolumeCredentialStore,
 ): S3ClientConfig {
-  const endpoint = parseS3Url(url);
+  // Credentials may be embedded as query params
+  // (e.g. s3://bucket@endpoint/path?accessKeyId=…&secretAccessKey=…&region=…),
+  // which lets callers self-contain a connection without touching a credential store.
+  const queryIdx = url.indexOf('?');
+  const base = queryIdx >= 0 ? url.slice(0, queryIdx) : url;
+  const query = queryIdx >= 0 ? url.slice(queryIdx + 1) : '';
+  const qp = new URLSearchParams(query);
+  const accessKeyId = qp.get('accessKeyId') || undefined;
+  const secretAccessKey = qp.get('secretAccessKey') || undefined;
+  const region = qp.get('region') || undefined;
+
+  const endpoint = parseS3Url(base);
+
+  if (accessKeyId && secretAccessKey) {
+    return {
+      scheme: 's3',
+      bucket: endpoint.bucket,
+      endpoint: endpoint.endpoint,
+      rootPath: endpoint.rootPath,
+      accessKeyId,
+      secretAccessKey,
+      region,
+    };
+  }
+
   const volumeUrl = computeS3VolumeUrl(endpoint);
   if (!store) throw new Error(`Store required to resolve config from URL for scheme 's3'`);
   const stored = store.getVolumeCredential(volumeUrl);
