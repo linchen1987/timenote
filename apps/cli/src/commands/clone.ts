@@ -14,14 +14,14 @@ export function registerCloneCommand(program: Command) {
     .command('clone')
     .description('Clone a notebook from remote to local directory')
     .argument(
-      '<volume-path>',
-      'volumeUrl:remotePath (e.g. "webdav://user@host:timenote/vaults/vX")',
+      '<source>',
+      'Remote source as volumeUrl:remotePath (e.g. "webdav://user@host:timenote/vaults/vX")',
     )
     .argument('[dir]', 'Local directory name (defaults to notebook name)')
-    .action(async (volumePath: string, dir?: string) => {
+    .action(async (source: string, dir?: string) => {
       let volume: { volumeUrl: string }, remotePath: string;
       try {
-        ({ volume, remotePath } = await configStore.resolveVolumePath(volumePath));
+        ({ volume, remotePath } = await configStore.resolveVolumePath(source));
       } catch (e: any) {
         console.error(e.message);
         process.exit(1);

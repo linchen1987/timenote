@@ -9,13 +9,13 @@ export function registerRemoteCommand(program: Command) {
     .command('set')
     .description('Set a remote for the vault')
     .argument('<name>', 'Remote name (e.g. origin)')
-    .argument('<volume-path>', 'volumeUrl:remotePath')
+    .argument('<source>', 'Remote source as volumeUrl:remotePath')
     .option('--dir <dir>', 'Vault directory')
-    .action(async (name: string, volumePath: string, opts: { dir?: string }) => {
+    .action(async (name: string, source: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
       let volume: { volumeUrl: string }, remotePathStr: string;
       try {
-        ({ volume, remotePath: remotePathStr } = await configStore.resolveVolumePath(volumePath));
+        ({ volume, remotePath: remotePathStr } = await configStore.resolveVolumePath(source));
       } catch (e: any) {
         console.error(e.message);
         process.exit(1);
