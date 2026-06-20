@@ -73,6 +73,8 @@ interface NotebookSidebarProps {
   onSelectSearch: (query: string, menuItemId?: string) => void;
   onSelectNote: (noteId: string, menuItemId?: string) => void;
   onSelectNotebook?: () => void;
+  onOpenNotebook?: (token: string, name: string) => void;
+  onOpenNotebookList?: () => void;
   selectedItemId?: string;
   isPWA?: boolean;
   onClose?: () => void;
@@ -87,6 +89,8 @@ export function NotebookSidebar({
   onSelectSearch,
   onSelectNote,
   onSelectNotebook,
+  onOpenNotebook,
+  onOpenNotebookList,
   selectedItemId,
   isPWA,
   onClose,
@@ -244,7 +248,11 @@ export function NotebookSidebar({
                 <DropdownMenuItem
                   key={nb.id}
                   onClick={() => {
-                    navigate(`/s/${createNotebookToken(nb.id, nb.name)}`);
+                    if (onOpenNotebook) {
+                      onOpenNotebook(createNotebookToken(nb.id, nb.name), nb.name);
+                    } else {
+                      navigate(`/s/${createNotebookToken(nb.id, nb.name)}`);
+                    }
                     onSelectNotebook?.();
                   }}
                   className={cn(
@@ -258,7 +266,11 @@ export function NotebookSidebar({
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  navigate('/s/list');
+                  if (onOpenNotebookList) {
+                    onOpenNotebookList();
+                  } else {
+                    navigate('/s/list');
+                  }
                   onSelectNotebook?.();
                 }}
               >

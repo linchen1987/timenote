@@ -1,11 +1,12 @@
+import { open } from '@tauri-apps/plugin-dialog';
 import { STORAGE_KEYS } from '@timenote/core';
 import { NotebooksPage } from '@timenote/ui';
-import { open } from '@tauri-apps/plugin-dialog';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { CreateVaultDialog } from '../lib/create-vault-dialog';
-import { getDesktopRegistry, useVaultStore } from '../lib/vault-store';
+import { closeCurrentWindow, openNotebookWindow } from '../lib/notebook-window';
 import { pickAndRegisterVault } from '../lib/open-vault';
+import { getDesktopRegistry, useVaultStore } from '../lib/vault-store';
 
 export function NotebooksList() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -24,6 +25,16 @@ export function NotebooksList() {
     if (!open) setRefreshKey((k) => k + 1);
   }, []);
 
+  const handleOpenNotebook = useCallback(async (token: string, name: string) => {
+    try {
+      await openNotebookWindow(token, name);
+      await closeCurrentWindow();
+    } catch (e) {
+      const msg = typeof e === 'string' ? e : ((e as Error)?.message ?? String(e));
+      toast.error(`打开失败: ${msg}`);
+    }
+  }, []);
+
   const handleOpenVault = useCallback(async () => {
     try {
       const registry = await getDesktopRegistry();
@@ -33,7 +44,7 @@ export function NotebooksList() {
         setRefreshKey((k) => k + 1);
       }
     } catch (e) {
-      const msg = typeof e === 'string' ? e : (e as Error)?.message ?? String(e);
+      const msg = typeof e === 'string' ? e : ((e as Error)?.message ?? String(e));
       toast.error(`打开失败: ${msg}`);
     }
   }, []);
@@ -55,6 +66,7 @@ export function NotebooksList() {
         useVaultStore={useVaultStore}
         onCreateVault={handleCreateVault}
         onOpenVault={handleOpenVault}
+        onOpenNotebook={handleOpenNotebook}
         onPickCloneDir={handlePickCloneDir}
       />
       <CreateVaultDialog open={createDialogOpen} onOpenChange={handleDialogChange} />

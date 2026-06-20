@@ -42,6 +42,7 @@ export function useNotebookLayout(useStore: UseVaultStoreHook): UseNotebookLayou
     let cancelled = false;
     const init = async () => {
       await useStore.getState().init();
+      await useStore.getState().listVaults();
       await useStore.getState().activateVault(projectId);
       if (cancelled) return;
       const v = useStore.getState().vaults.find((v) => v.projectId === projectId);
