@@ -9,21 +9,19 @@ export function registerRemoteCommand(program: Command) {
     .command('set')
     .description('Set a remote for the vault')
     .argument('<name>', 'Remote name (e.g. origin)')
-    .argument('<provider-path>', 'providerId:remotePath')
+    .argument('<volume-path>', 'volumeUrl:remotePath')
     .option('--dir <dir>', 'Vault directory')
-    .action(async (name: string, providerPath: string, opts: { dir?: string }) => {
+    .action(async (name: string, volumePath: string, opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      let provider: import('@timenote/core').FsVolumeCredential & { volumeUrl: string },
-        remotePathStr: string;
+      let volume: { volumeUrl: string }, remotePathStr: string;
       try {
-        ({ provider, remotePath: remotePathStr } =
-          await configStore.resolveProviderPath(providerPath));
+        ({ volume, remotePath: remotePathStr } = await configStore.resolveVolumePath(volumePath));
       } catch (e: any) {
         console.error(e.message);
         process.exit(1);
       }
 
-      const url = remotePathStr ? `${provider.volumeUrl}/${remotePathStr}` : provider.volumeUrl;
+      const url = remotePathStr ? `${volume.volumeUrl}/${remotePathStr}` : volume.volumeUrl;
       const service = createRemoteConfigServiceForVault(vaultDir);
       await service.setRemote({ url, name, default: name === 'origin' });
       console.log(`Remote "${name}" set.`);

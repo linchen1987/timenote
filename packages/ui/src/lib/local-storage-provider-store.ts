@@ -10,9 +10,7 @@ type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 type RawEntry = Record<string, unknown>;
 
 function parseEntry(raw: RawEntry): VolumeCredentialEntry | null {
-  const result = normalizeLegacyEntry(raw);
-  if (!result) return null;
-  return result.entry;
+  return normalizeLegacyEntry(raw);
 }
 
 export function createLocalStorageProviderStore(): FsVolumeCredentialStore {

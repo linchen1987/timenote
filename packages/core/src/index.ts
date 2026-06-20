@@ -15,10 +15,15 @@ export {
 export {
   type CreateFsClientOptions,
   computeVolumeUrl,
+  createFileVolumeStore,
   createFsClient,
   extractScheme,
+  type FileVolumeStoreIo,
+  normalizeVolumeEntry,
+  parseVolumeEntries,
   parseVolumeUrl,
   resolveFsConfig,
+  type VolumeCredentialEntry,
 } from './fs';
 export type { FsClientDriver } from './fs/driver-registry';
 export { clearDrivers, getDriver, registerDriver } from './fs/driver-registry';
@@ -90,7 +95,6 @@ export {
 export { getDefaultRemotePath } from './vault/vault-orchestrator';
 
 // ─── Sync Engine + Vault Lifecycle ────────────────────────────
-
 
 export {
   applyDirtyEntries,

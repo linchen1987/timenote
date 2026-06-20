@@ -51,11 +51,11 @@ export function createRemoteConfigServiceForVault(vaultDir: string): RemoteConfi
   return createRemoteConfigService(() => transport);
 }
 
-export function buildRemoteUrl(providerId: string, remotePath: string): string {
+export function buildRemoteUrl(volumeUrl: string, remotePath: string): string {
   if (remotePath) {
-    return `${providerId}/${remotePath}`;
+    return `${volumeUrl}/${remotePath}`;
   }
-  return providerId;
+  return volumeUrl;
 }
 
 export function createSyncService(vaultDir: string) {

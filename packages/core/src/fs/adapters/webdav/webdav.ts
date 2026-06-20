@@ -175,7 +175,7 @@ export function resolveWebdavConfigFromUrl(
   if (!store) throw new Error(`Store required to resolve config from URL for scheme 'webdav'`);
   const stored = store.getVolumeCredential(volumeUrl);
   if (!stored || stored.scheme !== 'webdav')
-    throw new Error(`WebDAV provider not configured: ${volumeUrl}`);
+    throw new Error(`WebDAV volume not configured: ${volumeUrl}`);
   return { ...stored, rootPath: endpoint.rootPath } as WebdavClientConfig;
 }
 

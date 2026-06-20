@@ -2,12 +2,14 @@ import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 
 export function registerConfigCommand(program: Command) {
-  const config = program.command('config').description('Manage provider configurations');
+  const config = program.command('config').description('Manage volume configurations');
 
-  config
-    .command('add-provider')
-    .description('Add a storage provider (webdav or s3)')
-    .argument('<type>', 'Provider type: webdav or s3')
+  const volume = config.command('volume').description('Manage storage volumes (webdav / s3)');
+
+  volume
+    .command('add')
+    .description('Add a storage volume')
+    .argument('<scheme>', 'Volume scheme: webdav or s3')
     .option('--host <host>', 'WebDAV server host')
     .option('--username <username>', 'WebDAV username')
     .option('--password <password>', 'WebDAV password')
@@ -19,58 +21,77 @@ export function registerConfigCommand(program: Command) {
     .option('--access-key-id <id>', 'S3 access key ID')
     .option('--secret-access-key <key>', 'S3 secret access key')
     .option('--region <region>', 'S3 region')
-    .action(async (type: string, opts: Record<string, any>) => {
-      if (type !== 'webdav' && type !== 's3') {
-        console.error(`Invalid provider type: ${type}. Use "webdav" or "s3".`);
+    .action(async (scheme: string, opts: Record<string, any>) => {
+      if (scheme !== 'webdav' && scheme !== 's3') {
+        console.error(`Invalid volume scheme: ${scheme}. Use "webdav" or "s3".`);
         process.exit(1);
       }
 
-      const entry = await configStore.saveVolumeCredential({
-        type,
-        ...(type === 'webdav'
+      const credential =
+        scheme === 'webdav'
           ? {
+              scheme: 'webdav' as const,
               host: opts.host!,
               username: opts.username ?? '',
               password: opts.password,
-              token: opts.token,
               tls: opts.tls !== false ? undefined : false,
               port: opts.port,
             }
           : {
+              scheme: 's3' as const,
               endpoint: opts.endpoint!,
               bucket: opts.bucket!,
               accessKeyId: opts.accessKeyId!,
               secretAccessKey: opts.secretAccessKey!,
               region: opts.region,
-            }),
-      } as any);
-      console.log(`Provider saved: ${entry.volumeUrl}`);
+            };
+
+      const entry = await configStore.saveVolumeCredential(credential);
+      console.log(`Volume saved: ${entry.volumeUrl}`);
     });
 
-  config
-    .command('list-providers')
-    .description('List all configured providers')
+  volume
+    .command('list')
+    .description('List all configured volumes')
     .action(async () => {
       const credentials = await configStore.listVolumeCredentials();
       if (credentials.length === 0) {
-        console.log('No providers configured.');
+        console.log('No volumes configured.');
         return;
       }
-      for (const a of credentials) {
-        if ('host' in a) {
-          console.log(`${a.volumeUrl}  (webdav: ${a.host})`);
-        } else if ('bucket' in a) {
-          console.log(`${a.volumeUrl}  (s3: ${a.bucket})`);
+      for (const v of credentials) {
+        if (v.scheme === 'webdav') {
+          console.log(`${v.volumeUrl}  (webdav: ${v.host})`);
+        } else if (v.scheme === 's3') {
+          console.log(`${v.volumeUrl}  (s3: ${v.bucket})`);
         }
       }
     });
 
-  config
-    .command('remove-provider')
-    .description('Remove a provider by ID')
-    .argument('<id>', 'Provider ID')
-    .action(async (id: string) => {
-      await configStore.deleteVolumeCredential(id);
-      console.log(`Provider removed: ${id}`);
+  volume
+    .command('show')
+    .description('Show details of a volume by its volumeUrl')
+    .argument('<volumeUrl>', 'Volume URL (e.g. webdav://user@host)')
+    .action(async (volumeUrl: string) => {
+      const entry = await configStore.getVolumeCredential(volumeUrl);
+      if (!entry) {
+        console.error(`Volume not found: ${volumeUrl}`);
+        process.exit(1);
+      }
+      console.log(JSON.stringify(entry, null, 2));
+    });
+
+  volume
+    .command('remove')
+    .description('Remove a volume by its volumeUrl')
+    .argument('<volumeUrl>', 'Volume URL to remove')
+    .action(async (volumeUrl: string) => {
+      const existing = await configStore.getVolumeCredential(volumeUrl);
+      if (!existing) {
+        console.error(`Volume not found: ${volumeUrl}`);
+        process.exit(1);
+      }
+      await configStore.deleteVolumeCredential(volumeUrl);
+      console.log(`Volume removed: ${volumeUrl}`);
     });
 }

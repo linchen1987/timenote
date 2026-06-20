@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
-import { appDataDir, join } from '@tauri-apps/api/path';
-import { computeVolumeUrl, type FsVolumeCredential, STORAGE_KEYS } from '@timenote/core';
+import { join } from '@tauri-apps/api/path';
 
 export interface VaultEntry {
   projectId: string;
@@ -8,15 +7,12 @@ export interface VaultEntry {
   path: string;
 }
 
-export type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
-
 interface DesktopConfig {
   vaults: VaultEntry[];
-  providers: VolumeCredentialEntry[];
 }
 
 const CONFIG_FILENAME = 'config.json';
-const EMPTY_CONFIG: DesktopConfig = { vaults: [], providers: [] };
+const EMPTY_CONFIG: DesktopConfig = { vaults: [] };
 
 let configDir: string | null = null;
 let configPath: string | null = null;
@@ -38,7 +34,6 @@ export async function loadConfig(): Promise<DesktopConfig> {
     const parsed = JSON.parse(raw) as Partial<DesktopConfig>;
     cache = {
       vaults: parsed.vaults ?? [],
-      providers: parsed.providers ?? [],
     };
   } catch {
     cache = { ...EMPTY_CONFIG };
@@ -74,49 +69,4 @@ export async function addVaultEntry(entry: VaultEntry): Promise<void> {
 export async function removeVaultEntry(projectId: string): Promise<void> {
   cache.vaults = cache.vaults.filter((v) => v.projectId !== projectId);
   await persist();
-}
-
-export async function saveProviders(providers: VolumeCredentialEntry[]): Promise<void> {
-  cache.providers = providers;
-  await persist();
-}
-
-export async function migrateFromLegacy(): Promise<void> {
-  await ensurePaths();
-  const exists = await invoke<boolean>('fs_exists', { path: configPath! });
-  if (exists) return;
-
-  const migrated: DesktopConfig = { vaults: [], providers: [] };
-
-  // Migrate vaults from appDataDir/vaults.json
-  try {
-    const oldRegistryPath = await join(await appDataDir(), 'vaults.json');
-    const oldExists = await invoke<boolean>('fs_exists', { path: oldRegistryPath });
-    if (oldExists) {
-      const raw = await invoke<string>('fs_read_text_file', { path: oldRegistryPath });
-      const oldData = JSON.parse(raw) as { vaults?: VaultEntry[] };
-      migrated.vaults = oldData.vaults ?? [];
-    }
-  } catch {}
-
-  // Migrate providers from localStorage
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PROVIDERS);
-    if (raw) {
-      const entries = JSON.parse(raw) as Record<string, unknown>[];
-      const { normalizeLegacyEntry } = await import('@timenote/ui');
-      for (const item of entries) {
-        const result = normalizeLegacyEntry(item);
-        if (result) migrated.providers.push(result.entry);
-      }
-    }
-  } catch {}
-
-  cache = migrated;
-  await persist();
-
-  // Clean up legacy
-  try {
-    localStorage.removeItem(STORAGE_KEYS.PROVIDERS);
-  } catch {}
 }

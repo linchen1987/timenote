@@ -15,7 +15,7 @@ export function registerPullCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const store = await configStore.createFileProviderStore();
+      const store = await configStore.loadVolumeStore();
       const { remote, remoteName } = await resolveRemote(vaultDir, store);
       const sync = createSyncService(vaultDir);
       const result = await sync.pull(remote);
@@ -36,7 +36,7 @@ export function registerPushCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const store = await configStore.createFileProviderStore();
+      const store = await configStore.loadVolumeStore();
       const { remote, remoteName } = await resolveRemote(vaultDir, store);
       const sync = createSyncService(vaultDir);
       const result = await sync.push(remote);
@@ -57,7 +57,7 @@ export function registerSyncCommand(program: Command) {
     .option('--dir <dir>', 'Vault directory')
     .action(async (opts: { dir?: string }) => {
       const vaultDir = resolveVaultDir(opts.dir);
-      const store = await configStore.createFileProviderStore();
+      const store = await configStore.loadVolumeStore();
       const { remote, remoteName } = await resolveRemote(vaultDir, store);
       const sync = createSyncService(vaultDir);
       const result = await sync.sync(remote);

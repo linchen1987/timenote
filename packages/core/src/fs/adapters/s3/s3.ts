@@ -208,8 +208,7 @@ export function resolveS3ConfigFromUrl(
   const volumeUrl = computeS3VolumeUrl(endpoint);
   if (!store) throw new Error(`Store required to resolve config from URL for scheme 's3'`);
   const stored = store.getVolumeCredential(volumeUrl);
-  if (!stored || stored.scheme !== 's3')
-    throw new Error(`S3 provider not configured: ${volumeUrl}`);
+  if (!stored || stored.scheme !== 's3') throw new Error(`S3 volume not configured: ${volumeUrl}`);
   return { ...stored, rootPath: endpoint.rootPath } as S3ClientConfig;
 }
 

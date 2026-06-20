@@ -8,6 +8,13 @@ export {
 export { type CreateFsClientOptions, createFsClient } from './client';
 export type { FsClientDriver } from './driver-registry';
 export { clearDrivers, getDriver, registerDriver } from './driver-registry';
+export {
+  createFileVolumeStore,
+  type FileVolumeStoreIo,
+  normalizeVolumeEntry,
+  parseVolumeEntries,
+  type VolumeCredentialEntry,
+} from './file-volume-store';
 export type {
   FsClient,
   FsClientConfig,

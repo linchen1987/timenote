@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { createFsClient, type FsVolumeCredential, initVault, metaPath } from '@timenote/core';
+import { createFsClient, initVault, metaPath } from '@timenote/core';
 import type { Command } from 'commander';
 import * as configStore from '../lib/config-store.js';
 import {
@@ -14,21 +14,21 @@ export function registerCloneCommand(program: Command) {
     .command('clone')
     .description('Clone a notebook from remote to local directory')
     .argument(
-      '<provider-path>',
-      'providerId:remotePath (e.g. "webdav:user@url:timenote/vaults/vX")',
+      '<volume-path>',
+      'volumeUrl:remotePath (e.g. "webdav://user@host:timenote/vaults/vX")',
     )
     .argument('[dir]', 'Local directory name (defaults to notebook name)')
-    .action(async (providerPath: string, dir?: string) => {
-      let provider: FsVolumeCredential & { volumeUrl: string }, remotePath: string;
+    .action(async (volumePath: string, dir?: string) => {
+      let volume: { volumeUrl: string }, remotePath: string;
       try {
-        ({ provider, remotePath } = await configStore.resolveProviderPath(providerPath));
+        ({ volume, remotePath } = await configStore.resolveVolumePath(volumePath));
       } catch (e: any) {
         console.error(e.message);
         process.exit(1);
       }
 
-      const store = await configStore.createFileProviderStore();
-      const remoteUrl = buildRemoteUrl(provider.volumeUrl, remotePath);
+      const store = await configStore.loadVolumeStore();
+      const remoteUrl = buildRemoteUrl(volume.volumeUrl, remotePath);
       const remote = createRemoteProviderFromUrl(remoteUrl, store);
 
       let manifest: Record<string, unknown>;

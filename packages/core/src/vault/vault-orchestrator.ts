@@ -104,6 +104,12 @@ function touchSyncCache(projectId: string): void {
   } catch {}
 }
 
+function clearSyncCache(projectId: string): void {
+  try {
+    sessionStorage.removeItem(syncCacheKey(projectId));
+  } catch {}
+}
+
 function isSyncCacheValid(projectId: string): boolean {
   const ts = getSyncCacheTime(projectId);
   return ts !== null && Date.now() - ts < SYNC_TTL_MS;
@@ -476,7 +482,7 @@ export class VaultOrchestrator {
     const syncService = this.requireSyncService();
 
     const provider = this.providerStore.getVolumeCredential(providerId);
-    if (!provider) throw new Error(`Provider not found: ${providerId}`);
+    if (!provider) throw new Error(`Volume not found: ${providerId}`);
 
     const config = { ...provider, rootPath: path } as FsClientConfig;
     const client = createFsClient(config);
@@ -554,11 +560,7 @@ export class VaultOrchestrator {
     if (isSyncCacheValid(projectId)) return null;
     const resolved = await this.resolveProvider(projectId);
     if (!resolved) return null;
-    try {
-      return await this.sync(projectId);
-    } catch {
-      return null;
-    }
+    return await this.sync(projectId);
   }
 
   private async resolveProvider(projectId: string): Promise<ResolvedProvider | null> {
@@ -593,16 +595,21 @@ export class VaultOrchestrator {
     const syncService = this.requireSyncService();
     const logger = this.getLoggerEntry(projectId).logger.scoped('sync');
     let result: SyncResult;
-    switch (direction) {
-      case 'sync':
-        result = await syncService.sync(projectId, resolved.provider, logger);
-        break;
-      case 'pull':
-        result = await syncService.pull(projectId, resolved.provider, logger);
-        break;
-      case 'push':
-        result = await syncService.push(projectId, resolved.provider, logger);
-        break;
+    try {
+      switch (direction) {
+        case 'sync':
+          result = await syncService.sync(projectId, resolved.provider, logger);
+          break;
+        case 'pull':
+          result = await syncService.pull(projectId, resolved.provider, logger);
+          break;
+        case 'push':
+          result = await syncService.push(projectId, resolved.provider, logger);
+          break;
+      }
+    } catch (e) {
+      clearSyncCache(projectId);
+      throw e;
     }
 
     touchSyncCache(projectId);

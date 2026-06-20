@@ -2,8 +2,8 @@ import { registerDriver, VaultOrchestrator } from '@timenote/core';
 import { S3Driver } from '@timenote/core/fs/adapters/s3/s3';
 import { WebdavDriver } from '@timenote/core/fs/adapters/webdav/webdav';
 import { createBoundVaultStore, type VaultStore } from '@timenote/ui';
-import { loadConfig, migrateFromLegacy } from './desktop-config';
-import { createDesktopFileProviderStore } from './file-provider-store';
+import { loadConfig } from './desktop-config';
+import { loadVolumeStore } from './file-volume-store';
 import { TauriFsDriver } from './tauri-fs-driver';
 import { createDesktopVaultRegistry } from './tauri-vault-registry';
 
@@ -22,13 +22,12 @@ let _registry: Awaited<ReturnType<typeof createDesktopVaultRegistry>> | null = n
 export async function initDesktopStores(): Promise<void> {
   if (_useVaultStore) return;
 
-  await migrateFromLegacy();
+  const volumeStore = await loadVolumeStore();
   await loadConfig();
 
-  const providerStore = createDesktopFileProviderStore();
   _registry = await createDesktopVaultRegistry();
 
-  const orchestrator = new VaultOrchestrator(_registry, providerStore);
+  const orchestrator = new VaultOrchestrator(_registry, volumeStore);
   _useVaultStore = createBoundVaultStore(orchestrator);
 }
 

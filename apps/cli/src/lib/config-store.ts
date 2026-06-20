@@ -2,12 +2,14 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  computeVolumeUrl,
+  createFileVolumeStore as createCoreFileVolumeStore,
+  type FileVolumeStoreIo,
   type FsVolumeCredential,
   type FsVolumeCredentialStore,
+  type VolumeCredentialEntry,
 } from '@timenote/core';
 
-type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
+const VOLUMES_FILENAME = 'volumes.json';
 
 function configDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
@@ -15,103 +17,84 @@ function configDir(): string {
   return path.join(base, 'timenote');
 }
 
-function providersPath(): string {
-  return path.join(configDir(), 'providers.json');
+function volumesPath(): string {
+  return path.join(configDir(), VOLUMES_FILENAME);
 }
 
-async function ensureConfigDir(): Promise<void> {
-  await fs.mkdir(configDir(), { recursive: true });
-}
+const nodeIo: FileVolumeStoreIo = {
+  async readFile(p: string): Promise<string | null> {
+    try {
+      return await fs.readFile(p, 'utf-8');
+    } catch (e: any) {
+      if (e?.code === 'ENOENT') return null;
+      throw e;
+    }
+  },
+  writeFile(p: string, content: string): Promise<void> {
+    return fs
+      .mkdir(path.dirname(p), { recursive: true })
+      .then(() => fs.writeFile(p, content, 'utf-8'));
+  },
+  rename(from: string, to: string): Promise<void> {
+    return fs.rename(from, to);
+  },
+  exists(p: string): Promise<boolean> {
+    return fs.access(p).then(
+      () => true,
+      () => false,
+    );
+  },
+};
 
-async function readVolumeCredentials(): Promise<VolumeCredentialEntry[]> {
-  try {
-    const raw = await fs.readFile(providersPath(), 'utf-8');
-    return JSON.parse(raw);
-  } catch {
-    return [];
-  }
-}
-
-async function writeVolumeCredentials(credentials: VolumeCredentialEntry[]): Promise<void> {
-  await ensureConfigDir();
-  await fs.writeFile(providersPath(), JSON.stringify(credentials, null, 2));
+/**
+ * Load the shared file-backed volume store (~/.config/timenote/volumes.json).
+ */
+export async function loadVolumeStore(): Promise<FsVolumeCredentialStore> {
+  const store = createCoreFileVolumeStore(nodeIo, volumesPath());
+  await store.reload();
+  return store;
 }
 
 export async function listVolumeCredentials(): Promise<VolumeCredentialEntry[]> {
-  return readVolumeCredentials();
+  const store = await loadVolumeStore();
+  return store.listVolumeCredentials() as VolumeCredentialEntry[];
 }
 
 export async function getVolumeCredential(
   volumeUrl: string,
 ): Promise<VolumeCredentialEntry | null> {
-  const credentials = await readVolumeCredentials();
-  return credentials.find((a) => a.volumeUrl === volumeUrl) ?? null;
-}
-
-export async function resolveProviderPath(
-  providerPath: string,
-): Promise<{ provider: VolumeCredentialEntry; remotePath: string }> {
-  const credentials = await readVolumeCredentials();
-  const sorted = [...credentials].sort((a, b) => b.volumeUrl.length - a.volumeUrl.length);
-  for (const a of sorted) {
-    const prefix = `${a.volumeUrl}:`;
-    if (providerPath.startsWith(prefix)) {
-      return { provider: a, remotePath: providerPath.slice(prefix.length) };
-    }
-  }
-  throw new Error(
-    `No matching provider for "${providerPath}". Available: ${credentials.map((a) => a.volumeUrl).join(', ') || '(none)'}`,
-  );
+  const store = await loadVolumeStore();
+  return store.getVolumeCredential(volumeUrl) as VolumeCredentialEntry | null;
 }
 
 export async function saveVolumeCredential(
   credential: FsVolumeCredential,
 ): Promise<VolumeCredentialEntry> {
-  const volumeUrl = computeVolumeUrl(credential);
-  const entry: VolumeCredentialEntry = { ...credential, volumeUrl };
-  const credentials = await readVolumeCredentials();
-  const idx = credentials.findIndex((a) => a.volumeUrl === volumeUrl);
-  if (idx >= 0) {
-    credentials[idx] = entry;
-  } else {
-    credentials.push(entry);
-  }
-  await writeVolumeCredentials(credentials);
-  return entry;
+  const store = await loadVolumeStore();
+  return store.saveVolumeCredential(credential) as VolumeCredentialEntry;
 }
 
 export async function deleteVolumeCredential(volumeUrl: string): Promise<void> {
-  const credentials = (await readVolumeCredentials()).filter((a) => a.volumeUrl !== volumeUrl);
-  await writeVolumeCredentials(credentials);
+  const store = await loadVolumeStore();
+  store.deleteVolumeCredential(volumeUrl);
 }
 
-export async function createFileProviderStore(): Promise<FsVolumeCredentialStore> {
-  let cache = await readVolumeCredentials();
-
-  return {
-    listVolumeCredentials(): VolumeCredentialEntry[] {
-      return cache;
-    },
-    getVolumeCredential(volumeUrl: string): FsVolumeCredential | null {
-      return cache.find((a) => a.volumeUrl === volumeUrl) ?? null;
-    },
-    saveVolumeCredential(credential: FsVolumeCredential): VolumeCredentialEntry {
-      const entry: VolumeCredentialEntry = {
-        ...credential,
-        volumeUrl: computeVolumeUrl(credential),
-      };
-      const idx = cache.findIndex((a) => a.volumeUrl === entry.volumeUrl);
-      if (idx >= 0) {
-        cache[idx] = entry;
-      } else {
-        cache.push(entry);
-      }
-      writeVolumeCredentials(cache).catch(() => {});
-      return entry;
-    },
-    deleteVolumeCredential(volumeUrl: string): void {
-      cache = cache.filter((a) => a.volumeUrl !== volumeUrl);
-      writeVolumeCredentials(cache).catch(() => {});
-    },
-  };
+/**
+ * Resolve a `<volumeUrl>:<remotePath>` argument against configured volumes.
+ * Uses longest-prefix matching so a more specific volumeUrl wins.
+ */
+export async function resolveVolumePath(
+  volumePath: string,
+): Promise<{ volume: VolumeCredentialEntry; remotePath: string }> {
+  const credentials = await listVolumeCredentials();
+  const sorted = [...credentials].sort((a, b) => b.volumeUrl.length - a.volumeUrl.length);
+  for (const v of sorted) {
+    const prefix = `${v.volumeUrl}:`;
+    if (volumePath.startsWith(prefix)) {
+      return { volume: v, remotePath: volumePath.slice(prefix.length) };
+    }
+  }
+  throw new Error(
+    `No matching volume for "${volumePath}". Available: ${credentials.map((a) => a.volumeUrl).join(', ') || '(none)'}`,
+  );
 }
