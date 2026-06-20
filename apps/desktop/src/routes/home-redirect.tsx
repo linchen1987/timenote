@@ -1,17 +1,21 @@
 import { STORAGE_KEYS } from '@timenote/core';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
+import { getCurrentNotebookToken, isListWindow } from '../lib/notebook-window';
 
 export function HomeRedirect() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const lastNotebook = localStorage.getItem(STORAGE_KEYS.LAST_NOTEBOOK_TOKEN);
-    if (lastNotebook) {
-      navigate(`/s/${lastNotebook}`, { replace: true });
-    } else {
+    const notebookToken = getCurrentNotebookToken();
+    if (notebookToken) {
+      navigate(`/s/${notebookToken}`, { replace: true });
+    } else if (isListWindow()) {
       navigate('/s/list', { replace: true });
+    } else {
+      const lastNotebook = localStorage.getItem(STORAGE_KEYS.LAST_NOTEBOOK_TOKEN);
+      navigate(lastNotebook ? `/s/${lastNotebook}` : '/s/list', { replace: true });
     }
     setLoading(false);
   }, [navigate]);

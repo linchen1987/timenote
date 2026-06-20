@@ -20,6 +20,8 @@ export interface NotebookLayoutProps {
   notebooks?: { id: string; name: string }[];
   menuItems?: RuntimeMenuItem[];
   menuActions?: MenuActions;
+  onOpenNotebook?: (token: string, name: string) => void;
+  onOpenNotebookList?: () => void;
 }
 
 export function NotebookLayout({
@@ -30,6 +32,8 @@ export function NotebookLayout({
   notebooks,
   menuItems,
   menuActions,
+  onOpenNotebook,
+  onOpenNotebookList,
 }: NotebookLayoutProps) {
   const { notebookToken } = useParams();
   const [searchParams] = useSearchParams();
@@ -118,6 +122,8 @@ export function NotebookLayout({
     },
     onSelectSearch: handleSelectSearch,
     onSelectNote: handleSelectNote,
+    onOpenNotebook,
+    onOpenNotebookList,
     selectedItemId: activeMenuItemId,
     isPWA,
   };

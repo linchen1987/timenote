@@ -1,4 +1,4 @@
-import { CONTACT_EMAIL } from '@timenote/core';
+import { CONTACT_EMAIL, createNotebookToken } from '@timenote/core';
 import {
   ArrowRight,
   Cloud,
@@ -56,6 +56,7 @@ export interface NotebooksPageProps {
     pulled?: string;
   };
   onOpenVault?: () => void;
+  onOpenNotebook?: (token: string, name: string) => void;
   onCreateVault?: () => void;
   onPickCloneDir?: () => Promise<string | null>;
 }
@@ -265,6 +266,7 @@ export function NotebooksPage({
   logoSrc,
   messages,
   onOpenVault,
+  onOpenNotebook,
   onCreateVault,
   onPickCloneDir,
 }: NotebooksPageProps) {
@@ -291,6 +293,17 @@ export function NotebooksPage({
     getNotebookLink,
     refresh,
   } = useNotebooksPage(useStore, messages ? { messages } : undefined);
+
+  const openVault = (v: { projectId: string; name: string }) => {
+    onOpenNotebook?.(createNotebookToken(v.projectId, v.name), v.name);
+  };
+  const handleVaultClick = (v: { projectId: string; name: string }) =>
+    onOpenNotebook
+      ? (e: { preventDefault: () => void }) => {
+          e.preventDefault();
+          openVault(v);
+        }
+      : undefined;
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/30 relative overflow-x-hidden font-sans flex flex-col">
@@ -526,7 +539,11 @@ export function NotebooksPage({
                     </div>
                   ) : (
                     <>
-                      <Link to={getNotebookLink(v)} className="block group/title">
+                      <Link
+                        to={getNotebookLink(v)}
+                        onClick={handleVaultClick(v)}
+                        className="block group/title"
+                      >
                         <CardTitle className="text-3xl font-black tracking-tight group-hover/title:text-primary transition-colors leading-tight line-clamp-2">
                           {v.name}
                         </CardTitle>
@@ -541,7 +558,7 @@ export function NotebooksPage({
                 <div className="flex-1" />
 
                 <CardFooter className="p-8 pt-0 flex justify-end items-center">
-                  <Link to={getNotebookLink(v)}>
+                  <Link to={getNotebookLink(v)} onClick={handleVaultClick(v)}>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -576,7 +593,12 @@ export function NotebooksPage({
             )}
           </div>
 
-          <ProviderScanner useStore={useStore} localVaults={vaults} onPullSuccess={refresh} onPickCloneDir={onPickCloneDir} />
+          <ProviderScanner
+            useStore={useStore}
+            localVaults={vaults}
+            onPullSuccess={refresh}
+            onPickCloneDir={onPickCloneDir}
+          />
         </div>
       </main>
 

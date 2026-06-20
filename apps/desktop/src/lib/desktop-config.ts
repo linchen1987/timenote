@@ -29,15 +29,23 @@ export async function loadConfig(): Promise<DesktopConfig> {
   await ensurePaths();
   const exists = await invoke<boolean>('fs_exists', { path: configPath! });
   if (!exists) return { ...EMPTY_CONFIG };
+
+  let raw: string;
   try {
-    const raw = await invoke<string>('fs_read_text_file', { path: configPath! });
-    const parsed = JSON.parse(raw) as Partial<DesktopConfig>;
-    cache = {
-      vaults: parsed.vaults ?? [],
-    };
+    raw = await invoke<string>('fs_read_text_file', { path: configPath! });
   } catch {
-    cache = { ...EMPTY_CONFIG };
+    return { ...EMPTY_CONFIG };
   }
+
+  let parsed: Partial<DesktopConfig>;
+  try {
+    parsed = JSON.parse(raw) as Partial<DesktopConfig>;
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    throw new Error(`配置文件解析失败 (${configPath}): ${reason}`);
+  }
+
+  cache = { vaults: parsed.vaults ?? [] };
   return cache;
 }
 

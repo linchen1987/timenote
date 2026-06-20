@@ -10,16 +10,7 @@
     "beforeBuildCommand": "pnpm build"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "TimeNote",
-        "width": 1024,
-        "height": 720,
-        "minWidth": 680,
-        "minHeight": 500
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }
