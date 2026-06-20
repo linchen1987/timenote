@@ -3,6 +3,8 @@ import { ArrowLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
+import { NotebooksShell } from '../notebooks-shell';
+import { PageHeader } from '../page-header';
 import {
   emptyProviderForm,
   ProviderForm,
@@ -133,17 +135,19 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 p-6">
-      <div className="max-w-2xl mx-auto space-y-6">
-        <header className="flex items-center gap-4">
-          <Link to="/">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="w-4 h-4" />
-            </Button>
-          </Link>
-          <h1 className="text-2xl font-bold">Settings</h1>
-        </header>
+    <NotebooksShell useVaultStore={useVaultStore} activeFooter="settings">
+      <PageHeader
+        title="Settings"
+        leftActions={
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/s/list">
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+          </Button>
+        }
+      />
 
+      <div className="max-w-2xl mx-auto px-4 sm:px-8 py-8 space-y-6">
         <ProviderListCard
           providers={providers}
           onAdd={() => {
@@ -172,6 +176,6 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
           />
         )}
       </div>
-    </div>
+    </NotebooksShell>
   );
 }

@@ -1,9 +1,28 @@
 export {
+  AppShell,
+  type AppShellProps,
+  type AppShellSidebarRenderCtx,
+} from './components/app-shell';
+export {
+  CreateNotebookDialog,
+  type CreateNotebookDialogProps,
+} from './components/create-notebook-dialog';
+export {
   default as MarkdownEditor,
   type MarkdownEditorRef,
 } from './components/editor/markdown-editor';
 export { NotebookLayout, type NotebookLayoutProps } from './components/notebook-layout';
+export {
+  NotebookListSidebar,
+  type NotebookListSidebarProps,
+} from './components/notebook-list-sidebar';
 export { type MenuActions, NotebookSidebar } from './components/notebook-sidebar';
+export {
+  NotebooksShell,
+  type NotebooksShellProps,
+  useNotebooksShell,
+} from './components/notebooks-shell';
+export { OpenCloudDialog, type OpenCloudDialogProps } from './components/open-cloud-dialog';
 export { PageHeader } from './components/page-header';
 export {
   NotebookLogsPage,
@@ -53,6 +72,7 @@ export { RemoteConfigCard, type RemoteConfigCardProps } from './components/remot
 export { StorageConfigCard, type StorageConfigCardProps } from './components/storage-config-card';
 export { TagsView, type TagsViewProps, type TagWithCount } from './components/tags-view';
 export { type Theme, ThemeProvider, themeScript, useTheme } from './components/theme-provider';
+export { ThemeToggle, type ThemeToggleProps } from './components/theme-toggle';
 export { TreeMenu, type TreeMenuItemBase, type TreeMenuProps } from './components/tree-menu';
 export {
   AlertDialog,
@@ -123,8 +143,9 @@ export {
   SheetTrigger,
 } from './components/ui/sheet';
 export { Toaster } from './components/ui/sonner';
-export { createLocalStorageProviderStore } from './lib/local-storage-provider-store';
 export { normalizeLegacyEntry } from './lib/legacy-compat';
+export { createLocalStorageProviderStore } from './lib/local-storage-provider-store';
+export { useSidebarStore } from './stores/sidebar-store';
 export {
   createBoundVaultStore,
   type VaultStore,

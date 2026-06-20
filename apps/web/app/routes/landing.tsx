@@ -1,11 +1,4 @@
-import {
-  Button,
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  useTheme,
-} from '@timenote/ui';
+import { Button, ThemeToggle } from '@timenote/ui';
 import {
   ArrowRight,
   BookOpen,
@@ -16,11 +9,8 @@ import {
   Globe,
   LayoutGrid,
   Mail,
-  Monitor,
-  Moon,
   ShieldCheck,
   Smartphone,
-  Sun,
   Zap,
 } from 'lucide-react';
 import { Link, type MetaFunction } from 'react-router';
@@ -29,46 +19,6 @@ import { toast } from 'sonner';
 export const meta: MetaFunction = () => {
   return [{ title: 'Time Note - 轻松记录你的想法' }];
 };
-
-function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="rounded-full w-10 h-10 text-muted-foreground hover:text-foreground"
-        >
-          <Sun className="w-5 h-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute w-5 h-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">切换主题</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="rounded-2xl p-2 min-w-[120px] backdrop-blur-xl">
-        <DropdownMenuItem
-          onClick={() => setTheme('light')}
-          className="rounded-xl gap-2 cursor-pointer font-medium"
-        >
-          <Sun className="w-4 h-4 text-orange-500" /> <span>浅色模式</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme('dark')}
-          className="rounded-xl gap-2 cursor-pointer font-medium"
-        >
-          <Moon className="w-4 h-4 text-blue-500" /> <span>深色模式</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => setTheme('system')}
-          className="rounded-xl gap-2 cursor-pointer font-medium"
-        >
-          <Monitor className="w-4 h-4 text-primary" /> <span>系统设置</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 export default function LandingPage() {
   const copyEmail = () => {

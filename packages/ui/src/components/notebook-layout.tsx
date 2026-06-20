@@ -1,16 +1,9 @@
-import {
-  cn,
-  noteIdToUrl,
-  parseNotebookId,
-  type RuntimeMenuItem,
-  STORAGE_KEYS,
-} from '@timenote/core';
-import { GripVertical } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { noteIdToUrl, parseNotebookId, type RuntimeMenuItem } from '@timenote/core';
+import { useEffect } from 'react';
 import { Outlet, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useSidebarStore } from '../stores/sidebar-store';
+import { AppShell } from './app-shell';
 import { type MenuActions, NotebookSidebar } from './notebook-sidebar';
-import { Sheet, SheetContent } from './ui/sheet';
 
 export interface NotebookLayoutProps {
   isPWA: boolean;
@@ -40,10 +33,7 @@ export function NotebookLayout({
   const navigate = useNavigate();
   const nbId = parseNotebookId(notebookToken || '');
   const activeMenuItemId = searchParams.get('m') || undefined;
-  const { isMobileSidebarOpen, setMobileSidebarOpen, isDesktopSidebarOpen, setDesktopSidebarOpen } =
-    useSidebarStore();
-  const [sidebarWidth, setSidebarWidth] = useState(256);
-  const [isResizing, setIsResizing] = useState(false);
+  const { setMobileSidebarOpen } = useSidebarStore();
 
   useEffect(() => {
     if (notebookToken && onSaveLastNotebook) {
@@ -72,43 +62,6 @@ export function NotebookLayout({
     setMobileSidebarOpen(false);
   };
 
-  useEffect(() => {
-    const savedWidth = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
-    if (savedWidth) {
-      setSidebarWidth(Number(savedWidth));
-    }
-    const savedOpen = localStorage.getItem(STORAGE_KEYS.DESKTOP_SIDEBAR_OPEN);
-    if (savedOpen === 'false') {
-      setDesktopSidebarOpen(false);
-    }
-  }, [setDesktopSidebarOpen]);
-
-  const handleMouseDown = () => {
-    setIsResizing(true);
-  };
-
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newWidth = Math.max(200, Math.min(500, e.clientX));
-      setSidebarWidth(newWidth);
-      localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(newWidth));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isResizing]);
-
   const sidebarProps = {
     notebookId: nbId,
     notebookName,
@@ -129,41 +82,20 @@ export function NotebookLayout({
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground overflow-hidden">
-      <div
-        className={cn(
-          'hidden md:flex h-full transition-all duration-300 ease-in-out',
-          !isDesktopSidebarOpen && 'w-0 opacity-0',
-        )}
-        style={{ width: isDesktopSidebarOpen ? `${sidebarWidth + 8}px` : '0px' }}
-      >
-        <div style={{ width: `${sidebarWidth}px` }}>
-          <NotebookSidebar {...sidebarProps} onClose={() => setDesktopSidebarOpen(false)} />
-        </div>
-        <button
-          type="button"
-          className="w-1 cursor-col-resize border-none p-0 bg-transparent hover:bg-transparent flex items-center justify-center relative group"
-          onMouseDown={handleMouseDown}
-          aria-label="Resize sidebar"
-          style={{ width: '8px' }}
-        >
-          <GripVertical className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-50 transition-opacity" />
-        </button>
-      </div>
-
-      <Sheet open={isMobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
-        <SheetContent side="left" className="p-0 w-72 border-none">
+    <AppShell
+      sidebar={({ variant, onClose }) =>
+        variant === 'desktop' ? (
+          <NotebookSidebar {...sidebarProps} onClose={onClose} />
+        ) : (
           <NotebookSidebar
             {...sidebarProps}
-            onSelectNotebook={() => setMobileSidebarOpen(false)}
+            onSelectNotebook={onClose}
             className="w-full border-none"
           />
-        </SheetContent>
-      </Sheet>
-
-      <main className="flex-1 overflow-y-auto scroll-smooth relative">
-        <Outlet />
-      </main>
-    </div>
+        )
+      }
+    >
+      <Outlet />
+    </AppShell>
   );
 }

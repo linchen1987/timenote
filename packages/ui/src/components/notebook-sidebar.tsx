@@ -8,21 +8,18 @@ import {
   FileText,
   LayoutGrid,
   List,
-  Monitor,
-  Moon,
   MoreVertical,
   PanelLeft,
   Plus,
   Search,
   Settings,
-  Sun,
   Tag,
   Trash2,
 } from 'lucide-react';
 import { useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
-import { useTheme } from './theme-provider';
+import { ThemeToggle } from './theme-toggle';
 import { TreeMenu } from './tree-menu';
 import {
   AlertDialog,
@@ -96,7 +93,6 @@ export function NotebookSidebar({
   onClose,
   className,
 }: NotebookSidebarProps & { className?: string }) {
-  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const { notebookToken } = useParams();
@@ -439,30 +435,7 @@ export function NotebookSidebar({
             <Tag className="w-4 h-4" />
           </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="flex-1 h-9 justify-center text-sidebar-foreground hover:bg-sidebar-accent/50"
-              >
-                {theme === 'light' && <Sun className="w-4 h-4" />}
-                {theme === 'dark' && <Moon className="w-4 h-4" />}
-                {theme === 'system' && <Monitor className="w-4 h-4" />}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top" className="w-40">
-              <DropdownMenuItem onClick={() => setTheme('light')}>
-                <Sun className="w-4 h-4 mr-2" /> Light
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('dark')}>
-                <Moon className="w-4 h-4 mr-2" /> Dark
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme('system')}>
-                <Monitor className="w-4 h-4 mr-2" /> System
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <ThemeToggle variant="compact" />
         </div>
       </div>
 
