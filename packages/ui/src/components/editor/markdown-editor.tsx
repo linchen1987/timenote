@@ -37,6 +37,23 @@ function removeTrailingSpaceFromLinks(editor: Editor) {
   editor.view.dispatch(tr);
 }
 
+// WKWebView (Tauri on macOS) corrupts a raw-pinyin commit when the built-in
+// Pinyin IME is toggled to English (zh/en key) mid-composition: every committed
+// letter ends up separated by a space (e.g. "nihao" -> "n i h a o"). The
+// compositionend.data still carries the intended string, so we detect that exact
+// corruption signature and restore the intended text. Only ASCII-letter commits
+// are touched, so normal CJK composition is never affected.
+function extractPinyinCorruption(data: string | null | undefined): {
+  clean: string;
+  spaced: string;
+} | null {
+  const raw = data ?? '';
+  if (!raw || !/^[A-Za-z ]+$/.test(raw)) return null;
+  const clean = raw.replace(/ /g, '');
+  if (!clean || clean === raw) return null;
+  return { clean, spaced: clean.split('').join(' ') };
+}
+
 const SubmitHandler = Extension.create({
   name: 'submitHandler',
   addKeyboardShortcuts() {
@@ -290,6 +307,26 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
           }
           return false;
         },
+        handleDOMEvents: {
+          compositionend: (view, _event) => {
+            const corruption = extractPinyinCorruption((_event as CompositionEvent).data);
+            if (!corruption) return false;
+            const { clean, spaced } = corruption;
+            // Run after ProseMirror flushes the compositionend DOM change
+            // (it flushes on a microtask), so the corrupted text is already
+            // in the document state by then.
+            setTimeout(() => {
+              const head = view.state.selection.head;
+              const from = head - spaced.length;
+              if (from < 0) return;
+              const got = view.state.doc.textBetween(from, head, '', '');
+              if (got === spaced) {
+                view.dispatch(view.state.tr.insertText(clean, from, head));
+              }
+            }, 0);
+            return false;
+          },
+        },
       },
       onUpdate: ({ editor }) => {
         removeTrailingSpaceFromLinks(editor);
@@ -379,6 +416,27 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
       }
     };
 
+    // Same WKWebView pinyin-corruption workaround as the rich editor, applied to
+    // the raw-mode textarea: detect spaced raw-pinyin commits and restore them.
+    const handleRawCompositionEnd = (e: React.CompositionEvent<HTMLTextAreaElement>) => {
+      const corruption = extractPinyinCorruption(e.data);
+      if (!corruption) return;
+      const { clean, spaced } = corruption;
+      const ta = e.currentTarget;
+      setTimeout(() => {
+        const end = ta.selectionStart;
+        const from = end - spaced.length;
+        if (from < 0 || ta.value.slice(from, end) !== spaced) return;
+        const next = ta.value.slice(0, from) + clean + ta.value.slice(end);
+        setRawContent(next);
+        callbacksRef.current.onChange?.(next);
+        const pos = from + clean.length;
+        requestAnimationFrame(() => {
+          ta.selectionStart = ta.selectionEnd = pos;
+        });
+      }, 0);
+    };
+
     if (!editor && !isRawMode) return null;
 
     const hasBgClass = className.includes('bg-');
@@ -397,6 +455,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               onChange={(e) => editable && handleRawContentChange(e.target.value)}
               onBlur={handleRawBlur}
               onKeyDown={handleRawKeyDown}
+              onCompositionEnd={handleRawCompositionEnd}
               placeholder={placeholder}
               disabled={!editable}
               className={`w-full p-4 font-mono text-sm resize-none focus:outline-none ${className}`}
