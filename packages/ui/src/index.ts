@@ -68,7 +68,7 @@ export {
   type ProviderFormState,
 } from './components/provider-form';
 export { ProviderListCard, type ProviderListCardProps } from './components/provider-list-card';
-export { RemoteConfigCard, type RemoteConfigCardProps } from './components/remote-config-card';
+export { RemoteSyncSection, type RemoteSyncSectionProps } from './components/remote-sync-section';
 export { StorageConfigCard, type StorageConfigCardProps } from './components/storage-config-card';
 export { TagsView, type TagsViewProps, type TagWithCount } from './components/tags-view';
 export { type Theme, ThemeProvider, themeScript, useTheme } from './components/theme-provider';

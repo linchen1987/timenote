@@ -6,11 +6,11 @@ import {
   parseVolumeUrl,
 } from '@timenote/core';
 import {
-  ArrowLeft,
   Database,
   Download,
   FileText,
   FolderTree,
+  HardDrive,
   RefreshCw,
   ScrollText,
   Trash2,
@@ -19,13 +19,25 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
 import { PageHeader } from '../page-header';
-import { RemoteConfigCard } from '../remote-config-card';
+import { RemoteSyncSection } from '../remote-sync-section';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Separator } from '../ui/separator';
 import { useExportVault } from './use-export-vault';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
 type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
+
+const DISPLAY_SCHEME_ALIASES: Record<string, string> = { localfs: 'fs' };
+
+function toDisplayUrl(url: string): string {
+  const scheme = /^([a-z]+):\/\//.exec(url)?.[1];
+  const alias = scheme ? DISPLAY_SCHEME_ALIASES[scheme] : undefined;
+  if (scheme && alias) {
+    return `${alias}:${url.slice(scheme.length + 1)}`;
+  }
+  return url;
+}
 
 export interface NotebookSettingsPageProps {
   useVaultStore: UseVaultStoreHook;
@@ -35,9 +47,7 @@ export interface NotebookSettingsPageProps {
 export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookSettingsPageProps) {
   const projectId = notebookToken ? parseNotebookId(notebookToken) : null;
 
-  const [providers] = useState<VolumeCredentialEntry[]>(() =>
-    useVaultStore.getState().listVolumeCredentials(),
-  );
+  const [providers, setProviders] = useState<VolumeCredentialEntry[]>([]);
   const [remoteConfig, setRemoteConfig] = useState<{
     providerId: string;
     path: string;
@@ -49,6 +59,10 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
   const defaultPath = projectId ? getDefaultRemotePath(projectId) : '';
 
   useEffect(() => {
+    setProviders(useVaultStore.getState().listVolumeCredentials());
+  }, [useVaultStore]);
+
+  useEffect(() => {
     if (!projectId) return;
     const store = useVaultStore.getState();
     store.getRemoteConfig(projectId).then((entry) => {
@@ -56,9 +70,10 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
         try {
           const parsed = parseVolumeUrl(entry.url) as any;
           const providerId = computeVolumeUrl(parsed);
-          setRemoteConfig({ providerId, path: parsed.path, enabled: entry.default === true });
+          const rootPath = parsed.rootPath && parsed.rootPath !== '/' ? parsed.rootPath : '';
+          setRemoteConfig({ providerId, path: rootPath, enabled: entry.default === true });
           setSelectedProviderId(providerId);
-          setCustomPath(parsed.path);
+          setCustomPath(rootPath);
         } catch {
           setCustomPath(defaultPath);
         }
@@ -179,14 +194,14 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
     }
   };
 
-  const handleDisconnect = async () => {
+  const handleRemove = async () => {
     if (!projectId) return;
     try {
       await store.getState().removeRemote(projectId);
       setRemoteConfig(null);
       setSelectedProviderId('');
       setCustomPath(defaultPath);
-      toast.success('Remote disconnected');
+      toast.success('Remote removed');
     } catch (e) {
       toast.error(`Failed: ${(e as Error).message}`);
     }
@@ -194,54 +209,55 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
 
   return (
     <>
-      <PageHeader
-        title="Settings"
-        leftActions={
-          <Button variant="ghost" size="icon" asChild>
-            <Link to={`/s/${notebookToken}`}>
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-          </Button>
-        }
-      />
+      <PageHeader title="Settings" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8">
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Storage Location</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <HardDrive className="w-5 h-5 text-muted-foreground" />
+                Storage
+              </CardTitle>
               <CardDescription>
-                The local filesystem endpoint where this notebook's data is stored.
+                Local and remote storage endpoints for this notebook.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-2 text-sm">
-                <FolderTree className="w-4 h-4 shrink-0 text-muted-foreground" />
-                <code className="font-mono text-muted-foreground break-all">
-                  {sourceUrl ?? '—'}
-                </code>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <FolderTree className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Local</span>
+                </div>
+                <div className="min-w-0 rounded-md border bg-muted/30 px-3 py-2">
+                  <p className="font-mono text-sm break-all">
+                    {sourceUrl ? toDisplayUrl(sourceUrl) : '—'}
+                  </p>
+                </div>
               </div>
+
+              <Separator className="my-6" />
+
+              <RemoteSyncSection
+                providers={providers}
+                remoteConfig={remoteConfig}
+                selectedProviderId={selectedProviderId}
+                customPath={customPath}
+                defaultPath={defaultPath}
+                onSelectedProviderChange={(id) => {
+                  setSelectedProviderId(id);
+                  if (!customPath || customPath === getDefaultRemotePath(notebookToken)) {
+                    setCustomPath(defaultPath);
+                  }
+                }}
+                onCustomPathChange={setCustomPath}
+                onSave={handleSave}
+                onToggle={handleToggle}
+                onRemove={handleRemove}
+                onAddProvider={() => {}}
+              />
             </CardContent>
           </Card>
-
-          <RemoteConfigCard
-            providers={providers}
-            remoteConfig={remoteConfig}
-            selectedProviderId={selectedProviderId}
-            customPath={customPath}
-            defaultPath={defaultPath}
-            onSelectedProviderChange={(id) => {
-              setSelectedProviderId(id);
-              if (!customPath || customPath === getDefaultRemotePath(notebookToken)) {
-                setCustomPath(defaultPath);
-              }
-            }}
-            onCustomPathChange={setCustomPath}
-            onSave={handleSave}
-            onToggle={handleToggle}
-            onDisconnect={handleDisconnect}
-            onAddProvider={() => {}}
-          />
 
           <Card>
             <CardHeader>
