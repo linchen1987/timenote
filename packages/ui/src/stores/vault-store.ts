@@ -33,6 +33,7 @@ export type VaultStore = {
   listVaults: () => Promise<VaultMeta[]>;
   createVault: (name: string) => Promise<string>;
   deleteVault: (projectId: string) => Promise<void>;
+  getVaultSourceUrl: (projectId: string) => Promise<string | null>;
 
   activateVault: (projectId: string) => Promise<void>;
   deactivateVault: () => void;
@@ -153,6 +154,8 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
       await orchestrator.deleteVault(projectId);
       await get().listVaults();
     },
+
+    getVaultSourceUrl: (projectId: string) => orchestrator.getVaultSourceUrl(projectId),
 
     activateVault: async (projectId: string) => {
       if (get().activeProjectId === projectId) return;

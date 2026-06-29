@@ -31,7 +31,7 @@ export type { FsClientDriver } from './fs/driver-registry';
 export { clearDrivers, getDriver, registerDriver } from './fs/driver-registry';
 export type { FsClient, FsClientStat } from './fs/types';
 export type { VaultRegistry, VaultRegistryEntry } from './vault/vault-registry';
-export { createOpfsVaultRegistry } from './vault/vault-registry-opfs';
+export { createBrowserVaultRegistry } from './vault/vault-registry-browser';
 
 // NodeFS client not exported from barrel (node:fs breaks browser builds)
 // CLI imports directly: import { createNodeFsClient } from '@timenote/core/fs/adapters/localfs/node'

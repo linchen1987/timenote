@@ -10,6 +10,7 @@ import {
   Database,
   Download,
   FileText,
+  FolderTree,
   RefreshCw,
   ScrollText,
   Trash2,
@@ -76,6 +77,16 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
   const [loggingEnabled, setLoggingEnabled] = useState(false);
   const [isTogglingLog, setIsTogglingLog] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
+  const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!projectId) return;
+    store
+      .getState()
+      .getVaultSourceUrl(projectId)
+      .then(setSourceUrl)
+      .catch(() => {});
+  }, [projectId, store]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -196,6 +207,23 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
 
       <div className="max-w-4xl mx-auto px-4 sm:px-8 py-4 sm:py-8">
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Storage Location</CardTitle>
+              <CardDescription>
+                The local filesystem endpoint where this notebook's data is stored.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2 text-sm">
+                <FolderTree className="w-4 h-4 shrink-0 text-muted-foreground" />
+                <code className="font-mono text-muted-foreground break-all">
+                  {sourceUrl ?? '—'}
+                </code>
+              </div>
+            </CardContent>
+          </Card>
+
           <RemoteConfigCard
             providers={providers}
             remoteConfig={remoteConfig}

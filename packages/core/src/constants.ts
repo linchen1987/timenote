@@ -12,6 +12,9 @@ export const STORAGE_KEYS = {
   NOTEBOOK_REMOTES: '@timenote/notebook_remotes',
   /** @internal 迁移终态墓碑。值 '3' = 迁移完成+旧数据已清理。数据保留不删除。 */
   NOTEBOOK_REMOTES_MIGRATED_V2: '@timenote/notebook_remotes_migrated_v2',
+  VAULT_REGISTRY: '@timenote/vault_registry',
+  /** @internal OPFS→localStorage vault registry 迁移墓碑。值 '1' = 迁移完成。 */
+  VAULT_REGISTRY_MIGRATED_V1: '@timenote/vault_registry_migrated_v1',
 } as const;
 
 export const SYNC_TTL_MS = 30 * 60 * 1000;

@@ -248,6 +248,13 @@ export class VaultOrchestrator {
     return this.requireVaultService().getLocalClient(projectId);
   }
 
+  async getVaultSourceUrl(projectId: string): Promise<string | null> {
+    await this.init();
+    const registry = await this.getVaultRegistry();
+    const entry = await registry.get(projectId);
+    return entry?.sourceUrl ?? null;
+  }
+
   async listVaults(): Promise<VaultMeta[]> {
     await this.init();
     return this.requireVaultService().listVaults();

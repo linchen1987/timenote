@@ -1,4 +1,4 @@
-import { createOpfsVaultRegistry, registerDriver, VaultOrchestrator } from '@timenote/core';
+import { createBrowserVaultRegistry, registerDriver, VaultOrchestrator } from '@timenote/core';
 import { createBoundVaultStore, createLocalStorageProviderStore } from '@timenote/ui';
 import { S3RpcDriver, WebdavRpcDriver } from './web-transport';
 
@@ -8,7 +8,7 @@ if (typeof window !== 'undefined') {
 }
 
 const orchestrator = new VaultOrchestrator(
-  createOpfsVaultRegistry,
+  createBrowserVaultRegistry,
   createLocalStorageProviderStore(),
 );
 export const useVaultStore = createBoundVaultStore(orchestrator);

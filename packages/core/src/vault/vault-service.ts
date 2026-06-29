@@ -9,6 +9,7 @@ export interface VaultMeta {
   projectId: string;
   name: string;
   remotePath?: string;
+  sourceUrl?: string;
 }
 
 export interface VaultService {
@@ -59,7 +60,11 @@ class VaultServiceImpl implements VaultService {
         }
         const raw = await client.read(metaPath('manifest'));
         const manifest = ManifestSchema.parse(JSON.parse(raw));
-        vaults.push({ projectId: manifest.project_id, name: manifest.name });
+        vaults.push({
+          projectId: manifest.project_id,
+          name: manifest.name,
+          sourceUrl: entry.sourceUrl,
+        });
       } catch {}
     }
 
