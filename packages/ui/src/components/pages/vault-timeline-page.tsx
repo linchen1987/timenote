@@ -820,10 +820,11 @@ function NoteCard({
             </div>
           </div>
         ) : (
-          <button
-            type="button"
+          // biome-ignore lint/a11y/noStaticElementInteractions: read-only content surface; text selection is primary, double-click-to-edit is a progressive enhancement
+          <div
             onDoubleClick={() => setEditingId(note.id)}
-            className="cursor-text p-6 min-h-[100px] hover:bg-accent/5 transition-colors w-full text-left block"
+            title="Double-click to edit"
+            className="cursor-text p-6 min-h-[100px] hover:bg-accent/5 transition-colors w-full text-left"
           >
             {body !== null ? (
               <MarkdownEditor
@@ -835,7 +836,7 @@ function NoteCard({
             ) : (
               <div className="text-muted-foreground text-sm">Loading...</div>
             )}
-          </button>
+          </div>
         )}
         {!isEditing && displayAttachments.length > 0 && (
           <div className="px-5 pb-4">
