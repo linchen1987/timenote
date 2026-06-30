@@ -56,7 +56,7 @@ export async function resolveRemoteClient(opts: RemoteCredentialOptions): Promis
   }
 
   if (scheme === 'webdav' && opts.password !== undefined) {
-    const endpoint = parseWebdavUrl(stripWebdavPassword(url));
+    const endpoint = parseWebdavUrl(splitWebdavUserinfo(url).stripped);
     return createFsClient({
       scheme: 'webdav',
       host: endpoint.host,
@@ -71,20 +71,31 @@ export async function resolveRemoteClient(opts: RemoteCredentialOptions): Promis
   return createFsClient(url, { store });
 }
 
-function stripQuery(url: string): string {
+export function stripQuery(url: string): string {
   const idx = url.indexOf('?');
   return idx >= 0 ? url.slice(0, idx) : url;
 }
 
-/** Drop `:password` from `user:password@` so parseWebdavUrl only sees `user@`. */
-function stripWebdavPassword(url: string): string {
+export function extractQuery(url: string): string {
+  const idx = url.indexOf('?');
+  return idx >= 0 ? url.slice(idx + 1) : '';
+}
+
+/**
+ * Split a webdav URL's `user[:password]@` userinfo, returning the inline
+ * password (if any) and a URL with the password stripped out so parseWebdavUrl
+ * only sees `user@`.
+ */
+export function splitWebdavUserinfo(url: string): { password?: string; stripped: string } {
   const protoIdx = url.indexOf('://');
-  if (protoIdx < 0) return url;
+  if (protoIdx < 0) return { stripped: url };
   const rest = url.slice(protoIdx + 3);
   const lastAt = rest.lastIndexOf('@');
-  if (lastAt < 0) return url;
+  if (lastAt < 0) return { stripped: url };
   const userinfo = rest.slice(0, lastAt);
   const colonIdx = userinfo.indexOf(':');
-  if (colonIdx < 0) return url;
-  return `${url.slice(0, protoIdx)}://${userinfo.slice(0, colonIdx)}@${rest.slice(lastAt + 1)}`;
+  if (colonIdx < 0) return { stripped: url };
+  const password = decodeURIComponent(userinfo.slice(colonIdx + 1));
+  const stripped = `${url.slice(0, protoIdx)}://${userinfo.slice(0, colonIdx)}@${rest.slice(lastAt + 1)}`;
+  return { password, stripped };
 }

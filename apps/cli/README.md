@@ -13,8 +13,7 @@ Timenote 命令行工具，供人类用户和 AI Agent 使用。
 
 ```bash
 npx tsx apps/cli/src/main.ts --help
-npx tsx apps/cli/src/main.ts config volume add webdav \
-  --host dav.example.com --username user --password pass
+npx tsx apps/cli/src/main.ts config volume add webdav webdav://user:pass@dav.example.com
 npx tsx apps/cli/src/main.ts clone "webdav://user@dav.example.com:timenote/vaults/vX" my-notebook
 cd my-notebook
 npx tsx ../../apps/cli/src/main.ts pull
@@ -37,14 +36,22 @@ alias tn='npx tsx apps/cli/src/main.ts'
 ### 配置 Volume
 
 ```bash
-tn config volume add webdav --host <host> --username <user> --password <pass>
-tn config volume add webdav --host <host> --username <user> --token <token> --no-tls
-tn config volume add s3 --bucket <bucket> --endpoint <endpoint> \
-  --access-key-id <id> --secret-access-key <key>
+# WebDAV：URL 自描述协议与身份，密钥可用 --password 覆盖（避免进 shell 历史）
+tn config volume add webdav webdav://user:pass@host           # 内嵌密码
+tn config volume add webdav webdav://user@host --password "$P" # 密钥走 flag
+tn config volume add webdav webdav://user@host --port 8080 --no-tls
+
+# S3：URL 带 bucket@endpoint，密钥可用 flag 或 ?query 覆盖
+tn config volume add s3 s3://bucket@endpoint --access-key-id "$A" --secret-access-key "$S"
+tn config volume add s3 s3://bucket@endpoint?accessKeyId=A&secretAccessKey=S
+
 tn config volume list
 tn config volume show <volumeUrl>
 tn config volume remove <volumeUrl>
 ```
+
+> Volume 身份（volumeUrl）取自 URL 的 `webdav://user@host` / `s3://bucket@endpoint`；
+> TLS / port 不进入身份，仅作为凭据保存，故切换它们不会产生新 volume。
 
 ### Clone Notebook
 

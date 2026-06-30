@@ -6,7 +6,6 @@ export type WebdavVolume = { scheme: 'webdav'; host: string; username: string };
 
 export type WebdavCredentials = {
   password?: string;
-  token?: string;
   tls?: boolean;
   port?: number;
 };
