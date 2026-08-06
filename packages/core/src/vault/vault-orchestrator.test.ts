@@ -188,6 +188,17 @@ function createMockStore(): FsVolumeCredentialStore {
   };
 }
 
+function createEmptyStore(): FsVolumeCredentialStore {
+  return {
+    getVolumeCredential: () => null,
+    saveVolumeCredential: () => {
+      throw new Error('Not implemented');
+    },
+    listVolumeCredentials: () => [],
+    deleteVolumeCredential: () => {},
+  };
+}
+
 function createMemoryRegistry(): VaultRegistry {
   const providers = new Map<string, FsClient>();
 
@@ -226,6 +237,39 @@ function createMemoryRegistry(): VaultRegistry {
 describe('VaultOrchestrator', () => {
   afterEach(() => {
     clearDrivers();
+  });
+
+  it('initializes before accessing remote config', async () => {
+    const orchestrator = new VaultOrchestrator(createMemoryRegistry(), createMockStore());
+    const projectId = 'remote-config-test';
+
+    await orchestrator.configureRemote(projectId, S3_PROVIDER_ID, 'timenote/vaults/abc');
+    expect(await orchestrator.getRemoteConfig(projectId)).toEqual({
+      url: _S3_URL_WITH_PATH,
+      name: 'origin',
+      default: true,
+    });
+
+    await orchestrator.toggleRemote(projectId);
+    expect(await orchestrator.getRemoteConfig(projectId)).toEqual({
+      url: _S3_URL_WITH_PATH,
+      name: 'origin',
+      default: false,
+    });
+
+    await orchestrator.removeRemote(projectId);
+    expect(await orchestrator.getRemoteConfig(projectId)).toBeNull();
+  });
+
+  it('reports a missing credential when pulling a configured remote', async () => {
+    const orchestrator = new VaultOrchestrator(createMemoryRegistry(), createEmptyStore());
+    const projectId = 'missing-credential-test';
+
+    await orchestrator.configureRemote(projectId, S3_PROVIDER_ID, 'timenote/vaults/abc');
+
+    await expect(orchestrator.pull(projectId)).rejects.toThrow(
+      `S3 volume not configured: ${S3_PROVIDER_ID}`,
+    );
   });
 
   it('sync uses path prefix via createFsClient (direct path)', async () => {

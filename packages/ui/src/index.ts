@@ -56,6 +56,10 @@ export {
   VaultNoteDetailPage,
   type VaultNoteDetailPageProps,
 } from './components/pages/vault-note-detail-page';
+export {
+  VaultNoteMigrationPage,
+  type VaultNoteMigrationPageProps,
+} from './components/pages/vault-note-migration-page';
 export { VaultTagsPage, type VaultTagsPageProps } from './components/pages/vault-tags-page';
 export {
   VaultTimelinePage,

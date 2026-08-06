@@ -4,6 +4,7 @@ import { NotebookLayoutWrapper } from './layout/notebook-layout';
 import { HomeRedirect } from './routes/home-redirect';
 import { NoteDetail } from './routes/note-detail';
 import { NotebookLogs } from './routes/notebook-logs';
+import { NotebookMigratePage } from './routes/notebook-migrate';
 import { NotebookTimelinePage } from './routes/notebook-notes';
 import { NotebookSettings } from './routes/notebook-settings';
 import { NotebooksList } from './routes/notebooks';
@@ -23,6 +24,7 @@ export function App() {
             <Route path="tags" element={<TagsPage />} />
             <Route path="settings" element={<NotebookSettings />} />
             <Route path="logs" element={<NotebookLogs />} />
+            <Route path="migrate" element={<NotebookMigratePage />} />
             <Route path=":noteId" element={<NoteDetail />} />
           </Route>
         </Routes>

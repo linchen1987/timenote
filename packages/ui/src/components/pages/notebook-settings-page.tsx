@@ -6,6 +6,7 @@ import {
   parseVolumeUrl,
 } from '@timenote/core';
 import {
+  ArrowRightLeft,
   Database,
   Download,
   FileText,
@@ -64,23 +65,33 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
 
   useEffect(() => {
     if (!projectId) return;
+    let cancelled = false;
     const store = useVaultStore.getState();
-    store.getRemoteConfig(projectId).then((entry) => {
-      if (entry?.url) {
-        try {
-          const parsed = parseVolumeUrl(entry.url) as any;
-          const providerId = computeVolumeUrl(parsed);
-          const rootPath = parsed.rootPath && parsed.rootPath !== '/' ? parsed.rootPath : '';
-          setRemoteConfig({ providerId, path: rootPath, enabled: entry.default === true });
-          setSelectedProviderId(providerId);
-          setCustomPath(rootPath);
-        } catch {
+    store
+      .getRemoteConfig(projectId)
+      .then((entry) => {
+        if (cancelled) return;
+        if (entry?.url) {
+          try {
+            const parsed = parseVolumeUrl(entry.url) as any;
+            const providerId = computeVolumeUrl(parsed);
+            const rootPath = parsed.rootPath && parsed.rootPath !== '/' ? parsed.rootPath : '';
+            setRemoteConfig({ providerId, path: rootPath, enabled: entry.default === true });
+            setSelectedProviderId(providerId);
+            setCustomPath(rootPath);
+          } catch {
+            setCustomPath(defaultPath);
+          }
+        } else {
           setCustomPath(defaultPath);
         }
-      } else {
-        setCustomPath(defaultPath);
-      }
-    });
+      })
+      .catch((error) => {
+        if (!cancelled) toast.error(`Failed to load remote config: ${(error as Error).message}`);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [projectId, defaultPath, useVaultStore]);
 
   const store = useVaultStore;
@@ -267,10 +278,22 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" onClick={handleExport} disabled={isExporting || !projectId}>
-                <Download className="w-4 h-4" />
-                {isExporting ? 'Exporting...' : 'Export'}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExport}
+                  disabled={isExporting || !projectId}
+                >
+                  <Download className="w-4 h-4" />
+                  {isExporting ? 'Exporting...' : 'Export'}
+                </Button>
+                <Button variant="outline" asChild disabled={!projectId}>
+                  <Link to={`/s/${notebookToken}/migrate`}>
+                    <ArrowRightLeft className="w-4 h-4" />
+                    Move Notes
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

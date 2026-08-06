@@ -19,6 +19,13 @@ export const NoteIndexSchema = z.object({
 
 export type NoteIndex = z.infer<typeof NoteIndexSchema>;
 
+export interface TimelineOptions {
+  limit?: number;
+  offset?: number;
+  updatedAfter?: number;
+  updatedBefore?: number;
+}
+
 interface NoteBody {
   id: string;
   body: string;
@@ -49,7 +56,7 @@ export interface IndexService {
   removeNoteIndex(noteId: string): Promise<void>;
   clearIndex(): Promise<void>;
   close(): Promise<void>;
-  getTimeline(limit?: number, offset?: number): Promise<NoteIndex[]>;
+  getTimeline(options?: TimelineOptions): Promise<NoteIndex[]>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
   getTagsWithCounts(): Promise<{ name: string; count: number }[]>;
@@ -107,8 +114,17 @@ class IndexServiceImpl implements IndexService {
     this.db.close();
   }
 
-  async getTimeline(limit = 50, offset = 0): Promise<NoteIndex[]> {
-    return this.db.notes.orderBy('updated_at').reverse().offset(offset).limit(limit).toArray();
+  async getTimeline(options: TimelineOptions = {}): Promise<NoteIndex[]> {
+    const { limit = 50, offset = 0, updatedAfter, updatedBefore } = options;
+    const lowerBound = updatedAfter ?? Number.MIN_SAFE_INTEGER;
+    const upperBound = updatedBefore ?? Number.MAX_SAFE_INTEGER;
+    return this.db.notes
+      .where('updated_at')
+      .between(lowerBound, upperBound, true, true)
+      .reverse()
+      .offset(offset)
+      .limit(limit)
+      .toArray();
   }
 
   async getNotesByTag(tag: string): Promise<NoteIndex[]> {

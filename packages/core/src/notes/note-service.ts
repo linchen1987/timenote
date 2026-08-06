@@ -42,6 +42,13 @@ export interface SaveNoteOptions {
   removedPaths: string[];
 }
 
+export interface ListNotesOptions {
+  limit?: number;
+  offset?: number;
+  updatedAfter?: number;
+  updatedBefore?: number;
+}
+
 export interface VaultNoteService {
   createNote(projectId: string, content?: string): Promise<string>;
   getNote(projectId: string, noteId: string): Promise<ParsedNote | null>;
@@ -59,7 +66,7 @@ export interface VaultNoteService {
   deactivateVault(): void;
   rebuildIndex(projectId: string): Promise<void>;
 
-  listNotes(options?: { limit?: number; offset?: number }): Promise<NoteIndex[]>;
+  listNotes(options?: ListNotesOptions): Promise<NoteIndex[]>;
   searchNotes(query: string): Promise<NoteIndex[]>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
@@ -348,9 +355,9 @@ class VaultNoteServiceImpl implements VaultNoteService {
     await this.activateVault(projectId);
   }
 
-  async listNotes(options?: { limit?: number; offset?: number }): Promise<NoteIndex[]> {
+  async listNotes(options?: ListNotesOptions): Promise<NoteIndex[]> {
     this.ensureActive();
-    return this.idx.getTimeline(options?.limit, options?.offset);
+    return this.idx.getTimeline(options);
   }
 
   async searchNotes(query: string): Promise<NoteIndex[]> {
@@ -382,7 +389,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     } else if (candidateIds) {
       finalIds = [...candidateIds];
     } else {
-      return this.idx.getTimeline(50, 0);
+      return this.idx.getTimeline();
     }
 
     const indexes: NoteIndex[] = [];

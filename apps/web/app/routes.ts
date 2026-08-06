@@ -10,6 +10,7 @@ export default [
     route('tags', 'routes/tags.tsx'),
     route('settings', 'routes/notebook-settings.tsx'),
     route('logs', 'routes/notebook-logs.tsx'),
+    route('migrate', 'routes/notebook-migrate.tsx'),
     route('manifest.webmanifest', 'routes/manifest.tsx'),
     route(':noteId', 'routes/notebook-notedetail.tsx'),
   ]),

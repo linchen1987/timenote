@@ -1,0 +1,267 @@
+.timenote-date-range-picker {
+  display: inline-flex;
+  align-items: center;
+  width: 17.5rem;
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  background: var(--background);
+  border: 1px solid var(--input);
+  border-radius: var(--radius-md);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.05);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.timenote-date-range-picker:hover,
+.timenote-date-range-picker-focused {
+  border-color: var(--ring);
+}
+
+.timenote-date-range-picker-focused {
+  box-shadow: 0 0 0 3px hsl(18 84% 52% / 0.2);
+}
+
+.timenote-date-range-picker-input {
+  position: relative;
+  display: inline-flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.timenote-date-range-picker-input > input {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: 2rem;
+  background: transparent;
+  border: 0;
+  outline: 0;
+}
+
+.timenote-date-range-picker-input > input::placeholder,
+.timenote-date-range-picker-input-placeholder > input {
+  color: var(--muted-foreground);
+  opacity: 1;
+}
+
+.timenote-date-range-picker-range-separator {
+  padding: 0 0.375rem;
+  color: var(--muted-foreground);
+}
+
+.timenote-date-range-picker-suffix,
+.timenote-date-range-picker-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+}
+
+.timenote-date-range-picker-suffix svg,
+.timenote-date-range-picker-clear svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.timenote-date-range-picker-clear {
+  cursor: pointer;
+}
+
+.timenote-date-range-picker-dropdown {
+  position: absolute;
+  z-index: 60;
+  padding: 0.375rem;
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.14);
+}
+
+.timenote-date-range-picker-dropdown-hidden {
+  display: none;
+}
+
+.timenote-date-range-picker-panel-container,
+.timenote-date-range-picker-panel-layout,
+.timenote-date-range-picker-panels {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.timenote-date-range-picker-panel {
+  width: 16rem;
+  color: var(--foreground);
+  background: var(--popover);
+}
+
+.timenote-date-range-picker-date-panel,
+.timenote-date-range-picker-month-panel,
+.timenote-date-range-picker-year-panel,
+.timenote-date-range-picker-decade-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.timenote-date-range-picker-header {
+  display: flex;
+  align-items: center;
+  height: 2.5rem;
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.timenote-date-range-picker-header > button,
+.timenote-date-range-picker-header-view > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  color: var(--muted-foreground);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.timenote-date-range-picker-header > button:hover,
+.timenote-date-range-picker-header-view > button:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.timenote-date-range-picker-header-view {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.timenote-date-range-picker-header-view > button {
+  width: auto;
+  padding: 0 0.375rem;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.timenote-date-range-picker-content {
+  width: 100%;
+  padding: 0.375rem;
+}
+
+.timenote-date-range-picker-content table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.timenote-date-range-picker-content th {
+  height: 1.75rem;
+  padding: 0;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.timenote-date-range-picker-cell {
+  position: relative;
+  padding: 0.0625rem 0;
+  color: var(--muted-foreground);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.timenote-date-range-picker-cell-in-view {
+  color: var(--foreground);
+}
+
+.timenote-date-range-picker-cell-inner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.timenote-date-range-picker-cell-in-range::before {
+  position: absolute;
+  inset: 0;
+  background: hsl(18 84% 52% / 0.12);
+  content: "";
+}
+
+.timenote-date-range-picker-cell-in-range > .timenote-date-range-picker-cell-inner {
+  border-radius: 0;
+}
+
+.timenote-date-range-picker-cell-range-start::before {
+  left: 50%;
+}
+
+.timenote-date-range-picker-cell-range-end::before {
+  right: 50%;
+}
+
+.timenote-date-range-picker-cell-range-start > .timenote-date-range-picker-cell-inner,
+.timenote-date-range-picker-cell-range-end > .timenote-date-range-picker-cell-inner,
+.timenote-date-range-picker-cell-selected > .timenote-date-range-picker-cell-inner {
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.timenote-date-range-picker-cell-today > .timenote-date-range-picker-cell-inner:not(:hover) {
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.timenote-date-range-picker-cell:not(.timenote-date-range-picker-cell-disabled)
+  > .timenote-date-range-picker-cell-inner:hover {
+  background: var(--accent);
+}
+
+.timenote-date-range-picker-cell-disabled {
+  color: var(--muted-foreground);
+  opacity: 0.4;
+}
+
+.timenote-date-range-picker-year-panel .timenote-date-range-picker-cell,
+.timenote-date-range-picker-month-panel .timenote-date-range-picker-cell,
+.timenote-date-range-picker-decade-panel .timenote-date-range-picker-cell {
+  height: 3.25rem;
+}
+
+.timenote-date-range-picker-year-panel .timenote-date-range-picker-cell-inner,
+.timenote-date-range-picker-month-panel .timenote-date-range-picker-cell-inner,
+.timenote-date-range-picker-decade-panel .timenote-date-range-picker-cell-inner {
+  width: calc(100% - 0.5rem);
+  height: 1.75rem;
+  border-radius: var(--radius-sm);
+}
+
+.dark .timenote-date-range-picker-dropdown {
+  box-shadow: 0 12px 28px rgb(0 0 0 / 0.45);
+}

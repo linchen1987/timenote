@@ -177,10 +177,17 @@ export {
   nestifyMenuItems,
   updateMenuNoteId,
 } from './notes/menu-transform';
+export {
+  createVaultNoteMigrationService,
+  type NoteMigrationRequest,
+  type NoteMigrationResult,
+  type VaultNoteMigrationService,
+} from './notes/note-migration-service';
 export { createNoteOp, deleteNoteOp, updateNoteOp } from './notes/note-ops';
 export {
   createVaultNoteService,
   type EditAttachment,
+  type ListNotesOptions,
   type PendingAttachment,
   type SaveNoteOptions,
   type StagedAttachment,

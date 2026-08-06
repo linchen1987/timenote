@@ -2,6 +2,8 @@ import type {
   FsVolumeCredential,
   ImportResult,
   LogEntry,
+  NoteMigrationRequest,
+  NoteMigrationResult,
   RemoteConfig,
   RuntimeMenuItem,
   SyncResult,
@@ -39,6 +41,7 @@ export type VaultStore = {
   deactivateVault: () => void;
 
   getNoteService: () => VaultNoteService;
+  migrateNote: (request: NoteMigrationRequest) => Promise<NoteMigrationResult>;
 
   loadMenu: (projectId: string) => Promise<void>;
   addMenuItem: (
@@ -171,6 +174,12 @@ export function createBoundVaultStore(orchestrator: VaultOrchestrator) {
 
     getNoteService: () => {
       return orchestrator.getNoteService();
+    },
+
+    migrateNote: async (request) => {
+      const result = await orchestrator.migrateNote(request);
+      set((state) => ({ noteVersion: state.noteVersion + 1 }));
+      return result;
     },
 
     loadMenu: async (projectId: string) => {

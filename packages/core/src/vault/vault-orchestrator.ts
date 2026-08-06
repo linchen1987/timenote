@@ -5,7 +5,12 @@ import type { FsClient, FsClientConfig, FsVolumeCredentialStore } from '../fs/ty
 import { deleteVaultIndexDatabase } from '../notes/index-service';
 
 import { createVaultMenuService, type VaultMenuService } from '../notes/menu-service';
-
+import {
+  createVaultNoteMigrationService,
+  type NoteMigrationRequest,
+  type NoteMigrationResult,
+  type VaultNoteMigrationService,
+} from '../notes/note-migration-service';
 import { createVaultNoteService, type VaultNoteService } from '../notes/note-service';
 import { type Manifest, ManifestSchema } from '../spec/manifest';
 import type { RuntimeMenuItem } from '../spec/menu';
@@ -118,6 +123,7 @@ function isSyncCacheValid(projectId: string): boolean {
 export class VaultOrchestrator {
   private vaultService: VaultService | null = null;
   private noteService: VaultNoteService | null = null;
+  private noteMigrationService: VaultNoteMigrationService | null = null;
   private menuService: VaultMenuService | null = null;
   private syncService: VaultSyncService | null = null;
   private exportService: VaultExportService | null = null;
@@ -153,6 +159,7 @@ export class VaultOrchestrator {
         if (client) await appendDeleteLog(client, noteId);
       },
     });
+    this.noteMigrationService = createVaultNoteMigrationService(this.vaultService);
     this.menuService = createVaultMenuService(this.vaultService);
     this.syncService = createVaultSyncService(this.vaultService, {
       onPullComplete: (projectId) => this.noteService!.rebuildIndex(projectId),
@@ -170,6 +177,13 @@ export class VaultOrchestrator {
   private requireNoteService(): VaultNoteService {
     if (!this.noteService) throw new Error('NoteService not initialized. Call init() first.');
     return this.noteService;
+  }
+
+  private requireNoteMigrationService(): VaultNoteMigrationService {
+    if (!this.noteMigrationService) {
+      throw new Error('Note migration service not initialized. Call init() first.');
+    }
+    return this.noteMigrationService;
   }
 
   private requireSyncService(): VaultSyncService {
@@ -242,6 +256,19 @@ export class VaultOrchestrator {
 
   getNoteService(): VaultNoteService {
     return this.requireNoteService();
+  }
+
+  async migrateNote(request: NoteMigrationRequest): Promise<NoteMigrationResult> {
+    await this.init();
+    const result = await this.requireNoteMigrationService().migrateNote(request);
+    if (result.status === 'completed' && this.noteService) {
+      try {
+        await this.noteService.rebuildIndex(request.sourceProjectId);
+      } catch (error) {
+        console.error('[migrateNote] source index refresh failed:', error);
+      }
+    }
+    return result;
   }
 
   async getLocalClient(projectId: string): Promise<FsClient> {
@@ -383,6 +410,7 @@ export class VaultOrchestrator {
   }
 
   async configureRemote(projectId: string, providerId: string, path?: string): Promise<void> {
+    await this.init();
     const service = this.getRemoteConfigService(projectId);
     const url = path && path !== '/' ? `${providerId}/${path}` : providerId;
     await service.setRemote({
@@ -393,11 +421,13 @@ export class VaultOrchestrator {
   }
 
   async removeRemote(projectId: string, remoteName?: string): Promise<void> {
+    await this.init();
     const service = this.getRemoteConfigService(projectId);
     await service.removeRemote(remoteName ?? DEFAULT_REMOTE_NAME);
   }
 
   async toggleRemote(projectId: string, remoteName?: string): Promise<void> {
+    await this.init();
     const name = remoteName ?? DEFAULT_REMOTE_NAME;
     const service = this.getRemoteConfigService(projectId);
     const entry = await service.getRemote(name);
@@ -411,6 +441,7 @@ export class VaultOrchestrator {
     projectId: string,
     remoteName?: string,
   ): Promise<{ url: string; name?: string; default?: boolean } | null> {
+    await this.init();
     const service = this.getRemoteConfigService(projectId);
     const remote = remoteName
       ? await service.getRemote(remoteName)
@@ -454,7 +485,7 @@ export class VaultOrchestrator {
     const vaultService = this.requireVaultService();
     const syncService = this.requireSyncService();
 
-    const resolved = await this.resolveProvider(projectId);
+    const resolved = await this.resolveProvider(projectId, { throwOnInvalidConfig: true });
     if (!resolved) throw new Error('No remote configured for this notebook');
 
     const remote = resolved.provider;
@@ -570,7 +601,10 @@ export class VaultOrchestrator {
     return await this.sync(projectId);
   }
 
-  private async resolveProvider(projectId: string): Promise<ResolvedProvider | null> {
+  private async resolveProvider(
+    projectId: string,
+    options?: { throwOnInvalidConfig?: boolean },
+  ): Promise<ResolvedProvider | null> {
     const service = this.getRemoteConfigService(projectId);
     const remote = await service.getDefaultRemote();
     if (!remote?.url) return null;
@@ -585,7 +619,8 @@ export class VaultOrchestrator {
         providerId: computeVolumeUrl(parsed),
         path: parsed.path,
       };
-    } catch {
+    } catch (error) {
+      if (options?.throwOnInvalidConfig) throw error;
       return null;
     }
   }
@@ -594,7 +629,7 @@ export class VaultOrchestrator {
     projectId: string,
     direction: 'sync' | 'pull' | 'push',
   ): Promise<SyncOutcome> {
-    const resolved = await this.resolveProvider(projectId);
+    const resolved = await this.resolveProvider(projectId, { throwOnInvalidConfig: true });
     if (!resolved) {
       return { result: EMPTY_SYNC_RESULT, menuItems: [], noteChanged: false };
     }
