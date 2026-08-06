@@ -1,5 +1,11 @@
 // ─── General Utilities ────────────────────────────────────────
 
+export {
+  type AppPlatform,
+  detectPlatform,
+  getBuildTime,
+  getBuildTimeDate,
+} from './app-info';
 export { CONTACT_EMAIL, NOTE_LIST_PAGE_SIZE, STORAGE_KEYS } from './constants';
 export { cn } from './utils/cn';
 export {

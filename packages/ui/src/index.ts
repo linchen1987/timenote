@@ -24,6 +24,7 @@ export {
 } from './components/notebooks-shell';
 export { OpenCloudDialog, type OpenCloudDialogProps } from './components/open-cloud-dialog';
 export { PageHeader } from './components/page-header';
+export { AboutCard } from './components/pages/about-card';
 export {
   NotebookLogsPage,
   type NotebookLogsPageProps,

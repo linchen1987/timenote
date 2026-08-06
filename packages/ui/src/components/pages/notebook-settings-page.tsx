@@ -11,7 +11,6 @@ import {
   Download,
   FileText,
   FolderTree,
-  HardDrive,
   RefreshCw,
   ScrollText,
   Trash2,
@@ -24,6 +23,7 @@ import { RemoteSyncSection } from '../remote-sync-section';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Separator } from '../ui/separator';
+import { AboutCard } from './about-card';
 import { useExportVault } from './use-export-vault';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
@@ -226,10 +226,7 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-xl">
-                <HardDrive className="w-5 h-5 text-muted-foreground" />
-                Storage
-              </CardTitle>
+              <CardTitle>Storage</CardTitle>
               <CardDescription>
                 Local and remote storage endpoints for this notebook.
               </CardDescription>
@@ -373,6 +370,8 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
               </div>
             </CardContent>
           </Card>
+
+          <AboutCard />
         </div>
       </div>
     </>

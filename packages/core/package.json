@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./build": "./src/build/build-time-plugin.ts",
     "./fs": "./src/fs/index.ts",
     "./hooks": "./src/hooks/index.ts",
     "./fs/adapters/*": "./src/fs/adapters/*.ts"
@@ -25,6 +26,7 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "fake-indexeddb": "^6.2.5",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vite": "^7.1.7"
   }
 }

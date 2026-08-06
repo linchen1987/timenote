@@ -13,6 +13,7 @@ import {
 } from '../provider-form';
 import { ProviderListCard } from '../provider-list-card';
 import { Button } from '../ui/button';
+import { AboutCard } from './about-card';
 import type { UseVaultStoreHook } from './use-notebooks-page';
 
 type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
@@ -175,6 +176,8 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
             isEdit={isEditing}
           />
         )}
+
+        <AboutCard />
       </div>
     </NotebooksShell>
   );

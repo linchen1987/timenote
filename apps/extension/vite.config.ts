@@ -1,6 +1,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+import { buildTimePlugin } from '@timenote/core/build';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -46,7 +47,7 @@ function copyExtensionFiles(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths(), copyExtensionFiles()],
+  plugins: [buildTimePlugin(), react(), tailwindcss(), tsconfigPaths(), copyExtensionFiles()],
   build: {
     rollupOptions: {
       external: [/^node:/],

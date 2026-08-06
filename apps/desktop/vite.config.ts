@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+import { buildTimePlugin } from '@timenote/core/build';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
@@ -7,7 +8,7 @@ import tsconfigPaths from 'vite-tsconfig-paths';
 const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
-  plugins: [react(), tailwindcss(), tsconfigPaths()],
+  plugins: [buildTimePlugin(), react(), tailwindcss(), tsconfigPaths()],
   clearScreen: false,
   server: {
     port: 1420,
