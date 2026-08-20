@@ -15,7 +15,17 @@ function formatBuildTime(date: Date | null): string {
   return date.toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' });
 }
 
-export function AboutCard() {
+export interface AboutCardStatItem {
+  key: string;
+  label: string;
+  value: number | string | null;
+}
+
+export interface AboutCardProps {
+  stats?: AboutCardStatItem[];
+}
+
+export function AboutCard({ stats }: AboutCardProps = {}) {
   const [copied, setCopied] = useState(false);
   const platform = detectPlatform();
   const buildDate = getBuildTimeDate();
@@ -40,6 +50,12 @@ export function AboutCard() {
       </CardHeader>
       <CardContent>
         <div className="divide-y divide-border">
+          {stats?.map(({ key, label, value }) => (
+            <div key={key} className="flex items-center justify-between py-3">
+              <span className="text-sm text-muted-foreground">{label}</span>
+              <span className="text-sm font-medium tabular-nums">{value ?? '—'}</span>
+            </div>
+          ))}
           <div className="flex items-center justify-between py-3">
             <span className="text-sm text-muted-foreground">Platform</span>
             <span className="flex items-center gap-1.5 text-sm font-medium">

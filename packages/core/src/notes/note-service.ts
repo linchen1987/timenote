@@ -67,6 +67,7 @@ export interface VaultNoteService {
   rebuildIndex(projectId: string): Promise<void>;
 
   listNotes(options?: ListNotesOptions): Promise<NoteIndex[]>;
+  countNotes(): Promise<number>;
   searchNotes(query: string): Promise<NoteIndex[]>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
@@ -358,6 +359,11 @@ class VaultNoteServiceImpl implements VaultNoteService {
   async listNotes(options?: ListNotesOptions): Promise<NoteIndex[]> {
     this.ensureActive();
     return this.idx.getTimeline(options);
+  }
+
+  async countNotes(): Promise<number> {
+    this.ensureActive();
+    return this.idx.countNotes();
   }
 
   async searchNotes(query: string): Promise<NoteIndex[]> {

@@ -57,6 +57,7 @@ export interface IndexService {
   clearIndex(): Promise<void>;
   close(): Promise<void>;
   getTimeline(options?: TimelineOptions): Promise<NoteIndex[]>;
+  countNotes(): Promise<number>;
   getNotesByTag(tag: string): Promise<NoteIndex[]>;
   getAllTags(): Promise<string[]>;
   getTagsWithCounts(): Promise<{ name: string; count: number }[]>;
@@ -125,6 +126,10 @@ class IndexServiceImpl implements IndexService {
       .offset(offset)
       .limit(limit)
       .toArray();
+  }
+
+  async countNotes(): Promise<number> {
+    return this.db.notes.count();
   }
 
   async getNotesByTag(tag: string): Promise<NoteIndex[]> {

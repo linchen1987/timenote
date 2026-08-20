@@ -45,6 +45,12 @@ export interface NotebookSettingsPageProps {
   notebookToken: string;
 }
 
+interface NotebookStatItem {
+  key: string;
+  label: string;
+  value: number | null;
+}
+
 export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookSettingsPageProps) {
   const projectId = notebookToken ? parseNotebookId(notebookToken) : null;
 
@@ -104,6 +110,41 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
   const [isTogglingLog, setIsTogglingLog] = useState(false);
   const [isClearingLogs, setIsClearingLogs] = useState(false);
   const [sourceUrl, setSourceUrl] = useState<string | null>(null);
+  const [noteStats, setNoteStats] = useState<{ notes: number | null; tags: number | null }>({
+    notes: null,
+    tags: null,
+  });
+  const noteVersion = useVaultStore((s) => s.noteVersion);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: noteVersion intentionally triggers re-fetch
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+    const loadStats = async () => {
+      try {
+        await store.getState().init();
+        await store.getState().activateVault(projectId);
+        const svc = store.getState().getNoteService();
+        const [notes, tagsWithCounts] = await Promise.all([
+          svc.countNotes(),
+          svc.getTagsWithCounts(),
+        ]);
+        if (cancelled) return;
+        setNoteStats({ notes, tags: tagsWithCounts.length });
+      } catch (e) {
+        console.error('Failed to load notebook stats:', e);
+      }
+    };
+    loadStats();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, noteVersion, store]);
+
+  const stats: NotebookStatItem[] = [
+    { key: 'notes', label: 'Notes', value: noteStats.notes },
+    { key: 'tags', label: 'Tags', value: noteStats.tags },
+  ];
 
   useEffect(() => {
     if (!projectId) return;
@@ -371,7 +412,7 @@ export function NotebookSettingsPage({ useVaultStore, notebookToken }: NotebookS
             </CardContent>
           </Card>
 
-          <AboutCard />
+          <AboutCard stats={stats} />
         </div>
       </div>
     </>
