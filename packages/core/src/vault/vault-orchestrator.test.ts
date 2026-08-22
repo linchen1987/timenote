@@ -272,6 +272,21 @@ describe('VaultOrchestrator', () => {
     );
   });
 
+  it('defaults delete behavior to permanent when registry does not declare it', async () => {
+    const orchestrator = new VaultOrchestrator(createMemoryRegistry(), createMockStore());
+    expect(await orchestrator.getDeleteBehavior()).toBe('permanent');
+  });
+
+  it('delegates delete behavior to registry', async () => {
+    const registry = createMemoryRegistry();
+    const unregisterRegistry: VaultRegistry = {
+      ...registry,
+      getDeleteBehavior: () => 'unregister',
+    };
+    const orchestrator = new VaultOrchestrator(unregisterRegistry, createMockStore());
+    expect(await orchestrator.getDeleteBehavior()).toBe('unregister');
+  });
+
   it('sync uses path prefix via createFsClient (direct path)', async () => {
     const recording = createRecordingProvider();
 

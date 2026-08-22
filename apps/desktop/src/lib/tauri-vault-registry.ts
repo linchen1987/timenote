@@ -1,7 +1,12 @@
-import type { FsClient } from '@timenote/core';
-import type { VaultRegistry, VaultRegistryEntry } from '@timenote/core';
 import { appDataDir, join } from '@tauri-apps/api/path';
-import { addVaultEntry, getConfig, loadConfig, removeVaultEntry, type VaultEntry } from './desktop-config';
+import type { FsClient, VaultRegistry, VaultRegistryEntry } from '@timenote/core';
+import {
+  addVaultEntry,
+  getConfig,
+  loadConfig,
+  removeVaultEntry,
+  type VaultEntry,
+} from './desktop-config';
 import { TauriFsClient } from './tauri-fs-driver';
 
 function toEntry(v: VaultEntry): VaultRegistryEntry {
@@ -53,6 +58,10 @@ export async function createDesktopVaultRegistry(): Promise<
 
     async destroy(projectId: string): Promise<void> {
       await removeVaultEntry(projectId);
+    },
+
+    getDeleteBehavior() {
+      return 'unregister' as const;
     },
 
     async getLocalClient(projectId: string): Promise<FsClient> {

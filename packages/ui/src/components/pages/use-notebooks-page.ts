@@ -1,4 +1,4 @@
-import { createNotebookToken, type VaultMeta } from '@timenote/core';
+import { createNotebookToken, type VaultDeleteBehavior, type VaultMeta } from '@timenote/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import type { VaultStore } from '../../stores/vault-store';
@@ -23,6 +23,8 @@ export interface UseNotebooksPageReturn {
   setIsDeleteDialogOpen: (v: boolean) => void;
   vaultToDelete: string | null;
   setVaultToDelete: (v: string | null) => void;
+  deleteBehavior: VaultDeleteBehavior;
+  requestDelete: (projectId: string) => void;
   isExporting: string | null;
   isImporting: boolean;
   importInputRef: React.RefObject<HTMLInputElement | null>;
@@ -61,7 +63,15 @@ export function useNotebooksPage(
     pulled: options?.messages?.pulled ?? 'Vault pulled from remote',
   };
 
-  const { listVaults, cloneVault, createVault, deleteVault, exportVault, importVault } = useStore();
+  const {
+    listVaults,
+    cloneVault,
+    createVault,
+    deleteVault,
+    exportVault,
+    importVault,
+    getDeleteBehavior,
+  } = useStore();
   const [vaults, setVaults] = useState<VaultMeta[]>([]);
   const [, setIsPulling] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -70,6 +80,7 @@ export function useNotebooksPage(
   const [editName, setEditName] = useState('');
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [vaultToDelete, setVaultToDelete] = useState<string | null>(null);
+  const [deleteBehavior, setDeleteBehavior] = useState<VaultDeleteBehavior>('permanent');
   const [isExporting, setIsExporting] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -97,16 +108,24 @@ export function useNotebooksPage(
       await refresh();
     } catch (e) {
       console.error('[createVault] failed:', e);
-      const msg = typeof e === 'string' ? e : (e as Error)?.message ?? String(e);
+      const msg = typeof e === 'string' ? e : ((e as Error)?.message ?? String(e));
       toast.error(`Create failed: ${msg}`);
     }
+  };
+
+  const requestDelete = (projectId: string) => {
+    setVaultToDelete(projectId);
+    getDeleteBehavior()
+      .then(setDeleteBehavior)
+      .catch(() => setDeleteBehavior('permanent'));
+    setIsDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
     if (!vaultToDelete) return;
     try {
       await deleteVault(vaultToDelete);
-      toast.success(msg.deleted);
+      toast.success(deleteBehavior === 'unregister' ? '已从列表移除' : msg.deleted);
       setVaultToDelete(null);
       setIsDeleteDialogOpen(false);
       await refresh();
@@ -175,6 +194,8 @@ export function useNotebooksPage(
     setIsDeleteDialogOpen,
     vaultToDelete,
     setVaultToDelete,
+    deleteBehavior,
+    requestDelete,
     isExporting,
     isImporting,
     importInputRef,

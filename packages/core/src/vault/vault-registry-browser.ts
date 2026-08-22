@@ -1,7 +1,7 @@
 import { STORAGE_KEYS } from '../constants';
 import { createOpfsClient } from '../fs/adapters/localfs/opfs';
 import type { FsClient } from '../fs/types';
-import type { VaultRegistry, VaultRegistryEntry } from './vault-registry';
+import type { VaultDeleteBehavior, VaultRegistry, VaultRegistryEntry } from './vault-registry';
 import { migrateOpfsToStoredRegistry } from './vault-registry-migration';
 
 interface StoredEntry {
@@ -66,6 +66,10 @@ class BrowserVaultRegistryImpl implements VaultRegistry {
     } catch {}
     const entries = loadEntries().filter((e) => e.projectId !== projectId);
     saveEntries(entries);
+  }
+
+  getDeleteBehavior(): VaultDeleteBehavior {
+    return 'permanent';
   }
 
   async getLocalClient(projectId: string): Promise<FsClient> {

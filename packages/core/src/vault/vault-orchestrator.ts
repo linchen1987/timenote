@@ -44,7 +44,7 @@ import {
   readLogs as readLogsFromTransport,
   writeLoggingConfig,
 } from './log-service';
-import type { VaultRegistry } from './vault-registry';
+import type { VaultDeleteBehavior, VaultRegistry } from './vault-registry';
 import { createVaultService, type VaultMeta, type VaultService } from './vault-service';
 
 const VAULTS_REMOTE_PREFIX = 'timenote/vaults';
@@ -280,6 +280,12 @@ export class VaultOrchestrator {
     const registry = await this.getVaultRegistry();
     const entry = await registry.get(projectId);
     return entry?.sourceUrl ?? null;
+  }
+
+  async getDeleteBehavior(): Promise<VaultDeleteBehavior> {
+    await this.init();
+    const registry = await this.getVaultRegistry();
+    return registry.getDeleteBehavior?.() ?? 'permanent';
   }
 
   async listVaults(): Promise<VaultMeta[]> {

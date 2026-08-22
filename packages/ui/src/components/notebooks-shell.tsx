@@ -69,7 +69,8 @@ export function NotebooksShell({
     vaults,
     isDeleteDialogOpen,
     setIsDeleteDialogOpen,
-    setVaultToDelete,
+    deleteBehavior,
+    requestDelete,
     isExporting,
     isImporting,
     importInputRef,
@@ -110,11 +111,6 @@ export function NotebooksShell({
     } catch (e) {
       toast.error(`Create failed: ${(e as Error).message}`);
     }
-  };
-
-  const requestDelete = (projectId: string) => {
-    setVaultToDelete(projectId);
-    setIsDeleteDialogOpen(true);
   };
 
   const ctx: NotebooksShellContextValue = {
@@ -166,9 +162,13 @@ export function NotebooksShell({
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>确定要删除吗？</AlertDialogTitle>
+              <AlertDialogTitle>
+                {deleteBehavior === 'unregister' ? '从列表中移除？' : '确定要删除吗？'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                此操作无法撤销。该笔记本及其所有笔记将被永久删除。
+                {deleteBehavior === 'unregister'
+                  ? '该笔记本将从列表中移除，笔记文件仍保留在磁盘中，可随时重新打开。'
+                  : '此操作无法撤销。该笔记本及其所有笔记将被永久删除。'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -177,7 +177,7 @@ export function NotebooksShell({
                 onClick={handleDelete}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                确认删除
+                {deleteBehavior === 'unregister' ? '移除' : '确认删除'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

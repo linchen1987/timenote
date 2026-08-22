@@ -36,7 +36,11 @@ export {
 export type { FsClientDriver } from './fs/driver-registry';
 export { clearDrivers, getDriver, registerDriver } from './fs/driver-registry';
 export type { FsClient, FsClientStat } from './fs/types';
-export type { VaultRegistry, VaultRegistryEntry } from './vault/vault-registry';
+export type {
+  VaultDeleteBehavior,
+  VaultRegistry,
+  VaultRegistryEntry,
+} from './vault/vault-registry';
 export { createBrowserVaultRegistry } from './vault/vault-registry-browser';
 
 // NodeFS client not exported from barrel (node:fs breaks browser builds)
