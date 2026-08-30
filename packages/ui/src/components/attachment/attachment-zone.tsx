@@ -151,12 +151,51 @@ function AttachmentPreview({
   );
 }
 
+export function AttachmentAddButton({
+  onAdd,
+  className,
+}: {
+  onAdd: (files: File[]) => void;
+  className?: string;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={() => fileInputRef.current?.click()}
+        className={cn(
+          'text-muted-foreground hover:text-foreground h-9 min-w-[44px] min-h-[44px] sm:h-7 sm:min-w-0 sm:min-h-0',
+          className,
+        )}
+      >
+        <ImagePlus className="w-4 h-4 sm:w-3.5 sm:h-3.5 mr-1" />
+        <span className="text-sm sm:text-xs">Add</span>
+      </Button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files || []);
+          if (files.length > 0) onAdd(files);
+          e.target.value = '';
+        }}
+      />
+    </>
+  );
+}
+
 interface AttachmentZoneProps {
   attachments: EditAttachment[];
   editable: boolean;
   getAttachmentUrl?: (path: string) => Promise<string>;
   onAdd?: (files: File[]) => void;
   onRemove?: (index: number) => void;
+  hideAddButton?: boolean;
 }
 
 export function AttachmentZone({
@@ -165,8 +204,8 @@ export function AttachmentZone({
   getAttachmentUrl,
   onAdd,
   onRemove,
+  hideAddButton,
 }: AttachmentZoneProps) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [imageUrls, setImageUrls] = useState<Record<string, string>>({});
   const loadedPathsRef = useRef<Set<string>>(new Set());
   const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -278,34 +317,14 @@ export function AttachmentZone({
     [getAttachmentUrl],
   );
 
-  if (attachments.length === 0 && !editable) return null;
+  const showAddButton = editable && !!onAdd && !hideAddButton;
 
-  if (attachments.length === 0 && editable && !onAdd) return null;
+  if (attachments.length === 0 && !showAddButton) return null;
 
-  if (attachments.length === 0 && editable && onAdd) {
+  if (attachments.length === 0) {
     return (
       <div className="mt-2 pt-2 border-t border-muted/20">
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={() => fileInputRef.current?.click()}
-          className="text-muted-foreground hover:text-foreground h-9 min-w-[44px] min-h-[44px] sm:h-7 sm:min-w-0 sm:min-h-0"
-        >
-          <ImagePlus className="w-4 h-4 sm:w-3.5 sm:h-3.5 mr-1" />
-          <span className="text-sm sm:text-xs">Add</span>
-        </Button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={(e) => {
-            const files = Array.from(e.target.files || []);
-            if (files.length > 0) onAdd(files);
-            e.target.value = '';
-          }}
-        />
+        {onAdd && <AttachmentAddButton onAdd={onAdd} />}
       </div>
     );
   }
@@ -314,7 +333,7 @@ export function AttachmentZone({
   const fileAttachments = attachments.filter((a) => !isImagePath(a.path));
 
   return (
-    <div className="mt-2 pt-2 border-t border-muted/20">
+    <div className={cn('mt-2 pt-2', !hideAddButton && 'border-t border-muted/20')}>
       {imageAttachments.length > 0 && (
         <div
           className={cn(
@@ -367,29 +386,9 @@ export function AttachmentZone({
         </div>
       )}
 
-      {editable && onAdd && (
+      {showAddButton && onAdd && (
         <div className="flex items-center gap-2 mt-1.5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => fileInputRef.current?.click()}
-            className="text-muted-foreground hover:text-foreground h-9 min-w-[44px] min-h-[44px] sm:h-7 sm:min-w-0 sm:min-h-0"
-          >
-            <ImagePlus className="w-4 h-4 sm:w-3.5 sm:h-3.5 mr-1" />
-            <span className="text-sm sm:text-xs">Add</span>
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files || []);
-              if (files.length > 0) onAdd(files);
-              e.target.value = '';
-            }}
-          />
+          <AttachmentAddButton onAdd={onAdd} />
         </div>
       )}
     </div>

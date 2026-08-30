@@ -12,7 +12,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { toast } from 'sonner';
 import type { VaultStore } from '../../stores/vault-store';
-import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';
+import {
+  AttachmentAddButton,
+  AttachmentZone,
+  attachmentRefToEditAttachment,
+} from '../attachment/attachment-zone';
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
 import { PageHeader } from '../page-header';
 import { Button } from '../ui/button';
@@ -280,9 +284,11 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
           getAttachmentUrl={getAttachmentUrl}
           onAdd={handleAddFiles}
           onRemove={handleRemoveAttachment}
+          hideAddButton
         />
 
-        <footer className="mt-8 pt-8 border-t border-muted/20 flex justify-end text-muted-foreground text-sm px-4 pb-12">
+        <footer className="mt-6 pt-3 border-t border-muted/20 flex items-center justify-between text-muted-foreground text-sm pb-12">
+          <AttachmentAddButton onAdd={handleAddFiles} />
           <div>{body.length} characters</div>
         </footer>
       </div>

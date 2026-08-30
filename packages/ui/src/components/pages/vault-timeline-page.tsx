@@ -24,7 +24,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { toast } from 'sonner';
 import type { VaultStore } from '../../stores/vault-store';
-import { AttachmentZone, attachmentRefToEditAttachment } from '../attachment/attachment-zone';
+import {
+  AttachmentAddButton,
+  AttachmentZone,
+  attachmentRefToEditAttachment,
+} from '../attachment/attachment-zone';
 import MarkdownEditor, { type MarkdownEditorRef } from '../editor/markdown-editor';
 import { PageHeader } from '../page-header';
 import {
@@ -261,7 +265,6 @@ export function VaultTimelinePage({
     if (loadMoreRef.current) observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [ready, searchQuery, hasMore, loadingMore, loadNotes]);
-
 
   const handleComposerSubmit = async () => {
     if (!composerContent.trim() || !resolvedProjectId) return;
@@ -509,23 +512,25 @@ export function VaultTimelinePage({
                 onSubmit={handleComposerSubmit}
                 availableTags={availableTags}
               />
-              <div className="flex justify-end items-center mt-3 pt-3 border-t border-muted/20">
-                <Button
-                  onClick={handleComposerSubmit}
-                  disabled={!composerContent.trim()}
-                  className="rounded-full w-12 ml-auto"
-                  size="sm"
-                >
-                  <SendHorizontal strokeWidth={3} className="w-4 h-4" />
-                </Button>
-              </div>
               <AttachmentZone
                 attachments={composerAttachments}
                 editable={true}
                 onAdd={handleComposerAddFiles}
                 onRemove={handleComposerRemoveAttachment}
                 getAttachmentUrl={getAttachmentUrl}
+                hideAddButton
               />
+              <div className="flex justify-between items-center mt-3 pt-3 border-t border-muted/20">
+                <AttachmentAddButton onAdd={handleComposerAddFiles} />
+                <Button
+                  onClick={handleComposerSubmit}
+                  disabled={!composerContent.trim()}
+                  className="rounded-full w-12"
+                  size="sm"
+                >
+                  <SendHorizontal strokeWidth={3} className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -790,14 +795,18 @@ function NoteCard({
               onAdd={onAddFiles}
               onRemove={onRemoveAttachment}
               getAttachmentUrl={getAttachmentUrl}
+              hideAddButton
             />
-            <div className="flex justify-between items-center pt-2">
-              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest flex items-center gap-2">
-                <kbd className="px-1.5 py-0.5 rounded border bg-muted font-sans">⌘</kbd>
-                <kbd className="px-1.5 py-0.5 rounded border bg-muted font-sans">Enter</kbd>
-                to save
-              </span>
-              <div className="flex gap-2">
+            <div className="flex justify-between items-center gap-2 pt-3 border-t border-muted/20">
+              <div className="flex items-center gap-3 min-w-0">
+                <AttachmentAddButton onAdd={onAddFiles} />
+                <span className="hidden sm:flex text-[10px] text-muted-foreground uppercase font-bold tracking-widest items-center gap-2">
+                  <kbd className="px-1.5 py-0.5 rounded border bg-muted font-sans">⌘</kbd>
+                  <kbd className="px-1.5 py-0.5 rounded border bg-muted font-sans">Enter</kbd>
+                  to save
+                </span>
+              </div>
+              <div className="flex gap-2 shrink-0">
                 <Button
                   variant="ghost"
                   size="sm"
