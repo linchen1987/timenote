@@ -13,6 +13,7 @@ import { type Editor, EditorContent, Extension, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import { Markdown } from 'tiptap-markdown';
+import { MathBlock, MathInline } from './math';
 import { createTagSuggestion } from './suggestion';
 
 function removeTrailingSpaceFromLinks(editor: Editor) {
@@ -267,6 +268,8 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         TableCell,
         TaskList,
         TaskItem.configure({ nested: true }),
+        MathInline,
+        MathBlock,
         HorizontalRule,
         SubmitHandler.configure({
           onSubmit: () => callbacksRef.current.onSubmit?.(),
@@ -523,6 +526,57 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             }
             .ProseMirror a:hover {
               color: #2563eb;
+            }
+            .ProseMirror .tn-math--block {
+              display: block;
+              margin: 0.5rem 0;
+              padding: 2px 0;
+              text-align: center;
+              overflow-x: auto;
+            }
+            .ProseMirror .tn-math--inline .katex {
+              font-size: 1.05em;
+            }
+            .ProseMirror .tn-math--editable {
+              cursor: pointer;
+            }
+            .ProseMirror .tn-math--editable.tn-math--inline {
+              padding: 0 1px;
+            }
+            .ProseMirror .tn-math--selected {
+              background: rgba(59, 130, 246, 0.12);
+              border-radius: 4px;
+              box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.45);
+            }
+            .dark .ProseMirror .tn-math--selected {
+              background: rgba(96, 165, 250, 0.16);
+              box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.5);
+            }
+            .ProseMirror .tn-math__input {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+              font-size: 0.85rem;
+              line-height: 1.4;
+              border: 1px solid #93c5fd;
+              background: #ffffff;
+              color: #0f172a;
+              border-radius: 6px;
+              padding: 2px 6px;
+              margin: 0 2px;
+              width: 18em;
+              max-width: 90%;
+              outline: none;
+            }
+            .ProseMirror .tn-math--block .tn-math__input {
+              display: block;
+              margin: 0.25rem auto;
+            }
+            .dark .ProseMirror .tn-math__input {
+              background: #1e293b;
+              border-color: #3b82f6;
+              color: #e2e8f0;
+            }
+            .ProseMirror .tn-math--error {
+              color: #dc2626;
             }
           `,
           }}

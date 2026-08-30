@@ -16,6 +16,7 @@
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test": "vitest run --config packages/core/vitest.config.ts",
+    "test:ui": "vitest run --config packages/ui/vitest.config.ts",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {
