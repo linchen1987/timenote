@@ -46,45 +46,58 @@ function createMathNodeView(
     }
   };
 
-  const applyLatex = (latex: string) => {
-    const pos = getPos();
-    if (typeof pos !== 'number') return;
-    editor.view.dispatch(editor.state.tr.setNodeMarkup(pos, undefined, { ...node.attrs, latex }));
-  };
+  // Uncommitted latex while the input is open. Keystrokes are never dispatched
+  // directly: every transaction makes the view write its selection back to the
+  // DOM, which pulls focus out of the input and closes the editor after the
+  // first character. The draft is committed once, when the editor closes.
+  let draft: string | null = null;
 
   // The input is removed and the cursor moved past the node; keeping the
   // NodeSelection would make a second click a no-op (selectNode never fires).
-  const closeEditor = (moveSelection: boolean) => {
+  // The commit is deferred to a microtask because deselectNode runs in the
+  // middle of a view update, where dispatching synchronously is not allowed.
+  const closeEditor = (moveSelection: boolean, refocus = false) => {
     if (!input) return;
     input.remove();
     input = null;
     render();
-    if (!moveSelection || editor.isDestroyed) return;
-    const pos = getPos();
-    if (typeof pos !== 'number') return;
-    const selection = TextSelection.near(editor.state.doc.resolve(pos + node.nodeSize), 1);
-    editor.view.dispatch(editor.state.tr.setSelection(selection));
+    const pending = draft;
+    draft = null;
+    if (editor.isDestroyed) return;
+    queueMicrotask(() => {
+      if (editor.isDestroyed) return;
+      const pos = getPos();
+      if (typeof pos !== 'number') return;
+      const tr = editor.state.tr;
+      if (pending !== null && pending !== latexOf(node)) {
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, latex: pending });
+      }
+      if (moveSelection) {
+        tr.setSelection(TextSelection.near(tr.doc.resolve(pos + node.nodeSize), 1));
+      }
+      if (tr.docChanged || tr.selectionSet) editor.view.dispatch(tr);
+      if (refocus && moveSelection) editor.commands.focus();
+    });
   };
 
   const openEditor = () => {
     if (input || !editor.isEditable || editor.isDestroyed) return;
-    const original = latexOf(node);
     input = document.createElement('input');
     input.type = 'text';
     input.className = 'tn-math__input';
-    input.value = original;
+    input.value = latexOf(node);
     input.spellcheck = false;
     input.addEventListener('input', () => {
-      if (input) applyLatex(input.value);
+      draft = input?.value ?? null;
     });
     input.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        input?.blur();
+        closeEditor(true, true);
       } else if (event.key === 'Escape') {
         event.preventDefault();
-        applyLatex(original);
-        input?.blur();
+        draft = null;
+        closeEditor(true);
       }
     });
     input.addEventListener('blur', () => closeEditor(true));

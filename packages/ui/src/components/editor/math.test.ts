@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { Editor } from '@tiptap/core';
+import { NodeSelection } from '@tiptap/pm/state';
 import StarterKit from '@tiptap/starter-kit';
 import { Markdown } from 'tiptap-markdown';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -69,5 +70,58 @@ describe('math markdown round-trip', () => {
     setup('');
     editor.commands.setContent('value $\\pi r^2$ here');
     expect(getMarkdown()).toBe('value $\\pi r^2$ here');
+  });
+});
+
+describe('math node view editing', () => {
+  function openBlockMathInput() {
+    setup('$$x^2$$');
+    editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, 0)));
+    return editor.view.dom.querySelector<HTMLInputElement>('.tn-math__input');
+  }
+
+  function type(input: HTMLInputElement, value: string) {
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  it('keeps the editor open while typing and commits on Enter', async () => {
+    const input = openBlockMathInput();
+    expect(input).not.toBeNull();
+
+    type(input, 'x^3');
+    expect(editor.state.doc.firstChild?.attrs.latex).toBe('x^2');
+    expect(editor.view.dom.querySelector('.tn-math__input')).not.toBeNull();
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await Promise.resolve();
+
+    expect(editor.state.doc.firstChild?.attrs.latex).toBe('x^3');
+    expect(editor.view.dom.querySelector('.tn-math__input')).toBeNull();
+  });
+
+  it('discards edits on Escape', async () => {
+    const input = openBlockMathInput();
+    type(input, 'x^9');
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await Promise.resolve();
+
+    expect(editor.state.doc.firstChild?.attrs.latex).toBe('x^2');
+    expect(editor.view.dom.querySelector('.tn-math__input')).toBeNull();
+  });
+
+  it('commits and moves the cursor past the node when the input blurs', async () => {
+    const input = openBlockMathInput();
+    type(input, 'x^4');
+
+    input.dispatchEvent(new Event('blur'));
+    await Promise.resolve();
+
+    expect(editor.state.doc.firstChild?.attrs.latex).toBe('x^4');
+    expect(editor.state.selection instanceof NodeSelection).toBe(false);
+    expect(editor.state.selection.from).toBeGreaterThanOrEqual(
+      editor.state.doc.firstChild?.nodeSize ?? 0,
+    );
   });
 });
