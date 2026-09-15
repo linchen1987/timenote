@@ -281,7 +281,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
         Mention.configure({
           HTMLAttributes: {
             class:
-              'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-bold px-1 rounded',
+              'bg-primary/10 text-primary dark:bg-orange-400/15 dark:text-orange-300 font-bold px-1 rounded',
           },
           suggestion: createTagSuggestion(() => tagsRef.current),
         }),
@@ -477,9 +477,36 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
           // biome-ignore lint/security/noDangerouslySetInnerHtml: Intentional styles
           dangerouslySetInnerHTML={{
             __html: `
-            .ProseMirror { outline: none; line-height: 1.6; }
-            .ProseMirror h1 { font-size: 1.8rem; font-weight: 800; margin-top: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid #f3f4f6; padding-bottom: 0.2rem; }
-            .dark .ProseMirror h1 { border-color: #334155; }
+            /* 浅色沿用原有观感：中性冷灰底 + 一条细描边 */
+            .ProseMirror {
+              outline: none;
+              line-height: 1.6;
+              --tn-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+              --tn-code-bg: #f1f5f9;
+              --tn-code-fg: #1e293b;
+              --tn-code-border: #e2e8f0;
+              --tn-inline-bg: #f1f5f9;
+              --tn-inline-fg: currentColor; /* 浅色下行内代码跟随正文色，和改动前一致 */
+              --tn-head-bg: #f8fafc;
+              --tn-divider: #e5e7eb;
+              --tn-quote-bar: #e2e8f0;
+              --tn-quiet: #64748b;
+              --tn-placeholder: #adb5bd;
+            }
+            /* 深色才动：代码块是抬起的一层半透明面，不描边，嵌在卡片或编辑器底色上都成立 */
+            .dark .ProseMirror {
+              --tn-code-bg: rgba(255, 255, 255, 0.05);
+              --tn-code-fg: rgba(255, 255, 255, 0.82);
+              --tn-code-border: transparent;
+              --tn-inline-bg: rgba(255, 255, 255, 0.1);
+              --tn-inline-fg: hsl(26 70% 74%);
+              --tn-head-bg: rgba(255, 255, 255, 0.04);
+              --tn-divider: rgba(255, 255, 255, 0.09);
+              --tn-quote-bar: rgba(255, 255, 255, 0.18);
+              --tn-quiet: rgba(255, 255, 255, 0.62);
+              --tn-placeholder: rgba(255, 255, 255, 0.28);
+            }
+            .ProseMirror h1 { font-size: 1.8rem; font-weight: 800; margin-top: 0.5rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--tn-divider); padding-bottom: 0.2rem; }
             .ProseMirror h2 { font-size: 1.4rem; font-weight: 700; margin-top: 0.8rem; margin-bottom: 0.4rem; }
             .ProseMirror h3 { font-size: 1.2rem; font-weight: 600; margin-top: 0.6rem; margin-bottom: 0.3rem; }
             .ProseMirror p { margin-top: 0.3rem; margin-bottom: 0.3rem; }
@@ -493,25 +520,48 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
             .ProseMirror ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.2rem; }
             .ProseMirror ul[data-type="taskList"] li > label { margin-top: 0.3rem; flex: 0 0 auto; }
             .ProseMirror ul[data-type="taskList"] li > div { flex: 1 1 auto; }
-            .ProseMirror ul[data-type="taskList"] input[type="checkbox"] { cursor: pointer; accent-color: #3b82f6; }
-            .ProseMirror table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.9rem; border: 1px solid #e5e7eb; }
-            .ProseMirror table th, .ProseMirror table td { border: 1px solid #e5e7eb; padding: 0.3rem 0.5rem; }
-            .ProseMirror table th { background-color: #f8fafc; font-weight: 600; }
-            .dark .ProseMirror table, .dark .ProseMirror table th, .dark .ProseMirror table td { border-color: #334155; }
-            .dark .ProseMirror table th { background-color: #1e293b; }
-            .ProseMirror pre { background: #f1f5f9; color: #1e293b; padding: 0.75rem; border-radius: 6px; margin: 0.5rem 0; border: 1px solid #e2e8f0; }
-            .dark .ProseMirror pre { background: #0f172a; color: #e2e8f0; border: none; }
-            .ProseMirror code { background: #f1f5f9; padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.9em; }
-            .dark .ProseMirror code { background: #334155; }
-            .ProseMirror pre code { background: transparent; padding: 0; border-radius: 0; color: inherit; }
-            .ProseMirror blockquote { border-left: 3px solid #e2e8f0; padding-left: 0.8rem; margin: 0.5rem 0; color: #64748b; }
-            .dark .ProseMirror blockquote { border-color: #334155; color: #94a3b8; }
-            .ProseMirror hr { border: none; border-top: 1px solid #e5e7eb; margin: 0.75rem 0; }
-            .dark .ProseMirror hr { border-color: #334155; }
+            .ProseMirror ul[data-type="taskList"] input[type="checkbox"] { cursor: pointer; accent-color: var(--primary); }
+            .ProseMirror table { border-collapse: collapse; width: 100%; margin: 0.5rem 0; font-size: 0.9rem; border: 1px solid var(--tn-divider); }
+            .ProseMirror table th, .ProseMirror table td { border: 1px solid var(--tn-divider); padding: 0.3rem 0.5rem; }
+            .ProseMirror table th { background-color: var(--tn-head-bg); font-weight: 600; }
+            .ProseMirror pre {
+              font-family: var(--tn-mono);
+              font-size: 0.86rem;
+              line-height: 1.6;
+              tab-size: 2;
+              white-space: pre;
+              overflow-x: auto;
+              background: var(--tn-code-bg);
+              color: var(--tn-code-fg);
+              border: 1px solid var(--tn-code-border);
+              border-radius: 6px;
+              padding: 0.7rem 0.9rem;
+              margin: 0.6rem 0;
+            }
+            /* :not(pre) 让行内代码样式不渗进代码块，不靠覆盖去救 */
+            .ProseMirror :not(pre) > code {
+              font-family: var(--tn-mono);
+              font-size: 0.9em;
+              background: var(--tn-inline-bg);
+              color: var(--tn-inline-fg);
+              padding: 0.15em 0.35em;
+              border-radius: 4px;
+              word-break: break-word;
+            }
+            .ProseMirror pre code {
+              font-family: inherit;
+              font-size: inherit;
+              background: none;
+              color: inherit;
+              padding: 0;
+              border-radius: 0;
+            }
+            .ProseMirror blockquote { border-left: 3px solid var(--tn-quote-bar); padding-left: 0.8rem; margin: 0.5rem 0; color: var(--tn-quiet); }
+            .ProseMirror hr { border: none; border-top: 1px solid var(--tn-divider); margin: 0.75rem 0; }
             .ProseMirror p.is-editor-empty:first-child::before {
               content: attr(data-placeholder);
               float: left;
-              color: #adb5bd;
+              color: var(--tn-placeholder);
               pointer-events: none;
               height: 0;
             }
@@ -524,8 +574,14 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               text-decoration: underline;
               cursor: pointer;
             }
+            .dark .ProseMirror a {
+              color: #60a5fa;
+            }
             .ProseMirror a:hover {
               color: #2563eb;
+            }
+            .dark .ProseMirror a:hover {
+              color: #93c5fd;
             }
             .ProseMirror .tn-math--block {
               display: block;
@@ -544,21 +600,21 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               padding: 0 1px;
             }
             .ProseMirror .tn-math--selected {
-              background: rgba(59, 130, 246, 0.12);
+              background: rgba(235, 92, 32, 0.1);
               border-radius: 4px;
-              box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.45);
+              box-shadow: 0 0 0 1px rgba(235, 92, 32, 0.4);
             }
             .dark .ProseMirror .tn-math--selected {
-              background: rgba(96, 165, 250, 0.16);
-              box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.5);
+              background: rgba(235, 92, 32, 0.18);
+              box-shadow: 0 0 0 1px rgba(235, 92, 32, 0.55);
             }
             .ProseMirror .tn-math__input {
-              font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+              font-family: var(--tn-mono);
               font-size: 0.85rem;
               line-height: 1.4;
-              border: 1px solid #93c5fd;
+              border: 1px solid hsl(18 75% 58%);
               background: #ffffff;
-              color: #0f172a;
+              color: hsl(240 8% 12%);
               border-radius: 6px;
               padding: 2px 6px;
               margin: 0 2px;
@@ -571,9 +627,9 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
               margin: 0.25rem auto;
             }
             .dark .ProseMirror .tn-math__input {
-              background: #1e293b;
-              border-color: #3b82f6;
-              color: #e2e8f0;
+              background: rgba(255, 255, 255, 0.06);
+              border-color: hsl(18 70% 52%);
+              color: rgba(255, 255, 255, 0.86);
             }
             .ProseMirror .tn-math--error {
               color: #dc2626;
