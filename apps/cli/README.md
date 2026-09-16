@@ -119,3 +119,54 @@ tn note update <noteId> --remote "s3://..." --content "new body"
 
 URL 中的非密钥信息（endpoint / bucket / host / username / 路径）始终取自 URL；flag 仅用于覆盖密钥。
 
+
+## Desktop 模式（AI Agent 访问）
+
+操作正在运行的 TimeNote Desktop 应用。写入走 revision CAS：过期的写入返回
+`REVISION_CONFLICT`，用户有未保存草稿的笔记返回 `NOTE_HAS_UNSAVED_CHANGES`，都不会
+覆盖数据。
+
+前置：Desktop 正在运行，且在 设置 → Agent 连接 中启用。
+
+```bash
+# 源码方式
+npx tsx apps/cli/src/main.ts desktop status --json
+npx tsx apps/cli/src/main.ts desktop notebooks list --json
+npx tsx apps/cli/src/main.ts desktop note list --notebook <projectId> --json
+npx tsx apps/cli/src/main.ts desktop note get <noteId> --notebook <projectId> --json
+
+# 写入：先读 revision，再带 --if-revision 提交；重试沿用同一 --operation-id
+npx tsx apps/cli/src/main.ts desktop note create --notebook <projectId> --file ./note.md --json
+npx tsx apps/cli/src/main.ts desktop note update <noteId> --notebook <projectId> \
+  --file ./note.md --if-revision sha256:... --operation-id <uuid> --json
+npx tsx apps/cli/src/main.ts desktop note delete <noteId> --notebook <projectId> \
+  --if-revision sha256:... --operation-id <uuid> --json
+
+# 超时后查询原操作结果（不盲目重试）
+npx tsx apps/cli/src/main.ts desktop operation get <operationId> --json
+
+# 在 Desktop 中打开笔记（唯一会抢焦点的操作）
+npx tsx apps/cli/src/main.ts desktop note reveal <noteId> --notebook <projectId>
+```
+
+退出码：0 成功 · 2 协议不匹配 · 3 冲突/未保存草稿 · 4 Desktop 不可达 ·
+5 未授权 · 6 不存在 · 7 结果未知（查 operations.get） · 8 离线写入遇 vault 锁（Desktop
+正打开该笔记本时，改用 desktop 命令）。
+
+### MCP
+
+支持 MCP 的客户端可注册 stdio server：
+
+```bash
+# Claude Code
+claude mcp add --transport stdio timenote -- npx tsx /abs/path/apps/cli/src/main.ts mcp serve
+# Codex
+codex mcp add timenote -- npx tsx /abs/path/apps/cli/src/main.ts mcp serve
+```
+
+工具命名：`timenote_status` / `timenote_list_notebooks` / `timenote_list_notes` /
+`timenote_search_notes` / `timenote_get_note` / `timenote_create_note` /
+`timenote_update_note` / `timenote_delete_note` / `timenote_reveal_note`。
+协议输出独占 stdout，日志走 stderr。
+
+Agent 工作流指引见 `skills/timenote/SKILL.md`。

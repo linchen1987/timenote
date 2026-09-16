@@ -1,4 +1,5 @@
 import { nanoid } from 'nanoid';
+import { createMutationQueue } from '../automation/mutation-queue';
 import { STORAGE_KEYS, SYNC_TTL_MS } from '../constants';
 import { computeVolumeUrl, createFsClient, parseVolumeUrl, resolveFsConfig } from '../fs';
 import type { FsClient, FsClientConfig, FsVolumeCredentialStore } from '../fs/types';
@@ -131,6 +132,10 @@ export class VaultOrchestrator {
   private importService: VaultImportService | null = null;
   private initialized = false;
   private loggerCache = new Map<string, { logger: Logger; config: LogConfig }>();
+  // One queue per orchestrator shared by note writes, sync applies and
+  // migrations so all local writers to a vault serialize on one critical
+  // section (agent ops included via the note service).
+  private readonly mutationQueue = createMutationQueue();
 
   constructor(
     private readonly vaultRegistry: VaultRegistry | (() => Promise<VaultRegistry>),
@@ -153,12 +158,16 @@ export class VaultOrchestrator {
     if (this.initialized) return;
     const vaultRegistry = await this.getVaultRegistry();
     this.vaultService = createVaultService(vaultRegistry);
-    this.noteService = createVaultNoteService(this.vaultService, {
-      onDeleteNote: async (projectId, noteId) => {
-        const client = await this.vaultService?.getLocalClient(projectId);
-        if (client) await appendDeleteLog(client, noteId);
+    this.noteService = createVaultNoteService(
+      this.vaultService,
+      {
+        onDeleteNote: async (projectId, noteId) => {
+          const client = await this.vaultService?.getLocalClient(projectId);
+          if (client) await appendDeleteLog(client, noteId);
+        },
       },
-    });
+      { queue: this.mutationQueue },
+    );
     this.noteMigrationService = createVaultNoteMigrationService(this.vaultService);
     this.menuService = createVaultMenuService(this.vaultService);
     this.syncService = createVaultSyncService(this.vaultService, {
@@ -260,7 +269,9 @@ export class VaultOrchestrator {
 
   async migrateNote(request: NoteMigrationRequest): Promise<NoteMigrationResult> {
     await this.init();
-    const result = await this.requireNoteMigrationService().migrateNote(request);
+    const result = await this.runMigrationExclusive(request, () =>
+      this.requireNoteMigrationService().migrateNote(request),
+    );
     if (result.status === 'completed' && this.noteService) {
       try {
         await this.noteService.rebuildIndex(request.sourceProjectId);
@@ -269,6 +280,20 @@ export class VaultOrchestrator {
       }
     }
     return result;
+  }
+
+  /** Cross-notebook migrations hold both vaults' queue slots, acquired in a
+   * stable order so concurrent A→B / B→A migrations cannot deadlock. */
+  private runMigrationExclusive<T>(
+    request: NoteMigrationRequest,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const keys = [request.sourceProjectId, request.targetProjectId].sort();
+    const [first, second] = keys;
+    if (first === second) {
+      return this.mutationQueue.run(first, fn);
+    }
+    return this.mutationQueue.run(first, () => this.mutationQueue.run(second, fn));
   }
 
   async getLocalClient(projectId: string): Promise<FsClient> {
@@ -642,19 +667,21 @@ export class VaultOrchestrator {
 
     const syncService = this.requireSyncService();
     const logger = this.getLoggerEntry(projectId).logger.scoped('sync');
+    // The apply phase runs inside the vault's mutation queue so a sync can
+    // never interleave with note writes (UI saves, agent ops) on the same
+    // vault. Remote I/O before this point stays outside the queue.
     let result: SyncResult;
     try {
-      switch (direction) {
-        case 'sync':
-          result = await syncService.sync(projectId, resolved.provider, logger);
-          break;
-        case 'pull':
-          result = await syncService.pull(projectId, resolved.provider, logger);
-          break;
-        case 'push':
-          result = await syncService.push(projectId, resolved.provider, logger);
-          break;
-      }
+      result = await this.mutationQueue.run(projectId, async () => {
+        switch (direction) {
+          case 'sync':
+            return await syncService.sync(projectId, resolved.provider, logger);
+          case 'pull':
+            return await syncService.pull(projectId, resolved.provider, logger);
+          case 'push':
+            return await syncService.push(projectId, resolved.provider, logger);
+        }
+      });
     } catch (e) {
       clearSyncCache(projectId);
       throw e;
@@ -697,6 +724,9 @@ export class VaultOrchestrator {
     await this.init();
     const importService = this.importService;
     if (!importService) throw new Error('ImportService not initialized');
-    return importService.importVault(file);
+    // target projectId is knowable from the zip manifest before any write;
+    // queue the import on the target vault so it serializes with note writes
+    const manifest = await importService.parseManifest(file);
+    return this.mutationQueue.run(manifest.project_id, () => importService.importVault(file));
   }
 }

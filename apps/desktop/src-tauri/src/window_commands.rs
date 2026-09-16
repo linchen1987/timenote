@@ -75,6 +75,22 @@ fn build_window(
     builder.build().map_err(|e| e.to_string())
 }
 
+/// Window creation entry for the automation module. `focus` controls whether
+/// the new window is brought to front; background windows stay unfocused so
+/// agent traffic never disturbs the user.
+pub fn build_notebook_window_for_automation(
+    app: &tauri::AppHandle,
+    label: &str,
+    title: &str,
+    focus: bool,
+) -> Result<String, String> {
+    let window = build_window(app, label, title, None, true)?;
+    if focus {
+        let _ = window.set_focus();
+    }
+    Ok(label.to_string())
+}
+
 fn cascade_position(caller: &tauri::Window) -> (f64, f64) {
     let scale = caller.scale_factor().unwrap_or(1.0).max(1.0);
     let base = caller

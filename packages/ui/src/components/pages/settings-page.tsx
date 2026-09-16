@@ -21,9 +21,15 @@ type VolumeCredentialEntry = FsVolumeCredential & { volumeUrl: string };
 export interface SettingsPageProps {
   useVaultStore: UseVaultStoreHook;
   testProviderConnection: (provider: FsClientConfig) => Promise<boolean>;
+  /** Optional slot for platform-specific sections (e.g. desktop agent access). */
+  extensionSection?: React.ReactNode;
 }
 
-export function SettingsPage({ useVaultStore, testProviderConnection }: SettingsPageProps) {
+export function SettingsPage({
+  useVaultStore,
+  testProviderConnection,
+  extensionSection,
+}: SettingsPageProps) {
   const [providers, setProviders] = useState<VolumeCredentialEntry[]>(() =>
     useVaultStore.getState().listVolumeCredentials(),
   );
@@ -176,6 +182,8 @@ export function SettingsPage({ useVaultStore, testProviderConnection }: Settings
             isEdit={isEditing}
           />
         )}
+
+        {extensionSection}
 
         <AboutCard />
       </div>

@@ -1,4 +1,6 @@
 import {
+  AutomationOperationError,
+  draftRegistry,
   type EditAttachment,
   extFromFilename,
   inferMimeFromExt,
@@ -46,8 +48,12 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
   const initialContentRef = useRef('');
   const initialAttachmentsRef = useRef<EditAttachment[]>([]);
   const currentContentRef = useRef('');
+  // Revision of the note content this editing session started from. Saves are
+  // CAS-guarded against it so an agent edit can never be silently overwritten.
+  const baseRevisionRef = useRef<string | null>(null);
   const [attachments, setAttachments] = useState<EditAttachment[]>([]);
   const [removedPaths, setRemovedPaths] = useState<string[]>([]);
+  const noteVersion = useStore((s) => s.noteVersion);
   const { hasRemote, handleSync, syncIcon, syncTitle, isSyncing } = useSyncButton(
     useStore,
     projectId,
@@ -65,13 +71,14 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
         const tags = await svc.getAllTags();
         if (cancelled) return;
         setAvailableTags(tags);
-        const note = await svc.getNote(projectId, nId);
+        const snapshot = await svc.getNoteSnapshot(projectId, nId);
         if (cancelled) return;
-        if (note) {
-          setBody(note.body);
-          initialContentRef.current = note.body;
-          currentContentRef.current = note.body;
-          const editAtts = attachmentRefToEditAttachment(note.frontmatter.attachments || []);
+        if (snapshot) {
+          baseRevisionRef.current = snapshot.revision;
+          setBody(snapshot.body);
+          initialContentRef.current = snapshot.body;
+          currentContentRef.current = snapshot.body;
+          const editAtts = attachmentRefToEditAttachment(snapshot.attachments);
           setAttachments(editAtts);
           initialAttachmentsRef.current = editAtts;
           setRemovedPaths([]);
@@ -85,6 +92,50 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
       cancelled = true;
     };
   }, [projectId, nId, useStore.getState]);
+
+  // Register this editing session so agent writes on the same note are
+  // rejected while a draft exists (NOTE_HAS_UNSAVED_CHANGES).
+  useEffect(() => {
+    if (!projectId || !nId) return;
+    draftRegistry.register(projectId, nId);
+    return () => {
+      draftRegistry.unregister(projectId, nId);
+    };
+  }, [projectId, nId]);
+
+  useEffect(() => {
+    if (!projectId || !nId) return;
+    draftRegistry.setDirty(projectId, nId, hasUnsavedChanges);
+  }, [projectId, nId, hasUnsavedChanges]);
+
+  // External note changes (e.g. agent edits) refresh the page only when the
+  // editor has no local draft; dirty sessions keep their content untouched.
+  const externalVersionRef = useRef(noteVersion);
+  useEffect(() => {
+    if (externalVersionRef.current === noteVersion) return;
+    externalVersionRef.current = noteVersion;
+    if (!projectId || !nId) return;
+    if (hasUnsavedChanges) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const svc = useStore.getState().getNoteService();
+        const snapshot = await svc.getNoteSnapshot(projectId, nId);
+        if (cancelled || !snapshot) return;
+        if (snapshot.body === currentContentRef.current) return;
+        baseRevisionRef.current = snapshot.revision;
+        initialContentRef.current = snapshot.body;
+        currentContentRef.current = snapshot.body;
+        setBody(snapshot.body);
+        setAttachments(attachmentRefToEditAttachment(snapshot.attachments));
+      } catch {
+        // keep last known content on refresh failure
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [noteVersion, projectId, nId, hasUnsavedChanges, useStore.getState]);
 
   const handleUpdate = useCallback((content: string) => {
     currentContentRef.current = content;
@@ -151,13 +202,23 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
         attachments !== initialAttachmentsRef.current || removedPaths.length > 0;
 
       if (contentChanged && !attachmentsChanged) {
-        await svc.updateNote(projectId, nId, content);
+        let expected = baseRevisionRef.current;
+        if (!expected) {
+          const snapshot = await svc.getNoteSnapshot(projectId, nId);
+          if (!snapshot) throw new Error(`Note not found: ${nId}`);
+          expected = snapshot.revision;
+        }
+        const result = await svc.updateNoteGuarded(projectId, nId, { content }, expected);
+        baseRevisionRef.current = result.revision;
       } else if (attachmentsChanged) {
         await svc.saveNoteWithAttachments(projectId, nId, {
           body: content,
           attachments,
           removedPaths,
+          expectedRevision: baseRevisionRef.current ?? undefined,
         });
+        const snapshot = await svc.getNoteSnapshot(projectId, nId);
+        if (snapshot) baseRevisionRef.current = snapshot.revision;
       } else {
         return;
       }
@@ -169,6 +230,10 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
       const attPaths = attachments.map((a) => a.path);
       useStore.getState().notifyNoteChange(projectId, nId, 'update', attPaths);
     } catch (e) {
+      if (e instanceof AutomationOperationError && e.code === 'REVISION_CONFLICT') {
+        toast.error('Note was modified elsewhere. Reload before saving.');
+        return;
+      }
       toast.error(`Failed to save: ${(e as Error).message}`);
     }
   }, [projectId, nId, attachments, removedPaths, useStore.getState]);
@@ -177,10 +242,21 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
     return () => {
       const content = currentContentRef.current;
       if (content && content !== initialContentRef.current && projectId && nId) {
+        const expected = baseRevisionRef.current;
         const svc = useStore.getState().getNoteService();
-        svc.updateNote(projectId, nId, content).then(() => {
-          useStore.getState().notifyNoteChange(projectId, nId, 'update');
-        });
+        // Unmount auto-save must not overwrite a newer persisted version
+        // (e.g. an agent edit that landed after this page loaded).
+        if (!expected) return;
+        draftRegistry.setDirty(projectId, nId, false);
+        svc
+          .updateNoteGuarded(projectId, nId, { content }, expected)
+          .then(() => {
+            useStore.getState().notifyNoteChange(projectId, nId, 'update');
+          })
+          .catch(() => {
+            // revision conflict or failure: drop the stale draft rather than
+            // clobbering the newer content
+          });
       }
     };
   }, [projectId, nId, useStore.getState]);

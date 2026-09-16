@@ -1,4 +1,16 @@
 import {
+  type CreateNoteOptions,
+  computeNoteRevision,
+  createNoteGuarded,
+  deleteNoteGuarded,
+  type NoteSnapshot,
+  readNoteSnapshot,
+  type UpdateNoteInput,
+  updateNoteGuarded,
+} from '../automation/agent-note-ops';
+import { createMutationQueue, type MutationQueue } from '../automation/mutation-queue';
+import { AutomationOperationError } from '../automation/contracts';
+import {
   type AttachmentRef,
   type NoteFrontmatter,
   normalizeTags,
@@ -40,6 +52,10 @@ export interface SaveNoteOptions {
   body: string;
   attachments: EditAttachment[];
   removedPaths: string[];
+  /** CAS guard: revision of the note this edit started from. Rejects with
+   * REVISION_CONFLICT when the file changed in the meantime (e.g. an agent
+   * edit) instead of silently overwriting the newer version. */
+  expectedRevision?: string;
 }
 
 export interface ListNotesOptions {
@@ -49,9 +65,14 @@ export interface ListNotesOptions {
   updatedBefore?: number;
 }
 
+export interface GuardedWriteResult {
+  revision: string;
+}
+
 export interface VaultNoteService {
   createNote(projectId: string, content?: string): Promise<string>;
   getNote(projectId: string, noteId: string): Promise<ParsedNote | null>;
+  getNoteSnapshot(projectId: string, noteId: string): Promise<NoteSnapshot | null>;
   getBody(projectId: string, noteId: string): Promise<string>;
   getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>>;
   updateNote(projectId: string, noteId: string, content: string): Promise<void>;
@@ -61,6 +82,29 @@ export interface VaultNoteService {
     noteId: string,
     options: SaveNoteOptions,
   ): Promise<void>;
+
+  createNoteGuarded(
+    projectId: string,
+    content: string,
+    options?: CreateNoteOptions,
+  ): Promise<{ noteId: string } & GuardedWriteResult>;
+  updateNoteGuarded(
+    projectId: string,
+    noteId: string,
+    update: UpdateNoteInput,
+    expectedRevision: string,
+  ): Promise<GuardedWriteResult>;
+  deleteNoteGuarded(projectId: string, noteId: string, expectedRevision: string): Promise<void>;
+
+  /** Apply an externally-modified note (raw file watcher path): read final
+   * file state, refresh index/search when it differs, report the outcome. */
+  applyExternalChange(
+    projectId: string,
+    noteId: string,
+  ): Promise<'changed' | 'deleted' | 'unchanged' | 'invalid' | 'inactive'>;
+  /** Scan all note files and reconcile index/search with disk state;
+   * returns ids whose content changed (covers edits made while closed). */
+  reconcileVault(projectId: string): Promise<string[]>;
 
   activateVault(projectId: string): Promise<void>;
   deactivateVault(): void;
@@ -83,22 +127,37 @@ export interface NoteServiceCallbacks {
   onDeleteNote?: (projectId: string, noteId: string) => Promise<void>;
 }
 
+export interface NoteServiceOptions {
+  /** Shared per-vault mutation queue; supply the orchestrator's queue so note
+   * writes, sync applies and migrations serialize on the same critical
+   * section. Defaults to a private queue. */
+  queue?: MutationQueue;
+}
+
 export function createVaultNoteService(
   vaultService: VaultService,
   callbacks?: NoteServiceCallbacks,
+  options?: NoteServiceOptions,
 ): VaultNoteService {
-  return new VaultNoteServiceImpl(vaultService, callbacks);
+  return new VaultNoteServiceImpl(vaultService, callbacks, options);
 }
 
 class VaultNoteServiceImpl implements VaultNoteService {
   private activeProjectId: string | null = null;
   private indexService: IndexService | null = null;
   private searchProvider: SearchProvider = new SimpleSearchProvider();
+  private mutationQueue: MutationQueue;
 
   constructor(
     private vaultService: VaultService,
-    private callbacks?: NoteServiceCallbacks,
-  ) {}
+    callbacks?: NoteServiceCallbacks,
+    options?: NoteServiceOptions,
+  ) {
+    this.callbacks = callbacks;
+    this.mutationQueue = options?.queue ?? createMutationQueue();
+  }
+
+  private callbacks?: NoteServiceCallbacks;
 
   private get idx(): IndexService {
     if (!this.indexService) throw new Error('No active vault. Call activateVault() first.');
@@ -106,18 +165,20 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async createNote(projectId: string, content?: string): Promise<string> {
-    const transport = await this.vaultService.getLocalClient(projectId);
-    const body = content ?? '';
-    const noteId = await createNoteOp(transport, body);
+    return this.mutationQueue.run(projectId, async () => {
+      const transport = await this.vaultService.getLocalClient(projectId);
+      const body = content ?? '';
+      const noteId = await createNoteOp(transport, body);
 
-    if (this.activeProjectId === projectId && this.indexService) {
-      const path = noteFilePath(noteId);
-      const raw = await transport.read(path);
-      await this.indexService.indexNote(noteId, raw);
-      this.searchProvider.add(noteId, body);
-    }
+      if (this.activeProjectId === projectId && this.indexService) {
+        const path = noteFilePath(noteId);
+        const raw = await transport.read(path);
+        await this.indexService.indexNote(noteId, raw);
+        this.searchProvider.add(noteId, body);
+      }
 
-    return noteId;
+      return noteId;
+    });
   }
 
   async getNote(projectId: string, noteId: string): Promise<ParsedNote | null> {
@@ -130,8 +191,15 @@ class VaultNoteServiceImpl implements VaultNoteService {
     return parseNote(raw);
   }
 
+  async getNoteSnapshot(projectId: string, noteId: string): Promise<NoteSnapshot | null> {
+    const transport = await this.vaultService.getLocalClient(projectId);
+    return readNoteSnapshot(transport, noteId);
+  }
+
   async getBody(projectId: string, noteId: string): Promise<string> {
-    if (this.indexService) {
+    // the body cache belongs to the active vault; serving it for another
+    // projectId would leak project A's content into project B's reads
+    if (this.indexService && this.activeProjectId === projectId) {
       const cached = await this.indexService.getBody(noteId);
       if (cached !== undefined) return cached;
     }
@@ -147,8 +215,9 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>> {
-    const cached = this.indexService
-      ? await this.indexService.getBodies(noteIds)
+    const activeIndex = this.activeProjectId === projectId ? this.indexService : null;
+    const cached = activeIndex
+      ? await activeIndex.getBodies(noteIds)
       : new Map<string, string>();
     if (cached.size === noteIds.length) return cached;
 
@@ -166,17 +235,23 @@ class VaultNoteServiceImpl implements VaultNoteService {
   }
 
   async updateNote(projectId: string, noteId: string, content: string): Promise<void> {
-    const transport = await this.vaultService.getLocalClient(projectId);
-    await updateNoteOp(transport, noteId, content);
+    return this.mutationQueue.run(projectId, async () => {
+      const transport = await this.vaultService.getLocalClient(projectId);
+      await updateNoteOp(transport, noteId, content);
 
-    if (this.activeProjectId === projectId && this.indexService) {
-      const raw = await transport.read(noteFilePath(noteId));
-      await this.indexService.indexNote(noteId, raw);
-      this.searchProvider.update(noteId, content);
-    }
+      if (this.activeProjectId === projectId && this.indexService) {
+        const raw = await transport.read(noteFilePath(noteId));
+        await this.indexService.indexNote(noteId, raw);
+        this.searchProvider.update(noteId, content);
+      }
+    });
   }
 
   async deleteNote(projectId: string, noteId: string): Promise<void> {
+    return this.mutationQueue.run(projectId, () => this.deleteNoteInner(projectId, noteId));
+  }
+
+  private async deleteNoteInner(projectId: string, noteId: string): Promise<void> {
     const transport = await this.vaultService.getLocalClient(projectId);
 
     const note = await this.readNoteForDelete(projectId, noteId);
@@ -200,7 +275,83 @@ class VaultNoteServiceImpl implements VaultNoteService {
     }
   }
 
+  async createNoteGuarded(
+    projectId: string,
+    content: string,
+    options?: CreateNoteOptions,
+  ): Promise<{ noteId: string } & GuardedWriteResult> {
+    return this.mutationQueue.run(projectId, async () => {
+      const transport = await this.vaultService.getLocalClient(projectId);
+      const created = await createNoteGuarded(transport, content, options);
+
+      if (this.activeProjectId === projectId && this.indexService) {
+        await this.indexService.indexNote(created.noteId, created.raw);
+        this.searchProvider.add(created.noteId, content);
+      }
+      return { noteId: created.noteId, revision: created.revision };
+    });
+  }
+
+  async updateNoteGuarded(
+    projectId: string,
+    noteId: string,
+    update: UpdateNoteInput,
+    expectedRevision: string,
+  ): Promise<GuardedWriteResult> {
+    return this.mutationQueue.run(projectId, async () => {
+      const transport = await this.vaultService.getLocalClient(projectId);
+      const result = await updateNoteGuarded(transport, noteId, update, expectedRevision);
+
+      if (this.activeProjectId === projectId && this.indexService) {
+        await this.indexService.indexNote(noteId, result.raw);
+        this.searchProvider.update(noteId, result.body);
+      }
+      return { revision: result.revision };
+    });
+  }
+
+  async deleteNoteGuarded(
+    projectId: string,
+    noteId: string,
+    expectedRevision: string,
+  ): Promise<void> {
+    return this.mutationQueue.run(projectId, async () => {
+      const transport = await this.vaultService.getLocalClient(projectId);
+
+      const note = await this.readNoteForDelete(projectId, noteId);
+      const attachmentPaths = this.extractAttachmentPaths(note);
+
+      await deleteNoteGuarded(
+        transport,
+        async (id) => {
+          await this.callbacks?.onDeleteNote?.(projectId, id);
+        },
+        noteId,
+        expectedRevision,
+      );
+
+      if (this.activeProjectId === projectId && this.indexService) {
+        await this.indexService.removeNoteIndex(noteId);
+        this.searchProvider.remove(noteId);
+      }
+
+      if (attachmentPaths.length > 0) {
+        await this.deleteOrphanedAttachments(projectId, attachmentPaths);
+      }
+    });
+  }
+
   async saveNoteWithAttachments(
+    projectId: string,
+    noteId: string,
+    options: SaveNoteOptions,
+  ): Promise<void> {
+    return this.mutationQueue.run(projectId, () =>
+      this.saveNoteWithAttachmentsInner(projectId, noteId, options),
+    );
+  }
+
+  private async saveNoteWithAttachmentsInner(
     projectId: string,
     noteId: string,
     options: SaveNoteOptions,
@@ -209,6 +360,23 @@ class VaultNoteServiceImpl implements VaultNoteService {
     const path = noteFilePath(noteId);
     const exists = await transport.exists(path);
     if (!exists) throw new Error(`Note not found: ${noteId}`);
+
+    const currentRaw = await transport.read(path);
+    if (options.expectedRevision !== undefined) {
+      const currentRevision = await computeNoteRevision(currentRaw);
+      if (currentRevision !== options.expectedRevision) {
+        throw new AutomationOperationError(
+          'REVISION_CONFLICT',
+          `Note ${noteId} changed since read`,
+          {
+            details: {
+              currentRevision,
+              expectedRevision: options.expectedRevision,
+            },
+          },
+        );
+      }
+    }
 
     const attSvc = createAttachmentService(transport);
 
@@ -226,7 +394,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
       ...(a.size != null ? { size: a.size } : {}),
     }));
 
-    const existing = parseNote(await transport.read(path));
+    const existing = parseNote(currentRaw);
     const now = new Date().toISOString();
     const extractedTags = extractTagsFromBody(options.body);
     const existingTags = normalizeTags(existing.frontmatter.tags);
@@ -275,6 +443,98 @@ class VaultNoteServiceImpl implements VaultNoteService {
       }
     }
     return deleted;
+  }
+
+  async applyExternalChange(
+    projectId: string,
+    noteId: string,
+  ): Promise<'changed' | 'deleted' | 'unchanged' | 'invalid' | 'inactive'> {
+    if (this.activeProjectId !== projectId || !this.indexService) return 'inactive';
+    return this.mutationQueue.run(projectId, async () => {
+      if (this.activeProjectId !== projectId || !this.indexService) return 'inactive' as const;
+      return this.applyExternalChangeInner(projectId, noteId);
+    });
+  }
+
+  private async applyExternalChangeInner(
+    projectId: string,
+    noteId: string,
+  ): Promise<'changed' | 'deleted' | 'unchanged' | 'invalid'> {
+    const svc = this.requireActiveIndex();
+    const transport = await this.vaultService.getLocalClient(projectId);
+    const path = noteFilePath(noteId);
+    let exists = false;
+    try {
+      exists = await transport.exists(path);
+    } catch {
+      return 'invalid';
+    }
+    const indexed = await svc.getIndex(noteId);
+
+    if (!exists) {
+      if (indexed) {
+        await svc.removeNoteIndex(noteId);
+        this.searchProvider.remove(noteId);
+        return 'deleted';
+      }
+      return 'unchanged';
+    }
+
+    let raw: string;
+    try {
+      raw = await transport.read(path);
+    } catch {
+      return 'invalid';
+    }
+    const parsed = parseNoteSafe(raw);
+    if (!parsed) return 'invalid';
+
+    const cachedBody = await svc.getBody(noteId);
+    const parsedUpdated = new Date(parsed.frontmatter.updated_at).getTime();
+    // comparing cached body + updated_at against disk detects both external
+    // edits and our own write echoes (index already matches → unchanged)
+    if (indexed && cachedBody === parsed.body && indexed.updated_at === parsedUpdated) {
+      return 'unchanged';
+    }
+
+    await svc.indexNote(noteId, raw);
+    if (indexed) this.searchProvider.update(noteId, parsed.body);
+    else this.searchProvider.add(noteId, parsed.body);
+    return 'changed';
+  }
+
+  async reconcileVault(projectId: string): Promise<string[]> {
+    if (this.activeProjectId !== projectId || !this.indexService) return [];
+    return this.mutationQueue.run(projectId, async () => {
+      if (this.activeProjectId !== projectId || !this.indexService) return [];
+      const svc = this.indexService;
+      const transport = await this.vaultService.getLocalClient(projectId);
+      const changed: string[] = [];
+
+      const volumes = await transport.list('');
+      const seen = new Set<string>();
+      for (const vol of volumes) {
+        if (!isVolumeEntry(vol)) continue;
+        const items = await transport.list(vol.basename);
+        for (const item of items) {
+          if (!isNoteFileEntry(item)) continue;
+          const noteId = noteIdFromFilename(item.basename);
+          if (!noteId) continue;
+          seen.add(noteId);
+          const outcome = await this.applyExternalChangeInner(projectId, noteId);
+          if (outcome === 'changed') changed.push(noteId);
+        }
+      }
+
+      // indexed notes whose files vanished count as externally deleted
+      for (const id of await svc.getAllNoteIds()) {
+        if (!seen.has(id)) {
+          const outcome = await this.applyExternalChangeInner(projectId, id);
+          if (outcome === 'deleted') changed.push(id);
+        }
+      }
+      return changed;
+    });
   }
 
   async activateVault(projectId: string): Promise<void> {
@@ -433,6 +693,15 @@ class VaultNoteServiceImpl implements VaultNoteService {
     if (!this.activeProjectId || !this.indexService) {
       throw new Error('No active vault. Call activateVault() first.');
     }
+  }
+
+  /** Narrowed accessor for paths that already verified an active vault but
+   * run inside the mutation queue (activation state re-checked by callers). */
+  private requireActiveIndex(): IndexService {
+    if (!this.indexService) {
+      throw new Error('No active vault. Call activateVault() first.');
+    }
+    return this.indexService;
   }
 
   private async readNoteForDelete(projectId: string, noteId: string): Promise<ParsedNote | null> {

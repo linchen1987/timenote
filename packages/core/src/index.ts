@@ -304,3 +304,57 @@ export {
   syncLedgerPath,
 } from './spec/vault-layout';
 export { VAULT_FILES, VAULT_TREE } from './spec/vault-spec';
+
+// ─── Automation (AI agent access) ────────────────────────────
+
+export {
+  type AgentNoteTransport,
+  type CreateGuardedResult,
+  computeNoteRevision,
+  createNoteGuarded,
+  deleteNoteGuarded,
+  type NoteSnapshot,
+  readNoteSnapshot,
+  type UpdateGuardedResult,
+  type UpdateNoteInput,
+  updateNoteGuarded,
+} from './automation/agent-note-ops';
+export {
+  AUTOMATION_DEFAULT_LIMIT,
+  AUTOMATION_ERROR_CODES,
+  AUTOMATION_MAX_LIMIT,
+  AUTOMATION_PROTOCOL_VERSION,
+  type AutomationErrorBody,
+  type AutomationErrorCode,
+  type AutomationErrorOptions,
+  type AutomationOperation,
+  AutomationOperationError,
+  AutomationOperationSchema,
+  type AutomationRequest,
+  AutomationRequestSchema,
+  type AutomationResponse,
+  AutomationResponseSchema,
+  DesktopRevealNoteOperationSchema,
+  DesktopStatusOperationSchema,
+  errorFromUnknown,
+  isWriteOperation,
+  makeErrorResponse,
+  makeSuccessResponse,
+  type NoteAttachmentRef,
+  type NotebookInfo,
+  NotebooksListOperationSchema,
+  type NoteContent,
+  type NoteSummary,
+  NotesCreateOperationSchema,
+  NotesDeleteOperationSchema,
+  NotesGetOperationSchema,
+  NotesListOperationSchema,
+  NotesSearchOperationSchema,
+  NotesUpdateOperationSchema,
+  type OperationStatus,
+  ProjectIdSchema,
+  parseAutomationRequest,
+  type WriteOperation,
+} from './automation/contracts';
+export { type DraftState, draftRegistry } from './automation/draft-registry';
+export { createMutationQueue, type MutationQueue } from './automation/mutation-queue';

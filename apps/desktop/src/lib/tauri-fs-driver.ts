@@ -1,7 +1,6 @@
-import type { FsClientDriver } from '@timenote/core';
-import type { FsClient, FsClientConfig, FsClientStat } from '@timenote/core';
 import { invoke } from '@tauri-apps/api/core';
 import { join } from '@tauri-apps/api/path';
+import type { FsClient, FsClientConfig, FsClientDriver, FsClientStat } from '@timenote/core';
 
 interface RawDirEntry {
   name: string;
@@ -60,7 +59,16 @@ export class TauriFsClient implements FsClient {
   }
 
   async remove(path: string): Promise<void> {
-    await invoke<void>('fs_remove', { path: await this.resolve(path), recursive: false }).catch(() => {});
+    const fullPath = await this.resolve(path);
+    try {
+      await invoke<void>('fs_remove', { path: fullPath, recursive: false });
+    } catch (e) {
+      // a missing file is already "removed"; other errors (permissions,
+      // busy) must surface — swallowing them made deletes report success
+      // while the file stayed on disk
+      const message = e instanceof Error ? e.message : String(e);
+      if (!/not exist|ENOENT|No such/i.test(message)) throw e;
+    }
   }
 
   async exists(path: string): Promise<boolean> {
