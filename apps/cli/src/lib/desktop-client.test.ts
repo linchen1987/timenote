@@ -25,6 +25,8 @@ interface FakeBroker {
   requests: unknown[];
   respondWith: (body: unknown) => unknown;
   operations: Map<string, unknown>;
+  statusCalls: number;
+  statusRespondWith?: () => unknown;
 }
 
 function startFakeBroker(): Promise<FakeBroker & { close(): Promise<void>; port: number }> {
@@ -32,6 +34,7 @@ function startFakeBroker(): Promise<FakeBroker & { close(): Promise<void>; port:
     requests: [],
     respondWith: () => {},
     operations: new Map(),
+    statusCalls: 0,
   };
 
   const httpServer = createServer((req, res) => {
@@ -49,6 +52,26 @@ function startFakeBroker(): Promise<FakeBroker & { close(): Promise<void>; port:
             error: { code: 'UNAUTHORIZED', message: 'bad token', retryable: false },
           }),
         );
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/api/v1/status') {
+        state.statusCalls++;
+        const body = state.statusRespondWith
+          ? state.statusRespondWith()
+          : {
+              protocolVersion: 1,
+              requestId: '',
+              ok: true,
+              result: {
+                op: 'desktop.status',
+                appVersion: 'test',
+                protocolVersion: 1,
+                instanceId: 'test-instance',
+                runtimes: [],
+              },
+            };
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(typeof body === 'string' ? body : JSON.stringify(body));
         return;
       }
       if (req.method === 'POST' && req.url === '/api/v1/operations') {
@@ -245,5 +268,84 @@ describe('desktop client', () => {
     });
     expect(response.ok).toBe(true);
     expect((response.result as { noteId: string }).noteId).toBe('20260521-143022-7899');
+  });
+
+  it('reports DESKTOP_UNAVAILABLE when the port is reused by a non-automation process', async () => {
+    // app closed, another process took the port, responds with garbage
+    broker.statusRespondWith = () => '<<<not json>>>';
+    const err = await createDesktopClient().catch((e: unknown) => e);
+    broker.statusRespondWith = undefined;
+    expect(err).toBeInstanceOf(DesktopCliError);
+    expect((err as DesktopCliError).code).toBe('DESKTOP_UNAVAILABLE');
+    expect((err as DesktopCliError).exitCode).toBe(4);
+    expect((err as DesktopCliError).message).toContain('not answering as the expected');
+  });
+
+  it('reports DESKTOP_UNAVAILABLE when the responder has a different instanceId', async () => {
+    broker.statusRespondWith = () => ({
+      protocolVersion: 1,
+      requestId: '',
+      ok: true,
+      result: {
+        op: 'desktop.status',
+        appVersion: 'other',
+        protocolVersion: 1,
+        instanceId: 'someone-else',
+        runtimes: [],
+      },
+    });
+    const err = await createDesktopClient().catch((e: unknown) => e);
+    broker.statusRespondWith = undefined;
+    expect(err).toBeInstanceOf(DesktopCliError);
+    expect((err as DesktopCliError).code).toBe('DESKTOP_UNAVAILABLE');
+    expect((err as DesktopCliError).exitCode).toBe(4);
+  });
+
+  it('picks up a rewritten descriptor when the original endpoint went stale', async () => {
+    // simulate a desktop restart: the read endpoint is an impostor, but the
+    // descriptor gets rewritten (new port) while the handshake is in flight
+    broker.respondWith = () => ({
+      protocolVersion: 1,
+      requestId: 'x',
+      ok: true,
+      result: { op: 'notes.list', notes: [], total: 0 },
+    });
+    const realPort = broker.port;
+    let impostorHits = 0;
+    const impostor = createServer((_req, res) => {
+      impostorHits++;
+      // the restarted desktop rewrites the descriptor mid-handshake
+      writeDesktopFiles(`http://127.0.0.1:${realPort}`);
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('i am not timenote');
+    });
+    await new Promise<void>((r) => impostor.listen(0, '127.0.0.1', r));
+    const impostorPort = (impostor.address() as { port: number }).port;
+    writeDesktopFiles(`http://127.0.0.1:${impostorPort}`);
+
+    const client = await createDesktopClient();
+    expect(impostorHits).toBe(1);
+    const response = await client.execute({
+      protocolVersion: 1,
+      requestId: 'req-recover-1',
+      operation: { op: 'notes.list', projectId: 'vTest12345', limit: 10 },
+    });
+    expect(response.ok).toBe(true);
+    await new Promise<void>((r) => impostor.close(() => r()));
+  });
+
+  it('reports retryable DESKTOP_UNAVAILABLE when the app is closed (port refused)', async () => {
+    // grab a port and free it so connections are refused instantly
+    const throwaway = createServer();
+    await new Promise<void>((r) => throwaway.listen(0, '127.0.0.1', r));
+    const port = (throwaway.address() as { port: number }).port;
+    await new Promise<void>((r) => throwaway.close(() => r()));
+    writeDesktopFiles(`http://127.0.0.1:${port}`);
+
+    const err = await createDesktopClient().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(DesktopCliError);
+    expect((err as DesktopCliError).code).toBe('DESKTOP_UNAVAILABLE');
+    expect((err as DesktopCliError).exitCode).toBe(4);
+    expect((err as DesktopCliError).retryable).toBe(true);
   });
 });

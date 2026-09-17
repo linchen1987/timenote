@@ -16,6 +16,8 @@ export const EXIT_UNAUTHORIZED = 5;
 export const EXIT_NOT_FOUND = 6;
 export const EXIT_OUTCOME_UNKNOWN = 7;
 
+const HANDSHAKE_TIMEOUT_MS = 5_000;
+
 export class DesktopCliError extends Error {
   readonly code: AutomationErrorCode | 'CLI_ERROR';
   readonly retryable: boolean;
@@ -77,12 +79,13 @@ export interface DesktopClient {
   getOperation(operationId: string): Promise<AutomationResponse>;
 }
 
-/**
- * Creates a client bound to the running Desktop instance. Fails with
- * DESKTOP_UNAVAILABLE (exit 4) when no descriptor/credentials exist or the
- * endpoint does not answer — no silent fallback to direct file writes.
- */
-export async function createDesktopClient(): Promise<DesktopClient> {
+interface ConnectionMaterial {
+  endpoint: string;
+  instanceId: string;
+  token: string;
+}
+
+function readConnectionMaterial(): ConnectionMaterial {
   const descriptor = readDescriptor();
   if (!descriptor) {
     throw new DesktopCliError(
@@ -110,8 +113,77 @@ export async function createDesktopClient(): Promise<DesktopClient> {
       },
     );
   }
+  return { endpoint: descriptor.endpoint, instanceId: descriptor.instanceId, token };
+}
 
-  const endpoint = descriptor.endpoint;
+function unreachable(endpoint: string): DesktopCliError {
+  return new DesktopCliError('DESKTOP_UNAVAILABLE', `cannot reach TimeNote Desktop at ${endpoint}`, {
+    exitCode: EXIT_UNAVAILABLE,
+    retryable: true,
+  });
+}
+
+/** A responder that speaks HTTP but not the automation protocol, or answers
+ * with a different instanceId, is not the Desktop that wrote the descriptor —
+ * typically a foreign process reusing the port after the app exited. Re-read
+ * the descriptor once (a desktop restart rewrites it with a new endpoint);
+ * if nothing changed, fail as DESKTOP_UNAVAILABLE instead of trusting a
+ * stranger with operation payloads. */
+async function recoverEndpoint(material: ConnectionMaterial): Promise<ConnectionMaterial> {
+  const fresh = readConnectionMaterial();
+  if (fresh.endpoint !== material.endpoint || fresh.instanceId !== material.instanceId) {
+    return verifyEndpoint(fresh);
+  }
+  throw new DesktopCliError(
+    'DESKTOP_UNAVAILABLE',
+    `${material.endpoint} is not answering as the expected TimeNote Desktop instance (port reused by another process?); restart the Desktop app`,
+    { exitCode: EXIT_UNAVAILABLE, retryable: true },
+  );
+}
+
+async function verifyEndpoint(material: ConnectionMaterial): Promise<ConnectionMaterial> {
+  let response: Response;
+  try {
+    response = await fetch(`${material.endpoint}/api/v1/status`, {
+      headers: { Authorization: `Bearer ${material.token}` },
+      signal: AbortSignal.timeout(HANDSHAKE_TIMEOUT_MS),
+    });
+  } catch {
+    throw unreachable(material.endpoint);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    return recoverEndpoint(material);
+  }
+  const validated = AutomationResponseSchema.safeParse(parsed);
+  if (!validated.success) {
+    return recoverEndpoint(material);
+  }
+  if (validated.data.ok) {
+    const instanceId = (validated.data.result as { instanceId?: unknown } | undefined)?.instanceId;
+    if (instanceId !== material.instanceId) {
+      return recoverEndpoint(material);
+    }
+  }
+  // An envelope error (e.g. UNAUTHORIZED) means the responder speaks the
+  // automation protocol; surface it through the real operation instead.
+  return material;
+}
+
+/**
+ * Creates a client bound to the running Desktop instance. Verifies the
+ * endpoint handshake (instanceId) before use and fails with
+ * DESKTOP_UNAVAILABLE (exit 4) when the app is closed, the descriptor is
+ * stale, or the port was taken over by another process — no silent fallback
+ * to direct file writes.
+ */
+export async function createDesktopClient(): Promise<DesktopClient> {
+  const material = await verifyEndpoint(readConnectionMaterial());
+  const endpoint = material.endpoint;
+  const token = material.token;
 
   async function post(
     pathname: string,
@@ -145,13 +217,18 @@ export async function createDesktopClient(): Promise<DesktopClient> {
       parsed = await res.json();
     } catch {
       throw new DesktopCliError(
-        'INTERNAL_ERROR',
-        `invalid response from desktop (HTTP ${res.status})`,
+        'DESKTOP_UNAVAILABLE',
+        `endpoint ${endpoint} stopped answering as TimeNote Desktop (HTTP ${res.status})`,
+        { exitCode: EXIT_UNAVAILABLE, retryable: true },
       );
     }
     const validated = AutomationResponseSchema.safeParse(parsed);
     if (!validated.success) {
-      throw new DesktopCliError('INTERNAL_ERROR', 'malformed response envelope from desktop');
+      throw new DesktopCliError(
+        'DESKTOP_UNAVAILABLE',
+        `endpoint ${endpoint} returned a malformed automation response`,
+        { exitCode: EXIT_UNAVAILABLE, retryable: true },
+      );
     }
     return validated.data as AutomationResponse;
   }

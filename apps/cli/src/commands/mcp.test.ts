@@ -55,6 +55,24 @@ async function startHarness(): Promise<
         );
         return;
       }
+      if (req.method === 'GET' && req.url === '/api/v1/status') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            protocolVersion: 1,
+            requestId: '',
+            ok: true,
+            result: {
+              op: 'desktop.status',
+              appVersion: 'test',
+              protocolVersion: 1,
+              instanceId: 'mcp-test',
+              runtimes: [],
+            },
+          }),
+        );
+        return;
+      }
       if (req.method === 'POST' && req.url === '/api/v1/operations') {
         const parsed = JSON.parse(body) as unknown;
         requests.push(parsed);
