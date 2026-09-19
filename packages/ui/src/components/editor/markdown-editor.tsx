@@ -9,6 +9,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { TableRow } from '@tiptap/extension-table-row';
 import TaskItem from '@tiptap/extension-task-item';
 import TaskList from '@tiptap/extension-task-list';
+import { CellSelection } from '@tiptap/pm/tables';
 import { type Editor, EditorContent, Extension, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
@@ -62,6 +63,26 @@ const SubmitHandler = Extension.create({
       'Mod-Enter': () => {
         this.options.onSubmit?.();
         return true;
+      },
+    };
+  },
+});
+
+// GFM 表格单元格里不能有多个块级内容：一旦 Enter 把段落拆成两个，
+// tiptap-markdown 会放弃管道语法、把整张表序列化成 HTML。单元格内把
+// Enter 转为插入硬换行（<br>），表格保持 markdown 格式。
+export const TableEnterBreak = Extension.create({
+  name: 'tableEnterBreak',
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { state } = this.editor;
+        if (state.selection instanceof CellSelection) return false;
+        if (!this.editor.isActive('tableCell') && !this.editor.isActive('tableHeader')) {
+          return false;
+        }
+        // 插入失败（如代码块内）时返回 false，走默认的 Enter 行为
+        return this.editor.commands.setHardBreak();
       },
     };
   },
@@ -262,6 +283,7 @@ const MarkdownEditor = forwardRef<MarkdownEditorRef, MarkdownEditorProps>(
           linkify: true,
           breaks: false,
         }),
+        TableEnterBreak,
         Table.configure({ resizable: true }),
         TableRow,
         TableHeader,
