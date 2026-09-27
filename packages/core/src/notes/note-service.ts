@@ -8,8 +8,9 @@ import {
   type UpdateNoteInput,
   updateNoteGuarded,
 } from '../automation/agent-note-ops';
-import { createMutationQueue, type MutationQueue } from '../automation/mutation-queue';
 import { AutomationOperationError } from '../automation/contracts';
+import { createMutationQueue, type MutationQueue } from '../automation/mutation-queue';
+import { ATTACHMENT_GC_DELAY_MS } from '../constants';
 import {
   type AttachmentRef,
   type NoteFrontmatter,
@@ -147,6 +148,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
   private indexService: IndexService | null = null;
   private searchProvider: SearchProvider = new SimpleSearchProvider();
   private mutationQueue: MutationQueue;
+  private attachmentGcPending = new Map<string, { paths: Set<string>; dueAt: number }>();
 
   constructor(
     private vaultService: VaultService,
@@ -216,9 +218,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
 
   async getBodies(projectId: string, noteIds: string[]): Promise<Map<string, string>> {
     const activeIndex = this.activeProjectId === projectId ? this.indexService : null;
-    const cached = activeIndex
-      ? await activeIndex.getBodies(noteIds)
-      : new Map<string, string>();
+    const cached = activeIndex ? await activeIndex.getBodies(noteIds) : new Map<string, string>();
     if (cached.size === noteIds.length) return cached;
 
     const missing = noteIds.filter((id) => !cached.has(id));
@@ -271,7 +271,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     }
 
     if (attachmentPaths.length > 0) {
-      await this.deleteOrphanedAttachments(projectId, attachmentPaths);
+      this.scheduleAttachmentGc(projectId, attachmentPaths);
     }
   }
 
@@ -336,7 +336,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
       }
 
       if (attachmentPaths.length > 0) {
-        await this.deleteOrphanedAttachments(projectId, attachmentPaths);
+        this.scheduleAttachmentGc(projectId, attachmentPaths);
       }
     });
   }
@@ -409,7 +409,7 @@ class VaultNoteServiceImpl implements VaultNoteService {
     await transport.write(path, raw);
 
     if (options.removedPaths.length > 0) {
-      await this.deleteOrphanedAttachments(projectId, options.removedPaths);
+      this.scheduleAttachmentGc(projectId, options.removedPaths);
     }
 
     if (this.activeProjectId === projectId && this.indexService) {
@@ -745,6 +745,31 @@ class VaultNoteServiceImpl implements VaultNoteService {
     return referenced;
   }
 
+  /** Orphan cleanup scans every note file in the vault, so it must never sit in
+   * the critical path of a user-facing write (delete/edit would stall on N
+   * reads). Debounced, then serialized on the mutation queue so it cannot race
+   * a concurrent write that re-references one of the paths. */
+  private scheduleAttachmentGc(projectId: string, paths: string[]): void {
+    if (paths.length === 0) return;
+    const pending = this.attachmentGcPending.get(projectId) ?? {
+      paths: new Set<string>(),
+      dueAt: 0,
+    };
+    for (const path of paths) pending.paths.add(path);
+    const dueAt = Date.now() + ATTACHMENT_GC_DELAY_MS;
+    pending.dueAt = dueAt;
+    this.attachmentGcPending.set(projectId, pending);
+    setTimeout(() => {
+      // superseded by a later schedule — only the newest deadline runs
+      if (pending.dueAt !== dueAt) return;
+      const batch = [...pending.paths];
+      pending.paths.clear();
+      pending.dueAt = 0;
+      this.mutationQueue
+        .run(projectId, () => this.deleteOrphanedAttachments(projectId, batch))
+        .catch((error) => console.error('[note-service] attachment gc failed:', error));
+    }, ATTACHMENT_GC_DELAY_MS);
+  }
   private async deleteOrphanedAttachments(projectId: string, paths: string[]): Promise<void> {
     if (paths.length === 0) return;
     const referenced = await this.collectAllReferencedPaths(projectId);

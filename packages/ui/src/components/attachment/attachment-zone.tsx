@@ -278,6 +278,9 @@ export function AttachmentZone({
       for (const r of results) {
         if (r) {
           loadedPathsRef.current.add(r.path);
+          // revocable like the pending-attachment URLs above; otherwise every
+          // unmounted card leaks its fetched attachment blobs
+          objectUrlsRef.current.add(r.url);
           newUrls[r.path] = r.url;
         }
       }

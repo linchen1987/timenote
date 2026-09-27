@@ -1,4 +1,5 @@
 export const NOTE_LIST_PAGE_SIZE = 20;
+export const ATTACHMENT_GC_DELAY_MS = 3000;
 
 export const CONTACT_EMAIL = 'link.lin.1987@gmail.com';
 

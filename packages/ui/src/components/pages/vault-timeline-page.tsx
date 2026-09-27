@@ -111,16 +111,26 @@ export function VaultTimelinePage({
         setBodiesMap(new Map());
         return;
       }
-      const svc = useStore.getState().getNoteService();
-      const bodies = await svc.getBodies(resolvedProjectId, noteIds);
-      setBodiesMap((prev) => {
-        const next = new Map(prev);
-        for (const [k, v] of bodies) next.set(k, v);
-        return next;
-      });
+      // only read what is not cached yet: refetching every note on each
+      // list refresh re-reads all note files from the vault transport and
+      // re-mounts editors
+      const missingBodies = noteIds.filter((id) => !bodiesMapRef.current.has(id));
+      const missingAttachments = noteIds.filter((id) => !attachmentsMapRef.current.has(id));
+      if (missingBodies.length === 0 && missingAttachments.length === 0) return;
 
+      const svc = useStore.getState().getNoteService();
+      if (missingBodies.length > 0) {
+        const bodies = await svc.getBodies(resolvedProjectId, missingBodies);
+        setBodiesMap((prev) => {
+          const next = new Map(prev);
+          for (const [k, v] of bodies) next.set(k, v);
+          return next;
+        });
+      }
+
+      if (missingAttachments.length === 0) return;
       const attResults = await Promise.all(
-        noteIds.map(async (id) => {
+        missingAttachments.map(async (id) => {
           try {
             const note = await svc.getNote(resolvedProjectId, id);
             return { id, attachments: note?.frontmatter.attachments || [] };
@@ -140,6 +150,11 @@ export function VaultTimelinePage({
 
   const notesRef = useRef(notes);
   notesRef.current = notes;
+  const bodiesMapRef = useRef(bodiesMap);
+  bodiesMapRef.current = bodiesMap;
+  const attachmentsMapRef = useRef(attachmentsMap);
+  attachmentsMapRef.current = attachmentsMap;
+  const scopeRef = useRef('');
 
   const loadNotes = useCallback(
     async (reset?: boolean) => {
@@ -186,6 +201,9 @@ export function VaultTimelinePage({
   useEffect(() => {
     if (!resolvedProjectId) return;
     let cancelled = false;
+    const scope = `${resolvedProjectId}|${searchQuery}`;
+    const scopeChanged = scopeRef.current !== scope;
+    scopeRef.current = scope;
     const init = async () => {
       try {
         await useStore.getState().init();
@@ -194,44 +212,29 @@ export function VaultTimelinePage({
         if (cancelled) return;
         setVaultName(v?.name ?? '');
         setReady(true);
-        setBodiesMap(new Map());
+        if (scopeChanged) {
+          setBodiesMap(new Map());
+          setAttachmentsMap(new Map());
+        }
         const svc = useStore.getState().getNoteService();
         const tags = await svc.getAllTags();
         if (cancelled) return;
         setAvailableTags(tags);
+        // noteVersion refreshes (edit/delete/sync) keep the already-loaded
+        // window instead of collapsing to the first page and re-mounting
+        // every card editor
+        const limit = Math.max(NOTE_LIST_PAGE_SIZE, notesRef.current.length);
         const list = searchQuery
           ? await svc.searchNotes(searchQuery)
-          : await svc.listNotes({ limit: NOTE_LIST_PAGE_SIZE, offset: 0 });
+          : await svc.listNotes({ limit, offset: 0 });
         if (cancelled) return;
         setNotes(list);
-        const reachedEnd = !searchQuery && list.length < NOTE_LIST_PAGE_SIZE;
+        const reachedEnd = !searchQuery && list.length < limit;
         if (!searchQuery) {
           setTotalCount(reachedEnd ? list.length : -1);
         }
-        if (resolvedProjectId && list.length > 0) {
-          const bodies = await svc.getBodies(
-            resolvedProjectId,
-            list.map((n) => n.id),
-          );
-          if (cancelled) return;
-          setBodiesMap(bodies);
-
-          const attResults = await Promise.all(
-            list.map(async (n) => {
-              try {
-                const parsed = await svc.getNote(resolvedProjectId, n.id);
-                return { id: n.id, attachments: parsed?.frontmatter.attachments || [] };
-              } catch {
-                return { id: n.id, attachments: [] };
-              }
-            }),
-          );
-          if (cancelled) return;
-          setAttachmentsMap((prev) => {
-            const next = new Map(prev);
-            for (const r of attResults) next.set(r.id, r.attachments);
-            return next;
-          });
+        if (list.length > 0) {
+          await loadBodies(list.map((n) => n.id));
         }
       } catch (e) {
         if (!cancelled) toast.error(`Failed to activate vault: ${(e as Error).message}`);
@@ -241,7 +244,7 @@ export function VaultTimelinePage({
     return () => {
       cancelled = true;
     };
-  }, [resolvedProjectId, searchQuery, noteVersion, useStore.getState]);
+  }, [resolvedProjectId, searchQuery, noteVersion, loadBodies, useStore.getState]);
 
   useEffect(() => {
     const query = searchParams.get('q') || '';
@@ -284,7 +287,6 @@ export function VaultTimelinePage({
       setComposerAttachments([]);
       composerRef.current?.setMarkdown('');
       composerRef.current?.focus();
-      await loadNotes(true);
       const attPaths = composerAttachments.map((a) => a.path);
       useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'create', attPaths);
     } catch (e) {
@@ -310,7 +312,20 @@ export function VaultTimelinePage({
       setEditingId(null);
       setEditAttachments([]);
       setEditRemovedPaths([]);
-      await loadNotes(true);
+      // drop cached copies of this note so the noteVersion refresh re-reads it;
+      // every other note keeps its cached body and editor instance
+      setBodiesMap((prev) => {
+        if (!prev.has(noteId)) return prev;
+        const next = new Map(prev);
+        next.delete(noteId);
+        return next;
+      });
+      setAttachmentsMap((prev) => {
+        if (!prev.has(noteId)) return prev;
+        const next = new Map(prev);
+        next.delete(noteId);
+        return next;
+      });
       const attPaths = editAttachments.map((a) => a.path);
       useStore.getState().notifyNoteChange(resolvedProjectId, noteId, 'update', attPaths);
     } catch (e) {
@@ -326,8 +341,22 @@ export function VaultTimelinePage({
       setNoteToDelete(null);
       setIsDeleteDialogOpen(false);
       toast.success('Note deleted');
-      await loadNotes(true);
-      useStore.getState().notifyNoteChange(resolvedProjectId, noteToDelete, 'delete');
+      const deletedId = noteToDelete;
+      setNotes((prev) => prev.filter((n) => n.id !== deletedId));
+      setBodiesMap((prev) => {
+        if (!prev.has(deletedId)) return prev;
+        const next = new Map(prev);
+        next.delete(deletedId);
+        return next;
+      });
+      setAttachmentsMap((prev) => {
+        if (!prev.has(deletedId)) return prev;
+        const next = new Map(prev);
+        next.delete(deletedId);
+        return next;
+      });
+      setTotalCount((prev) => (prev === -1 ? -1 : Math.max(0, prev - 1)));
+      useStore.getState().notifyNoteChange(resolvedProjectId, deletedId, 'delete');
     } catch (e) {
       toast.error(`Failed to delete note: ${(e as Error).message}`);
     }
