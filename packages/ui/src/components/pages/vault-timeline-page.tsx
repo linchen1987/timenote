@@ -814,6 +814,8 @@ function NoteCard({
                 }}
                 autoFocus
                 minHeight="200px"
+                // 暂时隐藏编辑器工具栏
+                showToolbar={false}
                 className="text-base"
                 availableTags={noteAvailableTags}
               />
