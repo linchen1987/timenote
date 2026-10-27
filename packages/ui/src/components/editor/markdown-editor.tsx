@@ -105,7 +105,7 @@ const MenuBar = ({
 
   return (
     <div className="border border-muted/30 rounded-t-lg p-1 bg-muted/20 flex flex-wrap gap-0.5">
-      <div className="flex gap-0.5 p-1 border-r border-muted/30">
+      <div className="flex gap-0.5 p-1">
         <button
           type="button"
           onClick={onToggleRawMode}
@@ -118,6 +118,7 @@ const MenuBar = ({
           &lt;/&gt;
         </button>
       </div>
+      {/* 暂时隐藏其余工具栏按钮：平时不使用，且未经充分测试
       <div className="flex gap-0.5 p-1 border-r border-muted/30">
         <button
           type="button"
@@ -215,6 +216,7 @@ const MenuBar = ({
           Code
         </button>
       </div>
+      */}
     </div>
   );
 };

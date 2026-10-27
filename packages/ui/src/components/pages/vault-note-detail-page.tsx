@@ -338,8 +338,7 @@ export function VaultNoteDetailPage({ useStore }: VaultNoteDetailPageProps) {
             onSubmit={handleSave}
             minHeight="70vh"
             className="text-lg bg-transparent border-none shadow-none p-0"
-            // 暂时隐藏编辑器工具栏
-            showToolbar={false}
+            showToolbar={true}
             availableTags={availableTags}
           />
           <input
